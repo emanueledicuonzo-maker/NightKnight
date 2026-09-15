@@ -75,7 +75,7 @@ class Gfx:
         self.tiles = {
             "#": assets.load("ground_grass", TILE, TILE, assets.pix(px.GRASS, scale=4), exact=True),
             "D": assets.load("ground_dirt", TILE, TILE, assets.pix(px.DIRT, scale=4), exact=True),
-            "=": assets.load("slab", TILE, TILE, assets.pix(px.SLAB, scale=4), exact=True),
+            "=": assets.load("slab", TILE, TILE, assets.pix(px.SLAB, scale=4), exact=True, crop_top=0.12),
             "S": assets.load("stone_wall", TILE, TILE, assets.pix(px.STONE, scale=4), exact=True),
             "H": assets.load("ladder", TILE, TILE, assets.pix(px.LADDER, scale=4), exact=True),
             "^": assets.load("spikes", TILE, TILE, assets.pix(px.SPIKES, scale=4), exact=True),
@@ -1029,6 +1029,15 @@ class Game:
         else:
             s.blit(self.gfx.background("arena_bg", self.cfg["num"]), (0, 0))
         c0 = max(0, cam // TILE)
+        if self.part == "surface":
+            if not hasattr(self, "pit_shade"):
+                self.pit_shade = pygame.Surface((TILE, H - GROUND * TILE), pygame.SRCALPHA)
+                for yy in range(self.pit_shade.get_height()):
+                    a = min(255, 120 + yy * 2)
+                    pygame.draw.line(self.pit_shade, (8, 6, 14, a), (0, yy), (TILE, yy))
+            for c in range(c0, min(lv.cols, c0 + W // TILE + 3)):
+                if lv.g[GROUND][c] == ".":
+                    s.blit(self.pit_shade, (c * TILE - cam, GROUND * TILE))
         for c in range(c0, min(lv.cols, c0 + W // TILE + 3)):
             x = c * TILE - cam
             for r in range(ROWS):

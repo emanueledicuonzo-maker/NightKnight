@@ -32,15 +32,18 @@ def _fit_h(img, h):
     return pygame.transform.smoothscale(img, (max(1, int(iw * k)), h))
 
 
-def load(name, w, h, fallback=None, exact=False, by_height=False):
+def load(name, w, h, fallback=None, exact=False, by_height=False, crop_top=0.0):
     """Immagine di nome `name` scalata a (w, h). fallback: funzione che restituisce una Surface.
     by_height: i personaggi vengono scalati sull'altezza, la larghezza segue l'immagine."""
-    key = (name, w, h, by_height)
+    key = (name, w, h, by_height, crop_top)
     if key in _cache:
         return _cache[key]
     path = os.path.join(DIR, name + ".png")
     if os.path.exists(path):
         img = pygame.image.load(path).convert_alpha()
+        if crop_top:
+            ct = int(img.get_height() * crop_top)
+            img = img.subsurface((0, ct, img.get_width(), img.get_height() - ct)).copy()
         if exact:
             img = pygame.transform.smoothscale(img, (w, h))
         elif by_height:
