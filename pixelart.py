@@ -139,6 +139,14 @@ POT = ["................", "................", "......nnnn......", ".....nNNNNn.
 CHEST = ["................", "................", "................", "................", "..kkkkkkkkkkkk..", ".khhhhhhhhhhhhk.",
          ".khhhhhhhhhhhhk.", ".kkkkkkkkkkkkkk.", ".khhhhhhYYhhhhk.", ".khhhhhhYYhhhhk.", ".khhhhhhhhhhhhk.", ".khhhhhhhhhhhhk.",
          ".khhhhhhhhhhhhk.", ".kkkkkkkkkkkkkk.", "................", "................"]
+GHOST = [
+    ["....WWWWWWWW....", "...WWWWWWWWWW...", "..WWWWWWWWWWWW..", "..WWKKWWWWKKWW..", "..WWKKWWWWKKWW..", "..WWWWWWWWWWWW..",
+     "..WWWWWKKWWWWW..", "..WWWWWWWWWWWW..", "..WWWWWWWWWWWW..", "..WWWWWWWWWWWW..", "..WWWWWWWWWWWW..", "..WWWWWWWWWWWW..",
+     "..WWWWWWWWWWWW..", "..WWWWWWWWWWWW..", "..WW.WWW.WWW.WW.", "..W...W...W...W."],
+    ["....WWWWWWWW....", "...WWWWWWWWWW...", "..WWWWWWWWWWWW..", "..WWKKWWWWKKWW..", "..WWKKWWWWKKWW..", "..WWWWWWWWWWWW..",
+     "..WWWWWKKWWWWW..", "..WWWWWWWWWWWW..", "..WWWWWWWWWWWW..", "..WWWWWWWWWWWW..", "..WWWWWWWWWWWW..", "..WWWWWWWWWWWW..",
+     "..WWWWWWWWWWWW..", ".WWWWWWWWWWWWWW.", ".W.WWW.WWW.WWW.W", "....W...W...W..."],
+]
 LANCE = ["................", "................", "..NNNNNNNNNNNNNX", "..NNNNNNNNNNNNNX", "................", "................"]
 FIREBALL = [
     [".....WWWWW......", "...WWWCCCWWWW...", "..WCCCCCCCCWWWW.", ".WCCCCCCCCCWWWWW", ".WCCCCCCCCCWWWWW", "..WCCCCCCCCWWWW.", "...WWWCCCWWWW...", ".....WWWWW......"],

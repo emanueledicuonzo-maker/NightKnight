@@ -2,7 +2,7 @@
 
 Legenda tile:
   # erba   D terra   = lastra   S muro cripta   H scala   ^ punte   E porta d'uscita
-  t lapide  + croce  Y albero   p anfora  c forziere   k scheletro   v corvo   . vuoto
+  t lapide  + croce  Y albero   k scheletro   v corvo   g fantasma   . vuoto
 """
 import random
 
@@ -38,7 +38,7 @@ def cfg(i):
         "index": i, "num": i + 1, "name": name, "boss": boss, "color": color, "power": power,
         "boss_hp": 100 + 25 * i, "boss_speed": 2.2 + 0.25 * i, "boss_dmg": 12 + 2 * i,
         "zombie_every": max(50, 130 - 7 * i), "zombie_speed": 1.4 + 0.12 * i,
-        "crows": 1 + i // 2, "skeletons": 1 + i // 3,
+        "crows": 1 + i // 2, "skeletons": 1 + i // 3, "ghosts": 1 + i // 2,
     }
 
 
@@ -89,6 +89,8 @@ def gen_surface(c):
         cc = rnd.randrange(30, cols - 20)
         if g[GROUND][cc] == "#" and g[GROUND - 1][cc] == ".":
             g[GROUND - 1][cc] = "k"
+    for _ in range(c["ghosts"]):
+        g[rnd.randrange(6, 11)][rnd.randrange(20, cols - 15)] = "g"
     g[GROUND - 1][cols - 4] = "E"
     return g
 
@@ -128,6 +130,10 @@ def gen_crypt(c):
                     g[r][cc] = "S"
             g[14][x + 4] = "k"
             x += 10
+    for _ in range(c["ghosts"] + 1):
+        cc = rnd.randrange(12, cols - 16)
+        if g[9][cc] == ".":
+            g[9][cc] = "g"
     for cc in range(cols - 12, cols - 1):
         for r in range(11, 15):
             if g[r][cc] in "=H^":

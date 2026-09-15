@@ -33,6 +33,7 @@ arthur_nude_idle.png / _run1 / _run2 / _jump / _throw : stesse pose SENZA armatu
 zombie_walk1.png, zombie_walk2.png      zombie putrefatto braccia tese, due fasi del passo
 skeleton_walk1.png, skeleton_walk2.png  scheletro con spada arrugginita
 crow_1.png, crow_2.png                  corvo nero occhi rossi, ali in alto / ali in basso
+ghost_1.png, ghost_2.png                fantasma bianco-azzurro semitrasparente, lenzuolo strappato, occhi neri vuoti, braccia tese / braccia alzate
 
 ## I 12 Cavalieri d'Oro (boss) — stesso prefisso, 1024x1024, rivolti a DESTRA
 Tutti con ARMATURA D'ORO completa stile Cavalieri dello Zodiaco, mantello, elmo, piu' alti e massicci di Arthur.

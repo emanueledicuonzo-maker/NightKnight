@@ -95,6 +95,7 @@ class Gfx:
         self.zombie = [assets.load(f"zombie_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], scale=PS), by_height=True) for i in range(2)]
         self.skeleton = [assets.load(f"skeleton_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], px.SKELETON_MAP, PS), by_height=True) for i in range(2)]
         self.crow = [assets.load(f"crow_{i + 1}", 16 * PS, 8 * PS, assets.pix(px.CROW[i], scale=PS)) for i in range(2)]
+        self.ghost = [assets.load(f"ghost_{i + 1}", 16 * PS, 16 * PS, assets.pix(px.GHOST[i], scale=PS), by_height=True) for i in range(2)]
         self.lance = assets.load("lance", 16 * PS, 6 * PS, assets.pix(px.LANCE, scale=PS))
         self.boss_cache = {}
         self.bg_cache = {}
@@ -161,7 +162,7 @@ class Level:
         self.markers = []
         for r in range(ROWS):
             for c in range(self.cols):
-                if g[r][c] in "kvE":
+                if g[r][c] in "kvgE":
                     self.markers.append((g[r][c], c, r))
         self.exit = next(((c, r) for ch, c, r in self.markers if ch == "E"), (self.cols - 4, GROUND - 1))
 
@@ -538,6 +539,50 @@ class Crow(Entity):
         self.draw_img(s, img, cam)
 
 
+class Ghost(Entity):
+    w, h = 80, 110
+    ox, oy = 24, 18
+
+    def __init__(self, c, r):
+        super().__init__(c * TILE, r * TILE)
+        self.hp = 15
+        self.t = random.randrange(200)
+        self.frozen = 0
+        self.vis = 1.0        # 0 = invisibile e intoccabile
+
+    def visible(self):
+        return self.vis > 0.5
+
+    def update(self, lv, player):
+        self.t += 1
+        if self.frozen:
+            self.frozen -= 1
+            return
+        cyc = self.t % 240
+        self.vis = min(1.0, cyc / 40) if cyc < 150 else max(0.0, 1 - (cyc - 150) / 40)
+        dx = player.rect.centerx - self.rect.centerx
+        dy = player.rect.centery - 40 - self.rect.centery
+        if abs(dx) < 1000:
+            self.facing = 1 if dx > 0 else -1
+            sp = 2.2 if self.visible() else 1.0
+            self.x += max(-sp, min(sp, dx * 0.02))
+            self.y += max(-2, min(2, dy * 0.02)) + math.sin(self.t / 10) * 1.5
+        self.y = max(TILE, min(self.y, GROUND * TILE - self.h))
+
+    def draw(self, s, gfx, cam):
+        if self.vis <= 0.02:
+            return
+        img = gfx.ghost[(self.t // 12) % 2]
+        if self.facing < 0:
+            img = assets.flip(img)
+        if self.vis < 1:
+            img = img.copy()
+            img.set_alpha(int(255 * self.vis))
+        self.draw_img(s, img, cam)
+        if self.frozen:
+            pygame.draw.rect(s, (150, 220, 255), (int(self.x) - cam, self.y, self.w, self.h), 4)
+
+
 class Lance(Entity):
     w, h = 120, 20
     ox, oy = 4, 14
@@ -643,12 +688,14 @@ class Game:
         lv = self.lv
         self.player = p = Player(2 * TILE, GROUND * TILE - Entity.h)
         p.power = self.powers[-1] if self.powers else None
-        self.zombies, self.skels, self.crows, self.lances, self.balls = [], [], [], [], []
+        self.zombies, self.skels, self.crows, self.ghosts, self.lances, self.balls = [], [], [], [], [], []
         for ch, c, r in lv.markers:
             if ch == "k":
                 self.skels.append(Skeleton(c, r))
             elif ch == "v":
                 self.crows.append(Crow(c, r))
+            elif ch == "g":
+                self.ghosts.append(Ghost(c, r))
         self.spawn_t = 60
         self.cam = 0
         self.boss = None
@@ -798,6 +845,8 @@ class Game:
             k.update(self.lv, p)
         for cr in self.crows:
             cr.update(self.lv, p)
+        for gh in self.ghosts:
+            gh.update(self.lv, p)
         for l in self.lances:
             l.update(self.lv, self.cam)
         for b in self.balls:
@@ -811,7 +860,7 @@ class Game:
                     self.throw_lance(angle=0.35)
         # colpi del giocatore sui nemici
         abox, adm = p.attack_box()
-        enemies = [(z, 100) for z in self.zombies if z.rise >= 20] + [(k, 300) for k in self.skels] + [(c, 150) for c in self.crows]
+        enemies = [(z, 100) for z in self.zombies if z.rise >= 20] + [(k, 300) for k in self.skels] + [(c, 150) for c in self.crows] + [(gh, 400) for gh in self.ghosts if gh.visible()]
         for e, pts in enemies:
             er = e.rect
             if abox and abox.colliderect(er):
@@ -827,7 +876,7 @@ class Game:
             if not e.alive:
                 continue
             if p.hurtbox().colliderect(er):
-                if p.vy > 0 and r.bottom - er.top < 40 and not isinstance(e, Crow):
+                if p.vy > 0 and r.bottom - er.top < 40 and not isinstance(e, (Crow, Ghost)):
                     self.hit_enemy(e, 10, pts=pts)
                     p.vy = -14
                     self.jb.fx("jump")
@@ -884,6 +933,7 @@ class Game:
         self.zombies = [z for z in self.zombies if z.alive]
         self.skels = [k for k in self.skels if k.alive]
         self.crows = [c for c in self.crows if c.alive]
+        self.ghosts = [gh for gh in self.ghosts if gh.alive]
         self.lances = [l for l in self.lances if l.alive]
         self.balls = [b for b in self.balls if b.alive]
 
@@ -1012,7 +1062,7 @@ class Game:
             x = c * TILE - cam
             for r in range(ROWS):
                 ch = lv.g[r][c]
-                if ch == "." or ch in "kv":
+                if ch == "." or ch in "kvg":
                     continue
                 y = r * TILE
                 if ch in self.gfx.tiles:
@@ -1060,6 +1110,8 @@ class Game:
             k.draw(s, self.gfx, cam)
         for cr in self.crows:
             cr.draw(s, self.gfx, cam)
+        for gh in self.ghosts:
+            gh.draw(s, self.gfx, cam)
         if self.boss:
             self.boss.draw(s, cam)
         for l in self.lances:
