@@ -91,6 +91,15 @@ class Gfx:
         if assets.has("tomb2"):
             self.deco["t2"] = assets.load("tomb2", TILE, TILE)
         self.player = {True: player_images(True), False: player_images(False)}
+        self.sheets = {}
+        for armor, pre in ((True, "arthur_"), (False, "arthur_nude_")):
+            d = {}
+            for pose, file in (("run", "run_sheet"), ("punch", "punch_sheet"), ("kick", "kick_sheet"),
+                               ("jump", "jump_sheet"), ("throw", "spear_lunge_sheet")):
+                fr = assets.sheet(pre + file, PH)
+                if fr:
+                    d[pose] = (fr, [assets.flip(f) for f in fr])
+            self.sheets[armor] = d
         self.bones = px.sprite(px.BONES, scale=PS)
         self.zombie = [assets.load(f"zombie_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], scale=PS), by_height=True) for i in range(2)]
         self.skeleton = [assets.load(f"skeleton_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], px.SKELETON_MAP, PS), by_height=True) for i in range(2)]
@@ -238,6 +247,7 @@ class Player(Entity):
         self.cosmo = 0
         self.invuln = 0
         self.anim = 0.0
+        self.run_t = 0.0
         self.attack = None
         self.climbing = False
         self.last_down = -999
@@ -334,6 +344,7 @@ class Player(Entity):
                     self.on_ground = True
                     break
         self.anim += abs(self.vx) / 40      # un passo ogni 8 fotogrammi a velocita' piena
+        self.run_t += abs(self.vx) / RUN_MAX * 0.4   # foglio corsa: 8 fotogrammi in ~20 frame
         if self.attack:
             name, f = self.attack
             f += 1
@@ -375,8 +386,46 @@ class Player(Entity):
             return ("run1", "run2")[int(self.anim) % 2]
         return "idle"
 
+    def sheet_frame(self, gfx):
+        """Fotogramma dal foglio di sprite, se esiste per la posa corrente."""
+        sheets = gfx.sheets[self.armor]
+        side = 0 if self.facing > 0 else 1
+        if self.climbing:
+            return None
+        if self.attack:
+            name, f = self.attack
+            base = {"punch": "punch", "kick": "kick", "throw": "throw", "cosmo": "punch"}[name]
+            if base not in sheets:
+                return None
+            fr = sheets[base][side]
+            if name == "cosmo":
+                return fr[(f // 2) % len(fr)]
+            limit = {"punch": 14, "kick": 18, "throw": 22 if self.power == "double" else 14}[name]
+            return fr[min(len(fr) - 1, f * len(fr) // limit)]
+        if not self.on_ground:
+            if "jump" not in sheets:
+                return None
+            fr = sheets["jump"][side]
+            n = len(fr)
+            if self.vy < 0:
+                i = min(n // 2 - 1, int((JUMP_V - self.vy) / -JUMP_V * (n // 2)))
+            else:
+                i = n // 2 + min(n // 2 - 1, int(self.vy / 14 * (n // 2)))
+            return fr[max(0, i)]
+        if abs(self.vx) > 0.5 and "run" in sheets:
+            fr = sheets["run"][side]
+            return fr[int(self.run_t) % len(fr)]
+        return None
+
     def draw(self, s, gfx, cam):
         if self.invuln and (self.invuln // 3) % 2 and not (self.attack and self.attack[0] == "cosmo"):
+            return
+        img = self.sheet_frame(gfx)
+        if img is not None:
+            self.draw_img(s, img, cam)
+            if self.attack and self.attack[0] == "cosmo":
+                t = self.attack[1]
+                pygame.draw.circle(s, (255, 220, 100), (self.rect.centerx - cam, self.rect.centery), 60 + t * 6, 6)
             return
         name = self.sprite_name()
         frames = gfx.player[self.armor]

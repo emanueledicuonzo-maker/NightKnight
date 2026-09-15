@@ -68,3 +68,65 @@ def flip(img):
 
 def pix(rows, remap=None, scale=6):
     return lambda: px.sprite(rows, remap, scale=scale)
+
+
+def _main_blob(cell):
+    """Rettangolo della figura principale della cella: la striscia di colonne piene piu' larga,
+    cosi' i pezzi sconfinati dalle celle vicine (punta della lancia, piede) vengono ignorati."""
+    b = cell.get_bounding_rect()
+    if not (b.w and b.h):
+        return None
+    alpha = pygame.surfarray.pixels_alpha(cell)
+    cols_full = (alpha > 8).any(axis=1)
+    del alpha
+    best, cur_start, best_run = None, None, 0
+    w = len(cols_full)
+    for x in range(w + 1):
+        full = x < w and cols_full[x]
+        if full and cur_start is None:
+            cur_start = x
+        elif not full and cur_start is not None:
+            if x - cur_start > best_run:
+                best_run, best = x - cur_start, (cur_start, x)
+            cur_start = None
+    if not best:
+        return b
+    sub = cell.subsurface((best[0], 0, best[1] - best[0], cell.get_height())).get_bounding_rect()
+    return pygame.Rect(best[0] + sub.x, sub.y, sub.w, sub.h)
+
+
+def sheet(name, h, cols=4, rows=2):
+    """Foglio di sprite a griglia: restituisce la lista dei fotogrammi, tutti della stessa dimensione,
+    scalati con lo stesso fattore (altezza del personaggio -> h) e allineati ai piedi. None se manca."""
+    key = ("sheet", name, h, cols, rows)
+    if key in _cache:
+        return _cache[key]
+    path = os.path.join(DIR, name + ".png")
+    if not os.path.exists(path):
+        _cache[key] = None
+        return None
+    img = pygame.image.load(path).convert_alpha()
+    cw, ch = img.get_width() // cols, img.get_height() // rows
+    cells, boxes = [], []
+    for r in range(rows):
+        for c in range(cols):
+            cell = img.subsurface((c * cw, r * ch, cw, ch))
+            b = _main_blob(cell)
+            if b and b.w and b.h:
+                cells.append(cell); boxes.append(b)
+    if not cells:
+        _cache[key] = None
+        return None
+    top = min(b.top for b in boxes); bottom = max(b.bottom for b in boxes)
+    k = h / (bottom - top)
+    frames = []
+    for cell, b in zip(cells, boxes):
+        crop = cell.subsurface(b).copy()
+        fw, fh = max(1, int(b.w * k)), max(1, int(b.h * k))
+        scaled = pygame.transform.smoothscale(crop, (fw, fh))
+        # tela comune: larghezza del fotogramma, altezza h, piedi in basso alla stessa quota
+        canvas = pygame.Surface((fw, h), pygame.SRCALPHA)
+        canvas.blit(scaled, (0, int((b.top - top) * k)))
+        frames.append(canvas)
+    _cache[key] = frames
+    return frames
