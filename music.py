@@ -62,23 +62,11 @@ def _render(bpm, bars, chords, bass_riff, lead_bars, key=40, drums=True, lead_ki
         for i, semi in enumerate(bass_riff):
             pos = base + int((i * 1.5) * step * SR)
             n = int(1.2 * step * SR)
-            add(pos, _osc(_midi(root + semi - 12), n, "tri") * _env(n, 0.005, 0.05, 0.7, 0.03) * 0.5)
-        # lead
-        phrase = lead_bars[b % len(lead_bars)]
-        for (st, semi, ln) in phrase:
-            if semi is None:
-                continue
-            pos = base + int(st * step * SR)
-            n = int(ln * step * SR)
-            add(pos, _osc(_midi(root + 12 + semi), n, lead_kind) * _env(n, 0.005, 0.08, 0.5, 0.04) * 0.28)
-        # batteria shuffle
-        if drums:
-            for beat in range(4):
-                p = base + int(beat * 3 * step * SR)
-                add(p, _drum("kick" if beat % 2 == 0 else "snare", int(0.2 * SR)) * 0.8)
-                add(p, _drum("hat", int(0.05 * SR)) * 0.6)
-                add(p + int(2 * step * SR), _drum("hat", int(0.05 * SR)) * 0.4)
-    out = np.tanh(out * 1.3)
+            f = _midi(root + semi - 12)
+            wave = 0.8 * _osc(f, n, "sine") + 0.2 * _osc(f, n, "tri")
+            add(pos, wave * _env(n, 0.01, 0.08, 0.6, 0.06) * 0.6)
+        # solo il basso (niente melodia, niente batteria)
+    out = np.tanh(out * 1.1) * 0.7
     stereo = np.stack([out, out], axis=1)
     return pygame.sndarray.make_sound((stereo * 32000).astype(np.int16))
 
