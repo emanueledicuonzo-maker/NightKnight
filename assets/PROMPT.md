@@ -24,7 +24,7 @@ arthur_throw.png      lancia la lancia, braccio teso in avanti
 arthur_punch.png      pugno teso in avanti stile Street Fighter
 arthur_kick.png       calcio alto in avanti
 arthur_hurt.png       colpito, piegato all'indietro
-arthur_special.png    braccia aperte, aura di energia dorata (Cosmo)
+arthur_special.png    raffica di pugni con aura dorata (Cosmo)
 arthur_climb.png      si arrampica su una scala, mani in alto
 arthur_nude_idle.png / _run1 / _run2 / _jump / _throw : stesse pose SENZA armatura,
                       in mutande bianche a cuori rossi, elmo perso
@@ -34,16 +34,26 @@ zombie_walk1.png, zombie_walk2.png      zombie putrefatto braccia tese, due fasi
 skeleton_walk1.png, skeleton_walk2.png  scheletro con spada arrugginita
 crow_1.png, crow_2.png                  corvo nero occhi rossi, ali in alto / ali in basso
 
-## Boss cimitero 1 — Cavaliere della Nebbia
-armatura grigio-argento corrosa, mantello fatto di nebbia, elmo con corna, occhi azzurri luminosi
-boss01_idle.png, boss01_walk.png, boss01_attack.png (artiglio/spada in avanti),
-boss01_special.png (lancia energia), boss01_hurt.png, boss01_ko.png (a terra)
-(Per i cimiteri 2..12: boss02_*.png ... boss12_*.png, vedi nomi in levels.py)
+## I 12 Cavalieri d'Oro (boss) — stesso prefisso, 1024x1024, rivolti a DESTRA
+Tutti con ARMATURA D'ORO completa stile Cavalieri dello Zodiaco, mantello, elmo, piu' alti e massicci di Arthur.
+Pose per ognuno (bossNN_<posa>.png, NN = 01..12):
+  idle (in guardia da kung fu), walk (passo), jump (salto calcio volante), punch (pugno teso),
+  kick (calcio alto), attack (colpo con l'ARMA), special (lancia/usa l'arma a distanza), hurt (colpito), ko (a terra)
+boss01  Cavaliere d'Oro della Nebbia   - spada lunga, mantello di nebbia, occhi azzurri
+boss02  Cavaliere d'Oro dei Corvi      - ascia bipenne, piume nere sull'elmo
+boss03  Cavaliere d'Oro del Fuoco      - martello da guerra infuocato
+boss04  Cavaliere d'Oro del Gelo       - lancia di ghiaccio, brina sull'armatura
+boss05  Cavaliere d'Oro delle Radici   - catene con uncini, edera sull'armatura
+boss06  Cavaliere d'Oro delle Ossa     - arco d'osso e frecce, elmo a teschio
+boss07  Cavaliere d'Oro del Tuono      - due lame corte elettriche
+boss08  Cavaliere d'Oro del Sangue     - bastone bo rosso, armatura macchiata
+boss09  Cavaliere d'Oro dell'Abisso    - falce gigante, armatura viola scuro
+boss10  Cavaliere d'Oro della Peste    - mazza chiodata, armatura verde corrosa
+boss11  Cavaliere d'Oro dell'Ombra     - artigli di metallo, armatura nera e oro
+boss12  Re dei Cavalieri d'Oro         - scettro dorato, corona, armatura piu' ricca di tutte
 
 ## Oggetti (trasparenti)
 lance.png    lancia medievale orizzontale, punta a destra, 1024x256
-pot.png      anfora di terracotta antica, 512x512
-chest.png    forziere di legno e ferro chiuso, 512x512
 door.png     portale di pietra di una cripta, socchiuso, luce verde dentro, 512x1024
 tomb1.png, tomb2.png   lapidi antiche muschiose, 512x512
 cross.png    croce di pietra storta, 512x512

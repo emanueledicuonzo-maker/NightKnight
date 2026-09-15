@@ -30,7 +30,10 @@ ARMOR_NAMES = {
 
 
 def cfg(i):
-    name, boss, color, power = CEMETERIES[i]
+    import knights
+    name, _, color, power = CEMETERIES[i]
+    boss = knights.KNIGHTS[i][0]
+    color = knights.KNIGHTS[i][3]
     return {
         "index": i, "num": i + 1, "name": name, "boss": boss, "color": color, "power": power,
         "boss_hp": 100 + 25 * i, "boss_speed": 2.2 + 0.25 * i, "boss_dmg": 12 + 2 * i,
@@ -70,15 +73,6 @@ def gen_surface(c):
                 g[r][cc] = "."
     for cc in range(0, 8):                   # partenza piena
         g[GROUND][cc] = "#"; g[GROUND + 1][cc] = "D"; g[GROUND + 2][cc] = "D"
-    # piattaforme alte con anfore e forzieri
-    for _ in range(6 + c["index"]):
-        cc = rnd.randrange(10, cols - 16)
-        r = rnd.choice((9, 10, 11, 7))
-        w = rnd.randrange(2, 5)
-        if all(g[r][cc + k] == "." and g[r + 1][cc + k] == "." for k in range(w) if cc + k < cols):
-            for k in range(w):
-                g[r][cc + k] = "="
-            g[r - 1][cc] = rnd.choice("pcp")
     # decorazioni e nemici a terra
     for cc in range(4, cols - 12):
         if g[GROUND][cc] == "#" and g[GROUND - 1][cc] == ".":
@@ -89,8 +83,6 @@ def gen_surface(c):
                 g[GROUND - 1][cc] = "+"
             elif v < 0.18:
                 g[GROUND - 1][cc] = "Y"
-            elif v < 0.20:
-                g[GROUND - 1][cc] = "p"
     for _ in range(c["crows"] * 3):
         g[rnd.randrange(3, 7)][rnd.randrange(15, cols - 15)] = "v"
     for _ in range(c["skeletons"]):
@@ -127,7 +119,6 @@ def gen_crypt(c):
                     g[r][cc] = "="
                 for rr in range(r, r + 3):
                     g[rr][x + 4] = "H"
-            g[top - 1][x + 2] = rnd.choice("pc")
             if rnd.random() < 0.5:
                 g[14][x + 7] = "k"
             x += 11
@@ -136,8 +127,6 @@ def gen_crypt(c):
                 for r in range(1, 11):
                     g[r][cc] = "S"
             g[14][x + 4] = "k"
-            if rnd.random() < 0.5:
-                g[14][x + 6] = "p"
             x += 10
     for cc in range(cols - 12, cols - 1):
         for r in range(11, 15):
