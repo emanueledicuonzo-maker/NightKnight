@@ -1,56 +1,62 @@
 #!/usr/bin/env python3
-"""Goblin - mix Ghosts'n Goblins / Mario / Street Fighter. Pixel art 480x270 scalata x4 a 1920x1080."""
+"""Goblin - 12 cimiteri. Sopra, sottoterra, duello col Cavaliere. Linux 1920x1080."""
+import math
 import random
 import sys
 
 import pygame
 
-SW, SH = 480, 270          # risoluzione interna
+import assets
+import levels
+import music
+import pixelart as px
+
+W, H = 1920, 1080
 FPS = 60
-TILE = 16
+TILE = 64
 ROWS = 17
-GRAVITY = 0.25
-MAX_FALL = 6
-RUN_ACC = 0.18
-RUN_MAX = 2.2
-JUMP_V = -5.8
-TIME_START = 300
+GROUND = levels.GROUND
+GRAVITY = 0.9
+MAX_FALL = 22
+RUN_ACC = 0.7
+RUN_MAX = 8.0
+JUMP_V = -22.0
+CLIMB = 5
 PLAYER_HP = 100
-BOSS_HP = 100
+SOLID = set("#D=S")
+ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"]
 
-# ---------------------------------------------------------------- palette
-PAL = {
-    "K": (20, 18, 30), "W": (245, 245, 245), "S": (250, 200, 160), "s": (200, 140, 100),
-    "A": (205, 210, 225), "a": (120, 125, 150), "H": (205, 210, 225), "R": (220, 40, 40),
-    "r": (140, 20, 20), "B": (60, 80, 200), "b": (100, 60, 30), "G": (110, 170, 90),
-    "g": (60, 110, 50), "Y": (250, 210, 60), "y": (230, 140, 30), "D": (150, 90, 50),
-    "d": (100, 60, 35), "L": (110, 200, 80), "l": (50, 130, 50), "T": (150, 150, 170),
-    "t": (95, 95, 115), "P": (80, 200, 80), "p": (30, 120, 30), "O": (150, 60, 190),
-    "o": (90, 30, 120), "C": (80, 200, 255), "M": (200, 110, 60), "m": (110, 50, 30),
-    "k": (90, 50, 20), "h": (150, 90, 40),
-}
-UNDERWEAR = {"H": "h", "A": "S", "a": "s", "B": "W"}
-
-_cache = {}
+PS = 6          # scala pixel art personaggi
+PW, PH = 16 * PS, 24 * PS
 
 
-def sprite(rows, remap=None, flip=False):
-    key = (tuple(rows), tuple(sorted((remap or {}).items())), flip)
-    if key in _cache:
-        return _cache[key]
-    w, h = len(rows[0]), len(rows)
-    surf = pygame.Surface((w, h), pygame.SRCALPHA)
-    for y, row in enumerate(rows):
-        for x, ch in enumerate(row):
-            if ch == ".":
-                continue
-            if remap:
-                ch = remap.get(ch, ch)
-            surf.set_at((x, y), PAL[ch])
-    if flip:
-        surf = pygame.transform.flip(surf, True, False)
-    _cache[key] = surf
-    return surf
+# ---------------------------------------------------------------- grafica
+def player_images(armor):
+    out = {}
+    remap = None if armor else px.UNDERWEAR
+    pre = "arthur_" if armor else "arthur_nude_"
+    for name, (torso, legs) in px.PLAYER_FRAMES.items():
+        rows = px.HEAD + px.TORSO[torso] + px.LEGS[legs]
+        file = {"run1": "run1", "run2": "run2", "jump": "jump", "punch": "punch", "kick": "kick",
+                "throw": "throw", "hado": "special", "airpunch": "punch", "airkick": "kick",
+                "airthrow": "throw", "climb": "climb", "idle": "idle"}[name]
+        fname = pre + file
+        if not armor and not assets.has(fname):
+            fname = "arthur_nude_idle" if assets.has("arthur_nude_idle") else fname
+        img = assets.load(fname, PW, PH, assets.pix(rows, remap, PS))
+        out[name] = (img, assets.flip(img))
+    return out
+
+
+def tinted(img, color):
+    """Copia dello sprite pixel-art con il rosso sostituito dal colore del boss."""
+    s = img.copy()
+    pa = pygame.PixelArray(s)
+    dark = tuple(max(0, int(v * 0.55)) for v in color)
+    pa.replace(px.PAL["R"], color)
+    pa.replace(px.PAL["r"], dark)
+    del pa
+    return s
 
 
 def white_copy(surf):
@@ -59,460 +65,248 @@ def white_copy(surf):
     return s
 
 
-# ---------------------------------------------------------------- sprite del cavaliere (16x24, guarda a destra)
-HEAD = [
-    "......HHHH......",
-    ".....HHHHHH.....",
-    "....HHHHHHHH....",
-    "..RRRRRRRRRRR...",
-    ".R..SSSSSSSS....",
-    "....SSKSSSKS....",
-    "....SSSSSSSS....",
-    ".....SSssSS.....",
-]
-TORSO = {
-    "idle": [
-        "....AAAAAAAA....",
-        "...AAAAAAAAAA...",
-        "..AAAaAAAAaAAA..",
-        "..AA.AAAAAA.AA..",
-        "..SS.AAAAAA.SS..",
-        ".....aAAAAa.....",
-    ],
-    "jump": [
-        "..S.AAAAAAAA.S..",
-        "..A.AAAAAAAA.A..",
-        "..AAAaAAAAaAAA..",
-        "....AAAAAAAA....",
-        "....AAAAAAAA....",
-        ".....aAAAAa.....",
-    ],
-    "punch": [
-        "....AAAAAAAA....",
-        "...AAAAAAAAAA...",
-        "..AAAaAAAAaAAA..",
-        "..AA.AAAAAAAAASS",
-        "..SS.AAAAAA.....",
-        ".....aAAAAa.....",
-    ],
-    "hado": [
-        "....AAAAAAAA....",
-        "...AAAAAAAAAA...",
-        "...AAaAAAAaAAAA.",
-        "...AAAAAAAAAAASS",
-        "...AAAAAAAAAAASS",
-        ".....aAAAAa.....",
-    ],
-}
-LEGS = {
-    "idle": [
-        ".....BBBBBB.....",
-        ".....BBBBBB.....",
-        ".....BBBBBB.....",
-        ".....BB..BB.....",
-        ".....BB..BB.....",
-        ".....BB..BB.....",
-        ".....BB..BB.....",
-        ".....bb..bb.....",
-        "....bbb..bbb....",
-        "....bbb..bbb....",
-    ],
-    "run1": [
-        ".....BBBBBB.....",
-        ".....BBBBBB.....",
-        ".....BBBBBB.....",
-        "....BB....BB....",
-        "...BB......BB...",
-        "...BB......BB...",
-        "..BB........BB..",
-        "..bb........bb..",
-        ".bbb........bbb.",
-        "................",
-    ],
-    "run2": [
-        ".....BBBBBB.....",
-        ".....BBBBBB.....",
-        ".....BBBBBB.....",
-        ".....BB..BBB....",
-        "....BB....BBB...",
-        "...BB......BB...",
-        "...BB.......BB..",
-        "...bb.......bb..",
-        "..bbb.......bbb.",
-        "................",
-    ],
-    "jump": [
-        ".....BBBBBB.....",
-        ".....BBBBBB.....",
-        "....BBB..BBB....",
-        "....BB....BB....",
-        "...bbb....bbb...",
-        "...bbb....bbb...",
-        "................",
-        "................",
-        "................",
-        "................",
-    ],
-    "kick": [
-        ".....BBBBBB.....",
-        ".....BBBBBB.....",
-        ".....BB.BBBBB...",
-        ".....BB..BBBBBBb",
-        ".....BB.....bbbb",
-        ".....BB.........",
-        ".....BB.........",
-        ".....bb.........",
-        "....bbb.........",
-        "................",
-    ],
-}
-PLAYER_FRAMES = {
-    "idle": ("idle", "idle"), "run1": ("idle", "run1"), "run2": ("idle", "run2"),
-    "jump": ("jump", "jump"), "punch": ("punch", "idle"), "kick": ("idle", "kick"),
-    "hado": ("hado", "idle"), "airpunch": ("punch", "jump"), "airkick": ("punch", "kick"),
-}
-BONES = [
-    "................",
-    "....WW..W.......",
-    "...W..WWWW.W....",
-    "..WWWWWWWWWWW...",
-    ".WWWWWWWWWWWWWW.",
-    "..W.WWWWWWWW.W..",
-]
+class Gfx:
+    def __init__(self):
+        self.tiles = {
+            "#": assets.load("ground_grass", TILE, TILE, assets.pix(px.GRASS, scale=4), exact=True),
+            "D": assets.load("ground_dirt", TILE, TILE, assets.pix(px.DIRT, scale=4), exact=True),
+            "=": assets.load("slab", TILE, TILE, assets.pix(px.SLAB, scale=4), exact=True),
+            "S": assets.load("stone_wall", TILE, TILE, assets.pix(px.STONE, scale=4), exact=True),
+            "H": assets.load("ladder", TILE, TILE, assets.pix(px.LADDER, scale=4), exact=True),
+            "^": assets.load("spikes", TILE, TILE, assets.pix(px.SPIKES, scale=4), exact=True),
+        }
+        self.deco = {
+            "t": assets.load("tomb1", TILE, TILE, assets.pix(px.TOMB, scale=4)),
+            "+": assets.load("cross", TILE, TILE, assets.pix(px.CROSS, scale=4)),
+            "Y": assets.load("tree", TILE * 2, TILE * 3, assets.pix(px.TREE, scale=8)),
+            "p": assets.load("pot", TILE, TILE, assets.pix(px.POT, scale=4)),
+            "c": assets.load("chest", TILE, TILE, assets.pix(px.CHEST, scale=4)),
+            "E": assets.load("door", TILE, TILE * 2, assets.pix(px.DOOR, scale=4)),
+        }
+        if assets.has("tomb2"):
+            self.deco["t2"] = assets.load("tomb2", TILE, TILE)
+        self.player = {True: player_images(True), False: player_images(False)}
+        self.bones = px.sprite(px.BONES, scale=PS)
+        self.zombie = [assets.load(f"zombie_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], scale=PS)) for i in range(2)]
+        self.skeleton = [assets.load(f"skeleton_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], px.SKELETON_MAP, PS)) for i in range(2)]
+        self.crow = [assets.load(f"crow_{i + 1}", 16 * PS, 8 * PS, assets.pix(px.CROW[i], scale=PS)) for i in range(2)]
+        self.lance = assets.load("lance", 16 * PS, 6 * PS, assets.pix(px.LANCE, scale=PS))
+        self.fire = [px.sprite(f, scale=PS) for f in px.FIREBALL]
+        self.boss_cache = {}
+        self.bg_cache = {}
 
-ZOMBIE = [
-    [
-        "......GGGG......", ".....GGGGGG.....", ".....GRGGRG.....", ".....GGGGGG.....",
-        "......GGGG......", ".....gggggg.....", "....gggggggGGGG.", "....gggggggGGGG.",
-        "....gggggg......", "....gggggg......", "....gggggg......", "....gggggg......",
-        ".....gggg.......", ".....gggg.......", ".....KK.KK......", ".....KK.KK......",
-        ".....KK.KK......", ".....KK.KK......", ".....KK.KK......", ".....KK.KK......",
-        ".....KK.KK......", ".....KK.KK......", "....KKK.KKK.....", "....KKK.KKK.....",
-    ],
-    [
-        "......GGGG......", ".....GGGGGG.....", ".....GRGGRG.....", ".....GGGGGG.....",
-        "......GGGG......", ".....gggggg.....", "....gggggggGGGG.", "....gggggggGGGG.",
-        "....gggggg......", "....gggggg......", "....gggggg......", "....gggggg......",
-        ".....gggg.......", ".....gggg.......", "....KK..KK......", "....KK...KK.....",
-        "...KK.....KK....", "...KK.....KK....", "..KK......KK....", "..KK.......KK...",
-        "..KK.......KK...", ".KK........KK...", ".KKK.......KKK..", "................",
-    ],
-]
+    def boss(self, num, color):
+        if num in self.boss_cache:
+            return self.boss_cache[num]
+        bw, bh = 24 * 8, 28 * 8
+        d = {}
+        for pose, rows in (("idle", px.DEMON), ("attack", px.DEMON_ATTACK)):
+            base = px.sprite(rows, scale=8)
+            img = assets.load(f"boss{num:02d}_{pose}", bw, bh, lambda b=base: tinted(b, color))
+            d[pose] = (img, assets.flip(img))
+        for pose in ("walk", "special", "hurt", "ko"):
+            if assets.has(f"boss{num:02d}_{pose}"):
+                img = assets.load(f"boss{num:02d}_{pose}", bw, bh)
+                d[pose] = (img, assets.flip(img))
+        d["white"] = tuple(white_copy(i) for i in d["idle"])
+        self.boss_cache[num] = d
+        return d
 
-DEMON = [
-    "....rr..........rr......",
-    "....rrr........rrr......",
-    ".....rRRRRRRRRRRr.......",
-    ".....RRRRRRRRRRRR.......",
-    ".....RRYRRRRRRYRR.......",
-    ".....RRRRRRRRRRRR.......",
-    "......RRRWRRWRRR........",
-    "......RRRRRRRRRR........",
-    ".......RRRRRRRR.........",
-    "rr...RRRRRRRRRRRR...rr..",
-    "rrr.RRRRRRRRRRRRRR.rrr..",
-    "rrrrRRRRRRRRRRRRRRrrrr..",
-    "rrrrRRRRRRRRRRRRRRrrrr..",
-    ".rrrRRRRRRRRRRRRRRrrr...",
-    "..rrRRRRRRRRRRRRRRrr....",
-    "...rRRRRRRRRRRRRRRr.....",
-    "....RRRRRRRRRRRRRR......",
-    "....RRRR.RRRRR.RRRR.....",
-    "....RRR..RRRRR..RRR.....",
-    "...YYY...RRRRR...YYY....",
-    ".........RRRRR..........",
-    "........RRR.RRR.........",
-    ".......RRR...RRR........",
-    "......RRR.....RRR.......",
-    "......RRR.....RRR.......",
-    "......rrr.....rrr.......",
-    ".....rrrr.....rrrr......",
-    "................",
-]
-DEMON = [r.ljust(24, ".") for r in DEMON]
-DEMON_ATTACK = list(DEMON)
-DEMON_ATTACK[17] = "....RRRR.RRRRR.RRRRRRRR."
-DEMON_ATTACK[18] = "....RRR..RRRRR..RRRRRYYY"
-DEMON_ATTACK[19] = "...YYY...RRRRR.......YYY"
+    def background(self, kind, num):
+        key = (kind, num)
+        if key in self.bg_cache:
+            return self.bg_cache[key]
+        name = None
+        for n in range(num, 0, -1):
+            if assets.has(f"{kind}_{n:02d}"):
+                name = f"{kind}_{n:02d}"
+                break
+        img = assets.load(name, W, H, exact=True) if name else self.make_bg(kind, num)
+        self.bg_cache[key] = img
+        return img
 
-GRASS = [
-    "LLLLLLLLLLLLLLLL", "LlLLLlLLLLlLLLlL", "llllllllllllllll", "DdDDDDDdDDDDDDdD",
-    "DDDDDDDDDDDDDDDD", "DDDdDDDDDDdDDDDD", "DDDDDDDDDDDDDDDD", "dDDDDDdDDDDDDDdD",
-    "DDDDDDDDDDDDDDDD", "DDDDdDDDDDdDDDDD", "DDDDDDDDDDDDDDDD", "DdDDDDDDdDDDDDDD",
-    "DDDDDDDDDDDDDDdD", "DDDdDDDDDDDdDDDD", "DDDDDDDDDDDDDDDD", "dDDDDDdDDDDDDDDD",
-]
-DIRT = ["DDDdDDDDDDDdDDDD", "DDDDDDDDDDDDDDDD", "dDDDDDdDDDDDDDDD"] + GRASS[3:]
-BRICK = [
-    "MMMMMMMmMMMMMMMm", "MMMMMMMmMMMMMMMm", "MMMMMMMmMMMMMMMm", "mmmmmmmmmmmmmmmm",
-    "MMMmMMMMMMMmMMMM", "MMMmMMMMMMMmMMMM", "MMMmMMMMMMMmMMMM", "mmmmmmmmmmmmmmmm",
-] * 2
-QBLOCK = [
-    "yyyyyyyyyyyyyyyy", "yYyYYYYYYYYYYyYy", "yYYYYYkkkkYYYYYy", "yYYYYkkYYkkYYYYy",
-    "yYYYYkkYYkkYYYYy", "yYYYYYYYYkkYYYYy", "yYYYYYYYkkYYYYYy", "yYYYYYYkkYYYYYYy",
-    "yYYYYYYkkYYYYYYy", "yYYYYYYYYYYYYYYy", "yYYYYYYkkYYYYYYy", "yYYYYYYkkYYYYYYy",
-    "yYYYYYYYYYYYYYYy", "yYYYYYYYYYYYYYYy", "yYyYYYYYYYYYYyYy", "yyyyyyyyyyyyyyyy",
-]
-UBLOCK = ["mmmmmmmmmmmmmmmm"] + ["mMMMMMMMMMMMMMMm"] * 14 + ["mmmmmmmmmmmmmmmm"]
-PIPE_TOP = ["pPPPPPPPPPPPPPPPPPPPPPPPPPPPPPPp", "pPPWPPPPPPPPPPPPPPPPPPPPPPPPPPpp"] + \
-           ["pPPWPPPPPPPPPPPPPPPPPPPPPPPPPPpp"] * 12 + ["pPPPPPPPPPPPPPPPPPPPPPPPPPPPPPpp", "pppppppppppppppppppppppppppppppp"]
-PIPE_BODY = ["..pPPWPPPPPPPPPPPPPPPPPPPPPPpp.."] * 16
-TOMB = [
-    ".....TTTTTT.....", "....TTTTTTTT....", "...TTTTTTTTTT...", "...TTTTTTTTTT...",
-    "...TTtTtTtTTT...", "...TTtTtTtTTT...", "...TTTTTTTTTT...", "...TTttttttTT...",
-    "...TTTTTTTTTT...", "...TTTTTTTTTT...", "...TTTTTTTTTT...", "...TTTTTTTTTT...",
-    "...TTTTTTTTTT...", "...TTTTTTTTTT...", "..tttttttttttt..", "................",
-]
-CROSS = [
-    "......TTTT......", "......TTTT......", "..TTTTTTTTTTTT..", "..TTTTTTTTTTTT..",
-    "......TTTT......", "......TTTT......", "......TTTT......", "......TTTT......",
-    "......TTTT......", "......TTTT......", "......TTTT......", "......TTTT......",
-    "......TTTT......", "......TTTT......", "....tttttttt....", "................",
-]
-TREE = [
-    ".k..........k...", ".kk........kk...", "..kk..kk..kk....", "...kk.kk.kk.....",
-    "....kkkkkk......", ".....kkkk.......", ".....kkkk.......", ".....kkkkk......",
-    ".....kkkk.......", ".....kkkk.......", ".....kkkkk......", ".....kkkk.......",
-    ".....kkkk.......", ".....kkkk.......", ".....kkkk.......", ".....kkkkk......",
-    ".....kkkk.......", ".....kkkk.......", ".....kkkk.......", ".....kkkk.......",
-    ".....kkkk.......", ".....kkkk.......", "....kkkkkk......", "................",
-]
-MUSHROOM = [
-    ".....RRRRRR.....", "...RRWWRRRRWR...", "..RRWWWRRRRRRR..", ".RRRWWRRRWWRRRR.",
-    ".RRRRRRRRWWWRRR.", "RRRRRRRRRRWWRRRR", "RRWWRRRRRRRRRWWR", "RRWWRRRRRRRRRWRR",
-    "RRRRRRRRRRRRRRRR", "..SSSSSSSSSSSS..", "..SSKSSSSSSKSS..", "..SSKSSSSSSKSS..",
-    "..SSSSSSSSSSSS..", "...SSSSSSSSSS...", "................", "................",
-]
-COIN = [
-    ["..YYYY..", ".YYyyYY.", "YYyYYyYY", "YYyYYyYY", "YYyYYyYY", "YYyYYyYY", ".YYyyYY.", "..YYYY.."],
-    ["...YY...", "..YyyY..", "..YyyY..", "..YyyY..", "..YyyY..", "..YyyY..", "..YyyY..", "...YY..."],
-]
-FIREBALL = [
-    [".....WWWWW......", "...WWWCCCWWWW...", "..WCCCCCCCCWWWW.", ".WCCCCCCCCCWWWWW",
-     ".WCCCCCCCCCWWWWW", "..WCCCCCCCCWWWW.", "...WWWCCCWWWW...", ".....WWWWW......"],
-    [".....WWWWW......", "...WWWCCCWWW....", "..WCCCCCCCCWWW..", ".WCCCCCCCCCWWWWW",
-     ".WCCCCCCCCCWWWWW", "..WCCCCCCCCWWW..", "...WWWCCCWWW....", ".....WWWWW......"],
-]
-DEMONBALL = [r.replace("C", "O").replace("W", "o") for r in FIREBALL[0]]
-FLAG = [
-    "RRRRRRRRRR", "RRRRRRRRR.", "RRRRRRRR..", "RRRRRRR...", "RRRRRR....", "RRRRR.....", "RRRR......", "RRR.......",
-]
-
-FONT = {
-    "A": ".#.#.#####.##.#", "B": "##.#.###.#.###.", "C": ".###..#..#...##", "D": "##.#.##.##.###.",
-    "E": "####..##.#..###", "F": "####..##.#..#..", "G": ".###..#.##.#.##", "H": "#.##.#####.##.#",
-    "I": "###.#..#..#.###", "J": "..#..#..##.#.#.", "K": "#.##.###.#.##.#", "L": "#..#..#..#..###",
-    "M": "#.###########.#", "N": "##.#.##.##.##.#", "O": ".#.#.##.##.#.#.", "P": "##.#.###.#..#..",
-    "Q": ".#.#.##.###..##", "R": "##.#.###.#.##.#", "S": ".###...#...###.", "T": "###.#..#..#..#.",
-    "U": "#.##.##.##.####", "V": "#.##.##.##.#.#.", "W": "#.##.########.#", "X": "#.##.#.#.#.##.#",
-    "Y": "#.##.#.#..#..#.", "Z": "###..#.#.#..###", "0": "####.##.##.####", "1": ".#.##..#..#.###",
-    "2": "##...#.#.#..###", "3": "###..#.##..####", "4": "#.##.####..#..#", "5": "####..##...###.",
-    "6": ".###..####.####", "7": "###..#.#..#..#.", "8": "####.#####.####", "9": "####.####..###.",
-    ":": "....#.....#....", "!": ".#..#..#.....#.", ".": "............#..", "-": "......###......",
-    "/": "..#..#.#.#..#..", " ": "...............",
-}
-
-
-def draw_text(surf, text, x, y, color=(245, 245, 245), scale=1):
-    for ch in text.upper():
-        g = FONT.get(ch, FONT[" "]).ljust(15, ".")
-        for i, c in enumerate(g[:15]):
-            if c == "#":
-                surf.fill(color, (x + (i % 3) * scale, y + (i // 3) * scale, scale, scale))
-        x += 4 * scale
+    def make_bg(self, kind, num):
+        rnd = random.Random(num)
+        if kind == "hills":
+            s = pygame.Surface((W + 800, 360), pygame.SRCALPHA)
+            for i in range(0, W + 800, 680):
+                pygame.draw.ellipse(s, (32, 20, 60), (i, 90, 960, 480))
+            for i in range(360, W + 800, 840):
+                pygame.draw.ellipse(s, (24, 15, 48), (i, 170, 800, 400))
+            for i in range(60, W + 800, 230):
+                pygame.draw.rect(s, (22, 16, 40), (i, 250 + rnd.randrange(40), 40, 110))
+            return s
+        s = pygame.Surface((W, H))
+        if kind == "sky":
+            top, bot = (10, 6, 34), (58, 26, 88)
+        elif kind == "crypt_bg":
+            top, bot = (12, 14, 18), (30, 34, 40)
+        else:
+            top, bot = (20, 8, 30), (70, 20, 60)
+        for y in range(H):
+            t = y / H
+            pygame.draw.line(s, [int(top[i] + (bot[i] - top[i]) * t) for i in range(3)], (0, y), (W, y))
+        if kind != "crypt_bg":
+            for _ in range(160):
+                pygame.draw.rect(s, (200, 200, 225), (rnd.randrange(W), rnd.randrange(600), 3, 3))
+            pygame.draw.circle(s, (240, 235, 200), (1560, 180), 80)
+            pygame.draw.circle(s, top, (1595, 160), 66)
+        else:
+            for i in range(0, W, 320):
+                pygame.draw.rect(s, (40, 44, 52), (i + 100, 64, 60, H))
+                pygame.draw.rect(s, (60, 130, 60), (i + 122, 380, 16, 30))
+                pygame.draw.ellipse(s, (90, 200, 90), (i + 116, 350, 28, 40))
+        return s
 
 
 # ---------------------------------------------------------------- livello
-SOLID = set("#D=?MU[]()")
-
-
-def build_level():
-    cols = 212
-    g = [["." for _ in range(cols)] for _ in range(ROWS)]
-
-    def ground(a, b):
-        for c in range(a, b):
-            g[14][c] = "#"
-            g[15][c] = "D"
-            g[16][c] = "D"
-
-    def put(c, r, ch):
-        g[r][c] = ch
-
-    def pipe(c, h):
-        top = 14 - h
-        put(c, top, "["); put(c + 1, top, "]")
-        for r in range(top + 1, 14):
-            put(c, r, "("); put(c + 1, r, ")")
-
-    ground(0, 42); ground(46, 84); ground(88, 124); ground(128, 212)
-    # decorazioni
-    for c in (5, 9, 20, 30, 50, 70, 95, 110, 135, 150):
-        put(c, 13, "t")
-    for c in (14, 36, 62, 104, 142):
-        put(c, 13, "+")
-    for c in (24, 56, 78, 116, 146):
-        put(c, 13, "Y")
-    # blocchi e piattaforme
-    for c in range(12, 17):
-        put(c, 10, "?" if c in (13, 15) else "=")
-    for c in range(41, 47):
-        put(c, 10, "=")
-    put(60, 10, "M")
-    for c in range(66, 72):
-        put(c, 10, "?" if c in (67, 70) else "=")
-    put(68, 6, "?")
-    for c in range(82, 90):
-        put(c, 11, "=")
-    for i in range(4):
-        for c in range(100 + i, 104):
-            put(c, 13 - i, "=")
-    for c in range(105, 109):
-        put(c, 9, "?")
-    for c in range(122, 129):
-        put(c, 11, "=")
-    put(125, 7, "M")
-    for c in range(136, 141):
-        put(c, 10, "=" if c != 138 else "?")
-    pipe(52, 2); pipe(92, 3); pipe(154, 2)
-    # arena boss: colonne 162-191, poi bandiera
-    put(162, 13, "B")
-    put(201, 13, "F")
-    return g
-
-
 class Level:
-    def __init__(self):
-        self.g = build_level()
-        self.cols = len(self.g[0])
+    def __init__(self, g, kind):
+        self.g = g
+        self.kind = kind
+        self.cols = len(g[0])
         self.w = self.cols * TILE
-        self.arena_x = 162 * TILE
-        self.flag_x = 201 * TILE
-        self.tiles = {
-            "#": sprite(GRASS), "D": sprite(DIRT), "=": sprite(BRICK), "?": sprite(QBLOCK),
-            "M": sprite(QBLOCK), "U": sprite(UBLOCK), "t": sprite(TOMB), "+": sprite(CROSS),
-        }
-        self.tree = sprite(TREE)
-        self.pipe_top = sprite(PIPE_TOP)
-        self.pipe_body = sprite(PIPE_BODY)
-        self.coin = [sprite(c) for c in COIN]
-        self.flag = sprite(FLAG)
+        self.markers = []
+        for r in range(ROWS):
+            for c in range(self.cols):
+                if g[r][c] in "kvE":
+                    self.markers.append((g[r][c], c, r))
+        self.exit = next(((c, r) for ch, c, r in self.markers if ch == "E"), (self.cols - 4, GROUND - 1))
 
     def at(self, c, r):
-        if r < 0 or r >= ROWS or c < 0 or c >= self.cols:
-            return "=" if c < 0 else "."
+        if c < 0 or c >= self.cols:
+            return "S"
+        if r < 0 or r >= ROWS:
+            return "."
         return self.g[r][c]
 
-    def solid(self, px, py):
-        return self.at(int(px // TILE), int(py // TILE)) in SOLID
+    def solid(self, x, y):
+        return self.at(int(x // TILE), int(y // TILE)) in SOLID
 
-    def draw(self, s, cam_x, frame):
-        c0 = max(0, int(cam_x // TILE))
-        for c in range(c0, min(self.cols, c0 + SW // TILE + 2)):
-            x = c * TILE - cam_x
-            for r in range(ROWS):
-                ch = self.g[r][c]
-                if ch == ".":
-                    continue
-                y = r * TILE
-                if ch in self.tiles:
-                    s.blit(self.tiles[ch], (x, y))
-                elif ch == "Y":
-                    s.blit(self.tree, (x, y - 8))
-                elif ch == "[":
-                    s.blit(self.pipe_top, (x, y))
-                elif ch == "(":
-                    s.blit(self.pipe_body, (x, y))
-                elif ch == "F":
-                    pygame.draw.rect(s, PAL["T"], (x + 7, y - 96, 2, 112))
-                    pygame.draw.rect(s, PAL["Y"], (x + 5, y - 100, 6, 5))
-                    s.blit(self.flag, (x - 1, y - 92))
+    def tile_at(self, x, y):
+        return self.at(int(x // TILE), int(y // TILE))
 
 
 # ---------------------------------------------------------------- entita'
 class Entity:
-    w, h = 10, 22      # hitbox
+    w, h = 54, 132
+    ox, oy = 21, 12       # offset sprite -> hitbox
 
     def __init__(self, x, y):
         self.x, self.y = float(x), float(y)
         self.vx = self.vy = 0.0
         self.on_ground = False
         self.alive = True
+        self.facing = 1
 
     @property
     def rect(self):
         return pygame.Rect(int(self.x), int(self.y), self.w, self.h)
 
-    def move(self, lv, bump=None):
-        # asse x
+    def move(self, lv, gravity=True):
         self.x += self.vx
         r = self.rect
         if self.vx > 0:
-            for py in (r.top + 1, r.centery, r.bottom - 1):
+            for py in (r.top + 2, r.centery, r.bottom - 2):
                 if lv.solid(r.right - 1, py):
                     self.x = (r.right - 1) // TILE * TILE - self.w
                     self.vx = 0
                     break
         elif self.vx < 0:
-            for py in (r.top + 1, r.centery, r.bottom - 1):
+            for py in (r.top + 2, r.centery, r.bottom - 2):
                 if lv.solid(r.left, py):
                     self.x = (r.left // TILE + 1) * TILE
                     self.vx = 0
                     break
-        # asse y
-        self.vy = min(self.vy + GRAVITY, MAX_FALL)
+        if gravity:
+            self.vy = min(self.vy + GRAVITY, MAX_FALL)
         self.y += self.vy
         r = self.rect
         self.on_ground = False
         if self.vy > 0:
-            if lv.solid(r.left + 1, r.bottom) or lv.solid(r.right - 2, r.bottom):
+            if lv.solid(r.left + 2, r.bottom) or lv.solid(r.right - 3, r.bottom):
                 self.y = r.bottom // TILE * TILE - self.h
                 self.vy = 0
                 self.on_ground = True
         elif self.vy < 0:
-            hits = [px for px in (r.left + 1, r.right - 2) if lv.solid(px, r.top)]
-            if hits:
+            if lv.solid(r.left + 2, r.top) or lv.solid(r.right - 3, r.top):
                 self.y = (r.top // TILE + 1) * TILE
                 self.vy = 0
-                if bump:
-                    row = int(r.top // TILE)
-                    special = [px for px in hits if lv.at(int(px // TILE), row) in "?M"]
-                    px = min(special or hits, key=lambda p: abs(p - r.centerx))
-                    bump(int(px // TILE), row)
+
+    def draw_img(self, s, img, cam):
+        s.blit(img, (int(self.x) - self.ox - cam, int(self.y) - self.oy))
 
 
 class Player(Entity):
     def __init__(self, x, y):
         super().__init__(x, y)
-        self.facing = 1
         self.armor = True
         self.hp = PLAYER_HP
+        self.cosmo = 0
         self.invuln = 0
-        self.anim = 0
-        self.attack = None      # (nome, frame)
+        self.anim = 0.0
+        self.attack = None
+        self.climbing = False
         self.last_down = -999
         self.last_fwd = -999
-
-    def frames(self):
-        return sprite_frames(self.armor)
+        self.power = None
 
     def hurtbox(self):
-        return self.rect.inflate(-2, -2)
+        return self.rect.inflate(-10, -6)
 
     def attack_box(self):
         if not self.attack:
             return None, 0
         name, f = self.attack
         r = self.rect
-        if name == "punch" and 3 <= f <= 8:
-            return pygame.Rect(r.right if self.facing > 0 else r.left - 12, r.top + 8, 12, 6), 5
-        if name == "kick" and 4 <= f <= 11:
-            return pygame.Rect(r.right if self.facing > 0 else r.left - 14, r.top + 12, 14, 8), 8
+        if name == "punch" and 3 <= f <= 9:
+            return pygame.Rect(r.right if self.facing > 0 else r.left - 70, r.top + 40, 70, 36), 6
+        if name == "kick" and 4 <= f <= 12:
+            return pygame.Rect(r.right if self.facing > 0 else r.left - 84, r.top + 60, 84, 46), 9
         return None, 0
 
-    def update(self, keys, lv, bump):
+    def update(self, keys, lv):
         left = keys[pygame.K_LEFT] or keys[pygame.K_a]
         right = keys[pygame.K_RIGHT] or keys[pygame.K_d]
-        jump = keys[pygame.K_SPACE] or keys[pygame.K_UP] or keys[pygame.K_w]
+        up = keys[pygame.K_UP] or keys[pygame.K_w]
+        down = keys[pygame.K_DOWN] or keys[pygame.K_s]
+        jump = keys[pygame.K_SPACE] or up
+        r = self.rect
+        on_ladder = lv.tile_at(r.centerx, r.centery) == "H"
+        ladder_below = lv.tile_at(r.centerx, r.bottom + 2) == "H"
+        if not self.climbing and ((on_ladder and (up or down)) or (ladder_below and down and self.on_ground)):
+            self.climbing = True
+            self.attack = None
+            if ladder_below and not on_ladder:
+                self.y += 8
+        if self.climbing:
+            if not (on_ladder or ladder_below):
+                self.climbing = False
+            else:
+                self.vx = 0
+                self.vy = 0
+                feet_row = r.bottom // TILE
+                at_top = lv.at(r.centerx // TILE, feet_row) == "H" and lv.at(r.centerx // TILE, feet_row - 1) != "H"
+                if up and at_top and r.bottom - feet_row * TILE <= CLIMB * 4:
+                    self.y = feet_row * TILE - self.h      # in piedi sulla cima della scala
+                    self.climbing = False
+                    self.on_ground = True
+                    return
+                if up:
+                    self.y -= CLIMB
+                elif down:
+                    self.y += CLIMB
+                if left and not right:
+                    self.x -= 2; self.facing = -1
+                elif right and not left:
+                    self.x += 2; self.facing = 1
+                self.anim += 0.5 if (up or down) else 0
+                self.move(lv, gravity=False)
+                if self.on_ground and down:
+                    self.climbing = False
+                if self.invuln:
+                    self.invuln -= 1
+                return
         grounded_attack = self.attack and self.on_ground
         if not grounded_attack:
             if right and not left:
@@ -521,335 +315,544 @@ class Player(Entity):
                 self.vx = max(self.vx - RUN_ACC, -RUN_MAX); self.facing = -1
             else:
                 self.vx *= 0.8 if self.on_ground else 0.98
-                if abs(self.vx) < 0.1:
+                if abs(self.vx) < 0.3:
                     self.vx = 0
         else:
             self.vx = 0
-        if not jump and self.vy < -2:
-            self.vy = -2     # salto corto se si rilascia
-        self.move(lv, bump)
-        self.anim += abs(self.vx)
+        if not jump and self.vy < -8:
+            self.vy = -8
+        self.move(lv)
+        if self.vy >= 0 and not self.on_ground:
+            r = self.rect
+            for fx in (r.left + 4, r.right - 5):
+                if lv.tile_at(fx, r.bottom) == "H" and lv.tile_at(fx, r.bottom - TILE) != "H" and (r.bottom % TILE) <= self.vy + 1:
+                    self.y = r.bottom // TILE * TILE - self.h
+                    self.vy = 0
+                    self.on_ground = True
+                    break
+        self.anim += abs(self.vx) / 8
         if self.attack:
             name, f = self.attack
             f += 1
-            limit = {"punch": 12, "kick": 16, "hado": 20}[name]
+            limit = {"punch": 14, "kick": 18, "throw": 14, "hado": 22, "cosmo": 40}[name]
             self.attack = None if f >= limit else (name, f)
         if self.invuln:
             self.invuln -= 1
 
     def do_jump(self):
+        if self.climbing:
+            self.climbing = False
+            self.vy = JUMP_V * 0.7
+            return True
         if self.on_ground:
             self.vy = JUMP_V
             self.on_ground = False
+            return True
+        return False
 
     def start_attack(self, name):
-        if not self.attack:
+        if not self.attack and not self.climbing:
             self.attack = (name, 0)
             return True
         return False
 
     def sprite_name(self):
+        if self.climbing:
+            return "climb"
         if self.attack:
             name = self.attack[0]
+            if name == "cosmo":
+                return "hado"
             if not self.on_ground and name != "hado":
                 return "air" + name
             return name
         if not self.on_ground:
             return "jump"
-        if abs(self.vx) > 0.3:
-            return ("run1", "idle", "run2", "idle")[int(self.anim / 6) % 4]
+        if abs(self.vx) > 0.5:
+            return ("run1", "idle", "run2", "idle")[int(self.anim) % 4]
         return "idle"
 
-    def draw(self, s, cam_x):
-        if self.invuln and (self.invuln // 3) % 2:
+    def draw(self, s, gfx, cam):
+        if self.invuln and (self.invuln // 3) % 2 and not (self.attack and self.attack[0] == "cosmo"):
             return
-        img = self.frames()[self.sprite_name()][0 if self.facing > 0 else 1]
-        s.blit(img, (int(self.x) - 3 - cam_x, int(self.y) - 2))
-
-
-_frames_cache = {}
-
-
-def sprite_frames(armor):
-    if armor in _frames_cache:
-        return _frames_cache[armor]
-    remap = None if armor else UNDERWEAR
-    out = {}
-    for name, (torso, legs) in PLAYER_FRAMES.items():
-        rows = HEAD + TORSO[torso] + LEGS[legs]
-        out[name] = (sprite(rows, remap), sprite(rows, remap, flip=True))
-    _frames_cache[armor] = out
-    return out
+        img = gfx.player[self.armor][self.sprite_name()][0 if self.facing > 0 else 1]
+        self.draw_img(s, img, cam)
+        if self.attack and self.attack[0] == "cosmo":
+            t = self.attack[1]
+            rad = 60 + t * 6
+            pygame.draw.circle(s, (255, 220, 100), (self.rect.centerx - cam, self.rect.centery), rad, 6)
 
 
 class Zombie(Entity):
-    def __init__(self, x):
-        super().__init__(x, 14 * TILE - 22)
+    def __init__(self, x, cfg):
+        super().__init__(x, GROUND * TILE - 132)
         self.rise = 0
         self.age = 0
-        self.dir = -1
-        self.imgs = [(sprite(f), sprite(f, flip=True)) for f in ZOMBIE]
+        self.hp = 10
+        self.speed = cfg["zombie_speed"]
+        self.frozen = 0
 
     def update(self, lv, player):
         self.age += 1
+        if self.frozen:
+            self.frozen -= 1
+            return
         if self.rise < 40:
             self.rise += 1
             return
-        if self.age > 9 * FPS:
+        if self.age > 10 * FPS:
             self.rise -= 1
             if self.rise <= 0:
                 self.alive = False
             return
-        self.dir = 1 if player.x > self.x else -1
+        self.facing = 1 if player.x > self.x else -1
         r = self.rect
-        ahead = r.right + 1 if self.dir > 0 else r.left - 2
-        if lv.solid(ahead, r.bottom + 1) and not lv.solid(ahead, r.centery):
-            self.vx = 0.45 * self.dir
+        ahead = r.right + 2 if self.facing > 0 else r.left - 3
+        if lv.solid(ahead, r.bottom + 2) and not lv.solid(ahead, r.centery):
+            self.vx = self.speed * self.facing
         else:
             self.vx = 0
         self.move(lv)
 
-    def draw(self, s, cam_x, frame):
-        h = int(24 * min(1, self.rise / 40))
+    def draw(self, s, gfx, cam):
+        h = int(PH * min(1, self.rise / 40))
         if h <= 0:
             return
-        img = self.imgs[(self.age // 10) % 2][0 if self.dir > 0 else 1]
-        y = 14 * TILE - h
-        s.blit(img, (int(self.x) - 3 - cam_x, y), (0, 0, 16, h))
-        pygame.draw.rect(s, PAL["d"], (int(self.x) - 5 - cam_x, 14 * TILE - 2, 20, 3))
+        img = gfx.zombie[(self.age // 12) % 2]
+        if self.facing < 0:
+            img = assets.flip(img)
+        y = GROUND * TILE - h
+        s.blit(img, (int(self.x) - self.ox - cam, y), (0, 0, PW, h))
+        if self.frozen:
+            pygame.draw.rect(s, (150, 220, 255), (int(self.x) - cam, self.y, self.w, self.h), 4)
+        pygame.draw.ellipse(s, (60, 40, 30), (int(self.x) - 30 - cam, GROUND * TILE - 8, self.w + 60, 16))
 
 
-class Mushroom(Entity):
-    w, h = 14, 14
+class Skeleton(Entity):
+    def __init__(self, c, r):
+        super().__init__(c * TILE + 5, (r + 1) * TILE - 132)
+        self.hp = 20
+        self.t = random.randrange(90)
+        self.facing = -1
+        self.frozen = 0
+        self.hit_t = 0
 
-    def __init__(self, x, y):
-        super().__init__(x, y)
-        self.vx = 0.7
-        self.img = sprite(MUSHROOM)
-        self.pop = 16
+    def attack_box(self):
+        if 0 < self.hit_t <= 12:
+            r = self.rect
+            return pygame.Rect(r.right if self.facing > 0 else r.left - 60, r.top + 40, 60, 40)
+        return None
 
-    def update(self, lv):
-        if self.pop:
-            self.pop -= 1
-            self.y -= 1
+    def update(self, lv, player):
+        self.t += 1
+        if self.frozen:
+            self.frozen -= 1
             return
-        if self.vx == 0:
-            self.vx = 0.7 if random.random() < 0.5 else -0.7
-        d = 1 if self.vx > 0 else -1
+        if self.hit_t:
+            self.hit_t -= 1
+            self.vx = 0
+            self.move(lv)
+            return
+        dist = player.x - self.x
+        if abs(dist) < 700:
+            self.facing = 1 if dist > 0 else -1
+        if abs(dist) < 90 and abs(player.y - self.y) < 100:
+            self.hit_t = 24
+        r = self.rect
+        ahead = r.right + 2 if self.facing > 0 else r.left - 3
+        if lv.solid(ahead, r.bottom + 2) and not lv.solid(ahead, r.centery):
+            self.vx = 2.6 * self.facing
+        else:
+            self.vx = 0
+            if abs(dist) >= 700:
+                self.facing = -self.facing
         self.move(lv)
-        if self.vx == 0:
-            self.vx = -0.7 * d
-        if self.y > SH + 20:
+
+    def draw(self, s, gfx, cam):
+        img = gfx.skeleton[(self.t // 10) % 2]
+        if self.facing < 0:
+            img = assets.flip(img)
+        self.draw_img(s, img, cam)
+        if self.frozen:
+            pygame.draw.rect(s, (150, 220, 255), (int(self.x) - cam, self.y, self.w, self.h), 4)
+
+
+class Crow(Entity):
+    w, h = 70, 34
+    ox, oy = 13, 8
+
+    def __init__(self, c, r):
+        super().__init__(c * TILE, r * TILE)
+        self.home = (self.x, self.y)
+        self.hp = 5
+        self.t = 0
+        self.state = "wait"
+        self.frozen = 0
+
+    def update(self, lv, player):
+        self.t += 1
+        if self.frozen:
+            self.frozen -= 1
+            return
+        dx = player.x - self.x
+        if self.state == "wait":
+            if abs(dx) < 800:
+                self.state = "dive"
+                self.facing = 1 if dx > 0 else -1
+                self.t = 0
+        elif self.state == "dive":
+            ty = player.y + 30
+            self.x += 6 * self.facing
+            self.y += (ty - self.y) * 0.04 + math.sin(self.t / 6) * 3
+            if self.t > 110:
+                self.state = "away"; self.t = 0
+        else:
+            self.x += 7 * self.facing
+            self.y -= 4
+            if self.t > 120:
+                self.state = "wait"
+                self.x, self.y = self.home
+                self.t = 0
+
+    def draw(self, s, gfx, cam):
+        img = gfx.crow[(self.t // (15 if self.state == "wait" else 5)) % 2]
+        if self.facing < 0:
+            img = assets.flip(img)
+        self.draw_img(s, img, cam)
+
+
+class Lance(Entity):
+    w, h = 90, 16
+    ox, oy = 3, 4
+
+    def __init__(self, x, y, d, power, angle=0.0):
+        super().__init__(x, y)
+        self.d = d
+        self.power = power
+        self.vx = 17 * d * math.cos(angle)
+        self.vy = -17 * math.sin(angle)
+        self.angle = angle
+        self.bounced = False
+        self.hits = set()
+        self.cosmo = False
+        self.dmg = 10 * (2 if power in ("fire", "big") else 1)
+        self.t = 0
+
+    def update(self, lv, cam):
+        self.t += 1
+        self.x += self.vx
+        self.y += self.vy
+        r = self.rect
+        if lv.solid(r.centerx, r.centery):
+            if self.power == "bounce" and not self.bounced:
+                self.bounced = True
+                self.vx = -self.vx
+                self.d = -self.d
+                self.x += self.vx * 2
+            else:
+                self.alive = False
+        if r.right < cam - 100 or r.left > cam + W + 100 or r.top > H + 50 or r.bottom < -400:
             self.alive = False
 
-    def draw(self, s, cam_x):
-        s.blit(self.img, (int(self.x) - 1 - cam_x, int(self.y) - 1))
-
-
-class CoinPop:
-    def __init__(self, x, y):
-        self.x, self.y, self.t = x, y, 0
-        self.alive = True
-
-    def update(self):
-        self.t += 1
-        self.y -= 1.5 if self.t < 12 else -0.5
-        self.alive = self.t < 24
+    def draw(self, s, gfx, cam):
+        img = gfx.lance if self.d > 0 else assets.flip(gfx.lance)
+        if self.power == "big":
+            img = pygame.transform.scale(img, (img.get_width() * 3 // 2, img.get_height() * 3 // 2))
+        if self.angle:
+            img = pygame.transform.rotate(img, math.degrees(self.angle) * self.d)
+        if self.power == "fire":
+            pygame.draw.circle(s, (250, 120, 30), (self.rect.centerx - cam, self.rect.centery), 14 + (self.t % 3) * 3)
+        elif self.power == "ice":
+            pygame.draw.circle(s, (150, 220, 255), (self.rect.centerx - cam, self.rect.centery), 12)
+        elif self.cosmo:
+            pygame.draw.circle(s, (255, 220, 100), (self.rect.centerx - cam, self.rect.centery), 16, 3)
+        s.blit(img, img.get_rect(center=(self.rect.centerx - cam, self.rect.centery)))
 
 
 class Fireball(Entity):
-    w, h = 12, 6
+    w, h = 80, 36
+    ox, oy = 8, 6
 
-    def __init__(self, x, y, d, owner, dmg):
+    def __init__(self, x, y, d, owner, dmg, color=None, speed=13):
         super().__init__(x, y)
         self.d = d
         self.owner = owner
         self.dmg = dmg
+        self.color = color
         self.t = 0
-        base = FIREBALL if owner == "player" else [DEMONBALL, DEMONBALL]
-        self.imgs = [(sprite(f), sprite(f, flip=True)) for f in base]
+        self.vx = speed * d
 
-    def update(self, lv, cam_x):
+    def update(self, lv, cam):
         self.t += 1
-        self.x += 3.2 * self.d
+        self.x += self.vx
         r = self.rect
-        if lv.solid(r.centerx, r.centery) or r.right < cam_x - 20 or r.left > cam_x + SW + 20:
+        if lv.solid(r.centerx, r.centery) or r.right < cam - 100 or r.left > cam + W + 100:
             self.alive = False
 
-    def draw(self, s, cam_x):
-        img = self.imgs[(self.t // 5) % 2][0 if self.d > 0 else 1]
-        s.blit(img, (int(self.x) - 2 - cam_x, int(self.y) - 1))
+    def draw(self, s, gfx, cam):
+        img = gfx.fire[(self.t // 5) % 2]
+        if self.owner == "boss":
+            img = img.copy()
+            pa = pygame.PixelArray(img); pa.replace(px.PAL["C"], self.color or (150, 60, 190)); del pa
+        if self.d < 0:
+            img = pygame.transform.flip(img, True, False)
+        self.draw_img(s, img, cam)
 
 
 class Boss(Entity):
-    w, h = 18, 26
+    w, h = 130, 210
+    ox, oy = 31, 14
 
-    def __init__(self, x):
-        super().__init__(x, 14 * TILE - 26)
-        self.hp = BOSS_HP
+    def __init__(self, x, cfg, gfx):
+        super().__init__(x, GROUND * TILE - 210)
+        self.cfg = cfg
+        self.hp = cfg["boss_hp"]
+        self.max_hp = cfg["boss_hp"]
         self.facing = -1
         self.state = "walk"
         self.t = 0
+        self.cycle = 0
         self.flash = 0
         self.invuln = 0
-        self.imgs = (sprite(DEMON), sprite(DEMON, flip=True))
-        self.imgs_atk = (sprite(DEMON_ATTACK), sprite(DEMON_ATTACK, flip=True))
-        self.white = (white_copy(self.imgs[0]), white_copy(self.imgs[1]))
-        self.cycle = 0
+        self.frozen = 0
+        self.imgs = gfx.boss(cfg["num"], cfg["color"])
+        self.speed = cfg["boss_speed"]
+        self.dmg = cfg["boss_dmg"]
+        self.ko_t = 0
 
     def attack_box(self):
-        if self.state == "claw" and 12 <= self.t <= 22:
+        if self.state == "claw" and 14 <= self.t <= 26:
             r = self.rect
-            return pygame.Rect(r.right if self.facing > 0 else r.left - 14, r.top + 10, 14, 10)
+            return pygame.Rect(r.right if self.facing > 0 else r.left - 110, r.top + 60, 110, 80)
+        if self.state == "dash" and self.t > 10:
+            return self.rect.inflate(20, 0)
         return None
 
     def update(self, lv, player, arena_x, spawn_ball):
+        if self.hp <= 0:
+            self.ko_t += 1
+            self.vx = 0
+            self.move(lv)
+            return
         self.t += 1
         self.cycle += 1
         if self.invuln:
             self.invuln -= 1
         if self.flash:
             self.flash -= 1
+        if self.frozen:
+            self.frozen -= 1
+            self.vx = 0
+            self.move(lv)
+            return
         dx = player.x - self.x
-        self.facing = 1 if dx > 0 else -1
+        i = self.cfg["index"]
         if self.state == "walk":
-            self.vx = 0.7 * self.facing if abs(dx) > 20 else 0
-            if abs(dx) <= 22 and self.on_ground:
+            self.facing = 1 if dx > 0 else -1
+            self.vx = self.speed * self.facing if abs(dx) > 120 else 0
+            if abs(dx) <= 140 and self.on_ground:
                 self.state, self.t = "claw", 0
-            elif self.cycle % 170 == 0 and self.on_ground:
+            elif self.cycle % 160 == 0 and self.on_ground:
                 self.state, self.t = "jump", 0
-                self.vy = -5.5
-                self.vx = 1.6 * self.facing
-            elif self.cycle % 230 == 115:
+                self.vy = -24
+                self.vx = 7 * self.facing
+            elif self.cycle % 220 == 110:
                 self.state, self.t = "ball", 0
+            elif i >= 2 and self.cycle % 300 == 200 and abs(dx) > 300:
+                self.state, self.t = "dash", 0
         elif self.state == "claw":
             self.vx = 0
-            if self.t > 34:
+            if self.t > 40:
                 self.state = "walk"
         elif self.state == "jump":
-            if self.on_ground and self.t > 5:
+            if self.on_ground and self.t > 8:
                 self.state, self.t = "walk", 0
         elif self.state == "ball":
             self.vx = 0
-            if self.t == 20:
+            self.facing = 1 if dx > 0 else -1
+            if self.t == 24 or (i >= 5 and self.t == 40):
                 r = self.rect
-                spawn_ball(r.right if self.facing > 0 else r.left - 12, r.top + 8, self.facing)
-            if self.t > 40:
+                spawn_ball(r.right if self.facing > 0 else r.left - 80, r.top + 60, self.facing)
+            if self.t > 50:
+                self.state = "walk"
+        elif self.state == "dash":
+            if self.t <= 10:
+                self.vx = 0
+                self.facing = 1 if dx > 0 else -1
+            else:
+                self.vx = (self.speed * 4) * self.facing
+            if self.t > 45:
                 self.state = "walk"
         self.move(lv)
-        self.x = max(arena_x + 4, min(self.x, arena_x + SW - self.w - 4))
+        self.x = max(arena_x + TILE + 4, min(self.x, arena_x + W - TILE - self.w - 4))
 
-    def hit(self, dmg):
-        if self.invuln:
+    def hit(self, dmg, power=None):
+        if self.invuln or self.hp <= 0:
             return False
         self.hp = max(0, self.hp - dmg)
-        self.invuln = 20
-        self.flash = 8
-        self.vx = 0
+        self.invuln = 18
+        self.flash = 10
+        if power == "ice":
+            self.frozen = 60
         return True
 
-    def draw(self, s, cam_x):
+    def draw(self, s, cam):
         i = 0 if self.facing > 0 else 1
-        img = self.imgs_atk[i] if self.state == "claw" and self.t >= 10 else self.imgs[i]
-        pos = (int(self.x) - 3 - cam_x, int(self.y) - 1)
+        if self.hp <= 0 and "ko" in self.imgs:
+            img = self.imgs["ko"][i]
+        elif self.hp <= 0:
+            img = pygame.transform.rotate(self.imgs["idle"][i], 90 * (1 if self.facing < 0 else -1))
+        elif self.state == "claw" and self.t >= 10:
+            img = self.imgs["attack"][i]
+        elif self.state == "ball" and "special" in self.imgs:
+            img = self.imgs["special"][i]
+        elif self.flash and "hurt" in self.imgs:
+            img = self.imgs["hurt"][i]
+        elif self.state in ("walk", "dash") and self.vx and "walk" in self.imgs and (self.t // 8) % 2:
+            img = self.imgs["walk"][i]
+        else:
+            img = self.imgs["idle"][i]
+        pos = (int(self.x) - self.ox - cam, int(self.y) - self.oy)
+        if self.hp <= 0 and "ko" not in self.imgs:
+            pos = (pos[0] - 40, pos[1] + 90)
         s.blit(img, pos)
-        if self.flash and (self.flash // 2) % 2:
-            s.blit(self.white[i], pos)
+        if self.flash and (self.flash // 2) % 2 and self.hp > 0:
+            s.blit(self.imgs["white"][i], pos)
+        if self.frozen:
+            pygame.draw.rect(s, (150, 220, 255), (int(self.x) - cam, self.y, self.w, self.h), 5)
+
+
+class Pickup(Entity):
+    w, h = 50, 50
+    ox, oy = 7, 14
+
+    def __init__(self, c, r, kind):
+        super().__init__(c * TILE + 7, (r + 1) * TILE - 50)
+        self.kind = kind
+
+
+class Effect:
+    def __init__(self, x, y, text, color):
+        self.x, self.y, self.text, self.color, self.t = x, y, text, color, 0
+        self.alive = True
+
+    def update(self):
+        self.t += 1
+        self.y -= 1.5
+        self.alive = self.t < 50
 
 
 # ---------------------------------------------------------------- gioco
 class Game:
     def __init__(self):
         pygame.init()
-        self.screen = pygame.display.set_mode((SW, SH), pygame.FULLSCREEN | pygame.SCALED)
+        self.screen = pygame.display.set_mode((W, H), pygame.FULLSCREEN | pygame.SCALED)
         pygame.display.set_caption("Goblin")
         self.clock = pygame.time.Clock()
-        self.s = pygame.Surface((SW, SH))
-        self.bg = self.make_bg()
-        self.hills = self.make_hills()
-        self.bones = sprite(BONES)
+        self.gfx = Gfx()
+        self.jb = music.Jukebox()
         self.frame = 0
         self.hi = 0
-        self.new_game()
-
-    def make_bg(self):
-        bg = pygame.Surface((SW, SH))
-        top, bot = (10, 6, 34), (58, 26, 88)
-        for y in range(SH):
-            t = y / SH
-            pygame.draw.line(bg, [int(top[i] + (bot[i] - top[i]) * t) for i in range(3)], (0, y), (SW, y))
-        rnd = random.Random(5)
-        for _ in range(90):
-            bg.set_at((rnd.randrange(SW), rnd.randrange(150)), (190, 190, 215))
-        pygame.draw.circle(bg, (240, 235, 200), (390, 45), 18)
-        pygame.draw.circle(bg, (18, 12, 46), (398, 40), 15)
-        return bg
-
-    def make_hills(self):
-        h = pygame.Surface((SW + 200, 80), pygame.SRCALPHA)
-        for i in range(0, SW + 200, 170):
-            pygame.draw.ellipse(h, (32, 20, 60), (i, 20, 240, 120))
-        for i in range(90, SW + 200, 210):
-            pygame.draw.ellipse(h, (24, 15, 48), (i, 40, 200, 100))
-        return h
-
-    def new_game(self):
+        self.state = "title"
         self.score = 0
-        self.coins = 0
+        self.ci = 0
+        self.cfg = levels.cfg(0)
+        self.powers = []
+        self.player = Player(0, 0)
+        self.msg = None
+        self.effects = []
+        self.rounds = [0, 0]
+
+    # ---- flusso
+    def new_game(self, ci=0):
+        if ci == 0:
+            self.score = 0
+            self.powers = []
         self.lives = 3
-        self.lv = Level()
-        self.checkpoint = 32
-        self.boss_started = False
-        self.spawn_player()
-        self.state = "play"
+        self.ci = ci
+        self.start_part("surface")
 
-    def spawn_player(self):
-        self.player = Player(self.checkpoint, 14 * TILE - 22)
-        self.zombies, self.items, self.balls, self.pops = [], [], [], []
+    def start_part(self, part):
+        c = levels.cfg(self.ci)
+        self.cfg = c
+        self.part = part
+        g = {"surface": levels.gen_surface, "crypt": levels.gen_crypt, "arena": levels.gen_arena}[part](c)
+        self.lv = Level(g, part)
+        self.rounds = [0, 0]
+        self.spawn()
+        self.state = "card"
+        self.card_t = 150
+        self.jb.play({"surface": "surface", "crypt": "crypt", "arena": "arena"}[part])
+
+    def spawn(self):
+        lv = self.lv
+        self.player = p = Player(2 * TILE, GROUND * TILE - 132)
+        p.power = self.powers[-1] if self.powers else None
+        self.zombies, self.skels, self.crows, self.lances, self.balls, self.pickups = [], [], [], [], [], []
+        for ch, c, r in lv.markers:
+            if ch == "k":
+                self.skels.append(Skeleton(c, r))
+            elif ch == "v":
+                self.crows.append(Crow(c, r))
+        for r in range(ROWS):
+            for c in range(lv.cols):
+                if lv.g[r][c] in "pc":
+                    self.pickups.append(Pickup(c, r, lv.g[r][c]))
+        self.spawn_t = 60
+        self.cam = 0
         self.boss = None
-        self.arena = False
-        self.arena_open = False
+        self.msg = None
+        self.effects = []
         self.intro = 0
-        self.msg = None        # (testo, frames, colore)
-        self.time = TIME_START
-        self.time_acc = 0
-        self.spawn_t = 90
-        self.state_t = 0
-        self.cam_x = int(max(0, min(self.player.x - SW / 2, self.lv.w - SW)))
-        if self.boss_started:
-            self.start_arena()
+        if self.part == "arena":
+            self.start_round()
 
-    def start_arena(self):
-        self.arena = True
-        self.boss_started = True
-        self.checkpoint = self.lv.arena_x + 24
-        self.boss = Boss(self.lv.arena_x + SW - 60)
-        self.zombies = []
-        self.msg = ("ROUND 1", 70, PAL["Y"])
-        self.intro = 120
+    def start_round(self):
+        c = self.cfg
+        self.player.hp = PLAYER_HP
+        self.player.x = 3 * TILE
+        self.player.armor = True
+        self.boss = Boss(W - 5 * TILE, c, self.gfx)
+        self.balls, self.lances = [], []
+        self.intro = 150
+        self.round_no = self.rounds[0] + self.rounds[1] + 1
+        self.msg = (f"ROUND {self.round_no}", 90, (250, 210, 60))
+        self.ko_wait = 0
 
-    # ---- blocchi
-    def bump(self, c, r):
-        ch = self.lv.at(c, r)
-        if ch == "?":
-            self.lv.g[r][c] = "U"
-            self.pops.append(CoinPop(c * TILE + 4, r * TILE - 8))
-            self.coins += 1
-            self.score += 200
-        elif ch == "M":
-            self.lv.g[r][c] = "U"
-            self.items.append(Mushroom(c * TILE + 1, r * TILE - 14))
+    def next_part(self):
+        if self.part == "surface":
+            self.start_part("crypt")
+        elif self.part == "crypt":
+            self.start_part("arena")
+        else:
+            self.powers.append(self.cfg["power"])
+            self.state = "armor"
+            self.card_t = 260
+            self.jb.play("victory")
 
+    def after_armor(self):
+        self.ci += 1
+        if self.ci >= 12:
+            self.state = "end"
+            self.hi = max(self.hi, self.score)
+            self.jb.stop()
+        else:
+            self.start_part("surface")
+
+    # ---- danni
     def hurt_player(self, dmg, from_x):
         p = self.player
-        if p.invuln or self.state != "play":
+        if p.invuln or self.state != "play" or (p.attack and p.attack[0] == "cosmo"):
             return
-        p.invuln = 70
-        p.vy = -2.5
-        p.vx = 1.5 if p.x > from_x else -1.5
+        p.invuln = 80
+        p.vy = -9
+        p.vx = 6 if p.x > from_x else -6
         p.attack = None
+        p.climbing = False
+        self.jb.fx("hurt")
         if p.armor:
             p.armor = False
+            self.effects.append(Effect(p.x, p.y - 30, "ARMATURA!", (255, 120, 120)))
         else:
             p.hp = max(0, p.hp - dmg)
             if p.hp == 0:
@@ -857,161 +860,270 @@ class Game:
 
     def die(self):
         self.state, self.state_t = "dead", 0
+        self.jb.fx("ko")
 
+    def hit_enemy(self, e, dmg, power=None, pts=100):
+        e.hp -= dmg
+        self.player.cosmo = min(100, self.player.cosmo + 6)
+        self.jb.fx("hit")
+        if power == "ice":
+            e.frozen = 90
+        if e.hp <= 0:
+            e.alive = False
+            self.score += pts
+            self.effects.append(Effect(e.x, e.y, str(pts), (255, 255, 255)))
+
+    # ---- aggiornamento
     def update(self):
         self.frame += 1
-        p = self.player
-        if self.state == "play":
-            if self.msg:
-                t, n, col = self.msg
-                self.msg = (t, n - 1, col) if n > 1 else None
-            if self.arena and self.intro:
-                self.intro -= 1
-                if self.intro == 60:
-                    self.msg = ("FIGHT!", 50, PAL["R"])
-                if self.intro > 60:
-                    return
-            # tempo
-            self.time_acc += 1
-            if self.time_acc >= FPS:
-                self.time_acc = 0
-                self.time -= 1
-                if self.time <= 0:
-                    self.die()
-            keys = pygame.key.get_pressed()
-            p.update(keys, self.lv, self.bump)
-            # limiti arena
-            if self.arena:
-                p.x = max(p.x, self.lv.arena_x + 2)
-                if not self.arena_open:
-                    p.x = min(p.x, self.lv.arena_x + SW - p.w - 2)
-            if not self.arena and p.x >= self.lv.arena_x:
-                self.start_arena()
-            if p.y > SH + 10:
-                self.die()
-            if p.x >= self.lv.flag_x + 4 and self.arena_open:
-                self.state, self.state_t = "win", 0
-                self.score += self.time * 10
-            # zombie
-            if not self.arena:
-                self.spawn_t -= 1
-                if self.spawn_t <= 0 and len(self.zombies) < 5:
-                    self.spawn_t = random.randrange(80, 140)
-                    for _ in range(10):
-                        x = p.x + random.choice((-1, 1)) * random.randrange(90, 230)
-                        c = int(x // TILE)
-                        if self.cam_x < x < self.cam_x + SW - 16 and c < 160 and self.lv.at(c, 14) == "#" and self.lv.at(c, 13) == "." and self.lv.at(c + 1, 14) == "#":
-                            self.zombies.append(Zombie(x))
-                            break
-            for z in self.zombies:
-                z.update(self.lv, p)
-            for m in self.items:
-                m.update(self.lv)
-            for b in self.balls:
-                b.update(self.lv, self.cam_x)
-            for c in self.pops:
-                c.update()
-            # hadouken
-            if p.attack and p.attack == ("hado", 6) and sum(1 for b in self.balls if b.owner == "player") < 2:
-                r = p.rect
-                self.balls.append(Fireball(r.right if p.facing > 0 else r.left - 12, r.top + 8, p.facing, "player", 12))
-            # colpi del giocatore
-            abox, adm = p.attack_box()
-            for z in self.zombies:
-                if z.rise < 20:
-                    continue
-                zr = z.rect
-                if abox and abox.colliderect(zr):
-                    z.alive = False; self.score += 100; continue
-                for b in self.balls:
-                    if b.owner == "player" and b.alive and b.rect.colliderect(zr):
-                        b.alive = z.alive = False; self.score += 100
-                if not z.alive:
-                    continue
-                if p.hurtbox().colliderect(zr):
-                    if p.vy > 0 and p.rect.bottom - zr.top < 10:
-                        z.alive = False; self.score += 100; p.vy = -3.5
+        if self.state == "card":
+            self.card_t -= 1
+            if self.card_t <= 0:
+                self.state = "play"
+            return
+        if self.state == "armor":
+            self.card_t -= 1
+            if self.card_t <= 0:
+                self.after_armor()
+            return
+        if self.state == "dead":
+            self.state_t += 1
+            if self.state_t > 110:
+                if self.part == "arena":
+                    self.rounds[1] += 1
+                    if self.rounds[1] >= 2:
+                        self.lose_life()
                     else:
-                        self.hurt_player(25, z.x)
-            for m in self.items:
-                if m.alive and not m.pop and m.rect.colliderect(p.rect):
-                    m.alive = False; p.armor = True; p.hp = PLAYER_HP; self.score += 1000
+                        self.start_round()
+                        self.state = "play"
+                else:
+                    self.lose_life()
+            return
+        if self.state != "play":
+            return
+        p = self.player
+        if self.msg:
+            t, n, col = self.msg
+            self.msg = (t, n - 1, col) if n > 1 else None
+        if self.part == "arena" and self.intro:
+            self.intro -= 1
+            if self.intro == 70:
+                self.msg = ("FIGHT!", 60, (230, 40, 40))
+            if self.intro > 70:
+                return
+        keys = pygame.key.get_pressed()
+        p.update(keys, self.lv)
+        for e in self.effects:
+            e.update()
+        self.effects = [e for e in self.effects if e.alive]
+        target = p.rect.centerx - W // 2
+        self.cam = int(max(0, min(target, self.lv.w - W)))
+        if p.y > H + 50:
+            self.die(); return
+        r = p.rect
+        # punte
+        if self.lv.tile_at(r.centerx, r.bottom - 6) == "^" or (p.on_ground and self.lv.tile_at(r.centerx, r.bottom + 2) == "^"):
+            self.hurt_player(30, p.x - 10)
+        # uscita
+        ec, er = self.lv.exit
+        door = pygame.Rect(ec * TILE, (er - 1) * TILE, TILE, TILE * 2)
+        if self.part != "arena" and r.colliderect(door):
+            self.jb.fx("pickup")
+            self.next_part()
+            return
+        # raccolte
+        for it in self.pickups:
+            if it.alive and it.rect.colliderect(r):
+                it.alive = False
+                self.jb.fx("pickup")
+                if it.kind == "p":
+                    if not p.armor:
+                        p.armor = True
+                        self.effects.append(Effect(it.x, it.y - 30, "ARMATURA", (200, 220, 255)))
+                    else:
+                        p.hp = min(PLAYER_HP, p.hp + 30)
+                    self.score += 500
+                    self.effects.append(Effect(it.x + 30, it.y, "500", (255, 255, 255)))
+                else:
+                    self.score += 1000
+                    p.cosmo = min(100, p.cosmo + 40)
+                    self.effects.append(Effect(it.x, it.y - 20, "1000", (250, 210, 60)))
+        self.pickups = [i for i in self.pickups if i.alive]
+        # zombie
+        if self.part == "surface":
+            self.spawn_t -= 1
+            if self.spawn_t <= 0 and len(self.zombies) < 4 + self.ci // 3:
+                self.spawn_t = self.cfg["zombie_every"]
+                for _ in range(12):
+                    x = p.x + random.choice((-1, 1)) * random.randrange(400, 900)
+                    c = int(x // TILE)
+                    if self.cam < x < self.cam + W - PW and self.lv.at(c, GROUND) == "#" and self.lv.at(c, GROUND - 1) == "." and self.lv.at(c + 1, GROUND) == "#" and c < self.lv.cols - 8:
+                        self.zombies.append(Zombie(x, self.cfg))
+                        break
+        for z in self.zombies:
+            z.update(self.lv, p)
+        for k in self.skels:
+            k.update(self.lv, p)
+        for cr in self.crows:
+            cr.update(self.lv, p)
+        for l in self.lances:
+            l.update(self.lv, self.cam)
+        for b in self.balls:
+            b.update(self.lv, self.cam)
+        # lancio della lancia / hadouken / cosmo
+        if p.attack:
+            name, f = p.attack
+            if name == "throw" and f == 4:
+                self.throw_lance()
+                if p.power == "double":
+                    self.throw_lance(angle=0.35)
+            if name == "hado" and f == 8 and sum(1 for b in self.balls if b.owner == "player") < 2:
+                self.balls.append(Fireball(r.right if p.facing > 0 else r.left - 80, r.top + 40, p.facing, "player", 14))
+            if name == "cosmo" and f in (6, 10, 14, 18, 22, 26, 30, 34):
+                self.throw_lance(angle=(f - 20) / 22 * 0.9, cosmo=True)
+        # colpi del giocatore sui nemici
+        abox, adm = p.attack_box()
+        enemies = [(z, 100) for z in self.zombies if z.rise >= 20] + [(k, 300) for k in self.skels] + [(c, 150) for c in self.crows]
+        for e, pts in enemies:
+            er = e.rect
+            if abox and abox.colliderect(er):
+                self.hit_enemy(e, adm * 2, pts=pts)
+                continue
+            for l in self.lances:
+                if l.alive and e.alive and id(e) not in l.hits and l.rect.colliderect(er):
+                    l.hits.add(id(e))
+                    self.hit_enemy(e, l.dmg, l.power, pts)
+                    if l.power != "pierce" and not l.cosmo:
+                        l.alive = False
             for b in self.balls:
-                if b.owner == "boss" and b.alive and b.rect.colliderect(p.hurtbox()):
-                    b.alive = False; self.hurt_player(20, b.x)
-            # boss
-            bs = self.boss
-            if bs and bs.alive:
+                if b.owner == "player" and b.alive and e.alive and b.rect.colliderect(er):
+                    b.alive = False
+                    self.hit_enemy(e, b.dmg, pts=pts)
+            if not e.alive:
+                continue
+            if p.hurtbox().colliderect(er):
+                if p.vy > 0 and r.bottom - er.top < 40 and not isinstance(e, Crow):
+                    self.hit_enemy(e, 10, pts=pts)
+                    p.vy = -14
+                    self.jb.fx("jump")
+                elif not getattr(e, "frozen", 0):
+                    self.hurt_player(25, e.x)
+            sb = e.attack_box() if isinstance(e, Skeleton) else None
+            if sb and sb.colliderect(p.hurtbox()):
+                self.hurt_player(30, e.x)
+        for b in self.balls:
+            if b.owner == "boss" and b.alive and b.rect.colliderect(p.hurtbox()):
+                b.alive = False
+                self.hurt_player(b.dmg, b.x)
+        # boss
+        bs = self.boss
+        if bs:
+            if bs.hp <= 0:
+                self.ko_wait += 1
+                if self.ko_wait == 1:
+                    self.msg = ("K.O.", 120, (250, 210, 60))
+                    self.jb.fx("ko")
+                    self.score += 5000 * self.cfg["num"]
+                    self.rounds[0] += 1
+                bs.update(self.lv, p, 0, None)
+                if self.ko_wait > 130:
+                    if self.rounds[0] >= 2:
+                        self.next_part()
+                    else:
+                        self.start_round()
+                    return
+            else:
                 def spawn_ball(x, y, d):
-                    self.balls.append(Fireball(x, y, d, "boss", 20))
-                bs.update(self.lv, p, self.lv.arena_x, spawn_ball)
+                    self.balls.append(Fireball(x, y, d, "boss", bs.dmg + 6, self.cfg["color"], speed=11 + self.ci // 2))
+                bs.update(self.lv, p, 0, spawn_ball)
                 br = bs.rect
                 if abox and abox.colliderect(br) and bs.hit(adm):
-                    self.score += 50
+                    self.score += 50; p.cosmo = min(100, p.cosmo + 8); self.jb.fx("hit")
+                for l in self.lances:
+                    if l.alive and id(bs) not in l.hits and l.rect.colliderect(br):
+                        if bs.hit(l.dmg, l.power):
+                            l.hits.add(id(bs))
+                            self.score += 50; p.cosmo = min(100, p.cosmo + 8); self.jb.fx("hit")
+                            if l.power != "pierce":
+                                l.alive = False
                 for b in self.balls:
                     if b.owner == "player" and b.alive and b.rect.colliderect(br) and bs.hit(b.dmg):
-                        b.alive = False; self.score += 50
+                        b.alive = False; self.score += 50; p.cosmo = min(100, p.cosmo + 10); self.jb.fx("hit")
                 if p.hurtbox().colliderect(br):
-                    if p.vy > 0 and p.rect.bottom - br.top < 10:
-                        p.vy = -3.5
-                        if bs.hit(10):
-                            self.score += 50
-                    else:   # corpo a corpo: si spingono, niente danno
+                    if p.vy > 0 and r.bottom - br.top < 50:
+                        p.vy = -14
+                        if bs.hit(8):
+                            self.score += 50; p.cosmo = min(100, p.cosmo + 6)
+                    else:
                         push = 1 if p.x < bs.x else -1
-                        p.x -= push * 1.2
-                        bs.x += push * 0.6
+                        p.x -= push * 5
+                        bs.x += push * 2
                 bb = bs.attack_box()
                 if bb and bb.colliderect(p.hurtbox()):
-                    self.hurt_player(30, bs.x)
-                if bs.hp <= 0:
-                    bs.alive = False
-                    self.score += 5000
-                    self.msg = ("K.O.", 120, PAL["Y"])
-                    self.arena_open = True
-                    self.balls = [b for b in self.balls if b.owner == "player"]
-            self.zombies = [z for z in self.zombies if z.alive]
-            self.items = [m for m in self.items if m.alive]
-            self.balls = [b for b in self.balls if b.alive]
-            self.pops = [c for c in self.pops if c.alive]
-        elif self.state == "dead":
-            self.state_t += 1
-            if self.state_t > 100:
-                self.lives -= 1
-                if self.lives <= 0:
-                    self.hi = max(self.hi, self.score)
-                    self.state = "gameover"
-                else:
-                    self.spawn_player()
-                    self.state = "play"
-        elif self.state == "win":
-            self.hi = max(self.hi, self.score)
-        # camera
-        if self.arena and not self.arena_open:
-            self.cam_x = self.lv.arena_x
-        else:
-            target = p.x + p.w / 2 - SW / 2
-            if self.arena:
-                target = max(target, self.lv.arena_x)
-            self.cam_x = max(0, min(target, self.lv.w - SW))
-        self.cam_x = int(self.cam_x)
+                    self.hurt_player(bs.dmg + 10, bs.x)
+        self.zombies = [z for z in self.zombies if z.alive]
+        self.skels = [k for k in self.skels if k.alive]
+        self.crows = [c for c in self.crows if c.alive]
+        self.lances = [l for l in self.lances if l.alive]
+        self.balls = [b for b in self.balls if b.alive]
 
-    # ---- eventi
+    def throw_lance(self, angle=0.0, cosmo=False):
+        p = self.player
+        limit = 3 if p.power in ("double", "pierce") else 2
+        if not cosmo and sum(1 for l in self.lances if not l.cosmo) >= limit:
+            return
+        r = p.rect
+        l = Lance(r.right if p.facing > 0 else r.left - 90, r.top + 44, p.facing, p.power, angle)
+        l.cosmo = cosmo
+        if cosmo:
+            l.dmg = 12
+        self.lances.append(l)
+        self.jb.fx("throw")
+
+    def lose_life(self):
+        self.lives -= 1
+        if self.lives <= 0:
+            self.state = "gameover"
+            self.hi = max(self.hi, self.score)
+            self.jb.stop()
+        else:
+            self.rounds = [0, 0]
+            self.spawn()
+            self.state = "play"
+
+    # ---- tasti
     def key(self, k):
         p = self.player
-        if self.state in ("gameover", "win"):
+        if self.state == "title":
             if k == pygame.K_RETURN:
-                self.new_game()
+                self.new_game(0)
             return
-        if self.state != "play" or (self.arena and self.intro > 60):
+        if self.state in ("gameover", "end"):
+            if k == pygame.K_RETURN:
+                if self.state == "end":
+                    self.state = "title"
+                else:
+                    self.new_game(self.ci)
             return
-        fwd = pygame.K_RIGHT if p.facing > 0 else pygame.K_LEFT
-        fwd2 = pygame.K_d if p.facing > 0 else pygame.K_a
+        if self.state in ("card", "armor"):
+            if k == pygame.K_RETURN:
+                self.card_t = 0
+            return
+        if self.state != "play" or (self.part == "arena" and self.intro > 70):
+            return
+        fwd = (pygame.K_RIGHT, pygame.K_d) if p.facing > 0 else (pygame.K_LEFT, pygame.K_a)
         if k in (pygame.K_DOWN, pygame.K_s):
             p.last_down = self.frame
-        elif k in (fwd, fwd2):
+        elif k in fwd:
             p.last_fwd = self.frame
-        elif k in (pygame.K_SPACE, pygame.K_UP, pygame.K_w):
-            p.do_jump()
+        if k in (pygame.K_SPACE, pygame.K_UP, pygame.K_w):
+            r = p.rect
+            near_ladder = self.lv.tile_at(r.centerx, r.centery) == "H" or self.lv.tile_at(r.centerx, r.top - 4) == "H"
+            if k == pygame.K_SPACE or not near_ladder:
+                if p.do_jump():
+                    self.jb.fx("jump")
+        elif k == pygame.K_z:
+            p.start_attack("throw")
         elif k == pygame.K_x:
             if self.frame - p.last_down < 30 and p.last_down <= p.last_fwd and self.frame - p.last_fwd < 20 and p.on_ground:
                 p.start_attack("hado")
@@ -1019,63 +1131,152 @@ class Game:
                 p.start_attack("punch")
         elif k == pygame.K_c:
             p.start_attack("kick")
+        elif k == pygame.K_v:
+            if p.cosmo >= 100 and p.start_attack("cosmo"):
+                p.cosmo = 0
+                p.invuln = 45
+                self.jb.fx("cosmo")
 
     # ---- disegno
+    def bar(self, x, y, w, frac, color, right=False):
+        s = self.screen
+        pygame.draw.rect(s, (245, 245, 245), (x - 3, y - 3, w + 6, 26))
+        pygame.draw.rect(s, (120, 20, 20), (x, y, w, 20))
+        fw = int(w * max(0, min(1, frac)))
+        pygame.draw.rect(s, color, (x + w - fw if right else x, y, fw, 20))
+
     def draw_hud(self):
-        s, p = self.s, self.player
-        draw_text(s, "KNIGHT", 8, 3)
-        draw_text(s, f"X{self.lives}", 36, 3, PAL["Y"])
-        self.bar(8, 10, p.hp / PLAYER_HP)
-        draw_text(s, "TIME", 232, 3)
-        draw_text(s, f"{self.time:03d}", 234, 10, PAL["Y"] if self.time > 30 else PAL["R"])
-        draw_text(s, f"{self.score:07d}", 8, 18, PAL["Y"])
-        s.blit(self.lv.coin[0], (66, 17))
-        draw_text(s, f"X{self.coins:02d}", 76, 18, PAL["Y"])
-        draw_text(s, "ARMOR" if p.armor else "NO ARMOR", 100, 18, PAL["A"] if p.armor else PAL["R"])
-        draw_text(s, f"HI {self.hi:07d}", SW - 8 - 4 * 10, 18, PAL["W"])
+        s, p = self.screen, self.player
+        px.draw_text(s, "ARTHUR", 40, 24, scale=5)
+        px.draw_text(s, f"X{self.lives}", 200, 24, (250, 210, 60), scale=5)
+        self.bar(40, 56, 560, p.hp / PLAYER_HP, (250, 210, 60))
+        px.draw_text(s, "COSMO", 40, 92, (150, 220, 255), scale=4)
+        self.bar(170, 92, 430, p.cosmo / 100, (100, 200, 255) if p.cosmo < 100 else (255, 255, 255))
+        if p.cosmo >= 100 and (self.frame // 15) % 2:
+            px.draw_text(s, "V!", 610, 92, (255, 255, 255), scale=4)
+        arm = "ARMATURA" if p.armor else "SENZA ARMATURA"
+        px.draw_text(s, arm, 40, 126, (200, 220, 255) if p.armor else (255, 120, 120), scale=4)
+        if p.power:
+            px.draw_text(s, levels.ARMOR_NAMES[p.power], 40, 154, self.cfg["color"], scale=4)
+        title = f"CIMITERO {ROMAN[self.ci]} - {self.cfg['name']}"
+        px.draw_text(s, title, W // 2 - px.text_width(title, 5) // 2, 24, scale=5)
+        sub = {"surface": "SOPRA", "crypt": "SOTTOTERRA", "arena": "IL DUELLO"}[self.part]
+        px.draw_text(s, sub, W // 2 - px.text_width(sub, 4) // 2, 60, (200, 200, 220), scale=4)
+        sc = f"PUNTI {self.score:08d}"
+        px.draw_text(s, sc, W - 40 - px.text_width(sc, 5), 24, (250, 210, 60), scale=5)
         if self.boss:
-            draw_text(s, "DEMON", SW - 8 - 4 * 5, 3)
-            self.bar(SW - 8 - 140, 10, self.boss.hp / BOSS_HP, right=True)
+            name = self.cfg["boss"].upper()
+            px.draw_text(s, name, W - 40 - px.text_width(name, 4), 130, scale=4)
+            self.bar(W - 600, 56, 560, self.boss.hp / self.boss.max_hp, self.cfg["color"], right=True)
+            for i in range(2):
+                pygame.draw.circle(s, (250, 210, 60) if i < self.rounds[0] else (80, 80, 90), (W - 580 + i * 40, 102), 12)
+                pygame.draw.circle(s, self.cfg["color"] if i < self.rounds[1] else (80, 80, 90), (W - 80 - i * 40, 102), 12)
         if self.msg:
             t, n, col = self.msg
-            draw_text(s, t, SW // 2 - len(t) * 6, 100, col, 3)
+            px.draw_text(s, t, W // 2 - px.text_width(t, 14) // 2, 380, col, scale=14)
 
-    def bar(self, x, y, frac, right=False):
-        s = self.s
-        pygame.draw.rect(s, PAL["W"], (x - 1, y - 1, 142, 7))
-        pygame.draw.rect(s, PAL["r"], (x, y, 140, 5))
-        w = int(140 * max(0, frac))
-        pygame.draw.rect(s, PAL["Y"], (x + 140 - w if right else x, y, w, 5))
+    def draw_world(self):
+        s, cam, lv = self.screen, self.cam, self.lv
+        if self.part == "surface":
+            s.blit(self.gfx.background("sky", self.cfg["num"]), (0, 0))
+            hills = self.gfx.background("hills", self.cfg["num"])
+            hw = hills.get_width()
+            off = -(int(cam * 0.3) % hw)
+            y = H - hills.get_height() - 40 if hw > W else 0
+            s.blit(hills, (off, y))
+            if off + hw < W:
+                s.blit(hills, (off + hw, y))
+        elif self.part == "crypt":
+            s.blit(self.gfx.background("crypt_bg", self.cfg["num"]), (0, 0))
+        else:
+            s.blit(self.gfx.background("arena_bg", self.cfg["num"]), (0, 0))
+        c0 = max(0, cam // TILE)
+        for c in range(c0, min(lv.cols, c0 + W // TILE + 3)):
+            x = c * TILE - cam
+            for r in range(ROWS):
+                ch = lv.g[r][c]
+                if ch == "." or ch in "kvpc":
+                    continue
+                y = r * TILE
+                if ch in self.gfx.tiles:
+                    s.blit(self.gfx.tiles[ch], (x, y))
+                elif ch == "Y":
+                    s.blit(self.gfx.deco["Y"], (x - TILE // 2, y - TILE * 2))
+                elif ch == "E":
+                    s.blit(self.gfx.deco["E"], (x, y - TILE))
+                elif ch == "t" and "t2" in self.gfx.deco and c % 2:
+                    s.blit(self.gfx.deco["t2"], (x, y))
+                elif ch in self.gfx.deco:
+                    s.blit(self.gfx.deco[ch], (x, y))
+        for it in self.pickups:
+            s.blit(self.gfx.deco[it.kind], (it.x - it.ox - cam, it.y - it.oy))
+
+    def draw_center(self, text, y, color=(245, 245, 245), scale=8):
+        px.draw_text(self.screen, text, W // 2 - px.text_width(text, scale) // 2, y, color, scale)
 
     def draw(self):
-        s, cx = self.s, self.cam_x
-        s.blit(self.bg, (0, 0))
-        s.blit(self.hills, (-(int(cx * 0.3) % 170), 150))
-        self.lv.draw(s, cx, self.frame)
-        for c in self.pops:
-            s.blit(self.lv.coin[(self.frame // 6) % 2], (int(c.x) - cx, int(c.y)))
-        for m in self.items:
-            m.draw(s, cx)
+        s = self.screen
+        if self.state == "title":
+            s.blit(self.gfx.background("sky", 1), (0, 0))
+            self.draw_center("GOBLIN", 260, (250, 210, 60), 24)
+            self.draw_center("12 CIMITERI", 420, (200, 200, 220), 8)
+            self.draw_center("SAME COURAGE, NEW NIGHTMARES", 500, (150, 160, 190), 4)
+            if (self.frame // 30) % 2:
+                self.draw_center("PREMI INVIO", 700, scale=6)
+            self.draw_center("FRECCE MUOVI  SPAZIO SALTA  Z LANCIA  X PUGNO  C CALCIO  V COSMO", 900, (150, 160, 190), 4)
+            self.draw_center("GIU AVANTI X: HADOUKEN     SU/GIU SULLE SCALE", 940, (150, 160, 190), 4)
+            img = self.gfx.player[True]["idle"][0]
+            s.blit(pygame.transform.scale(img, (PW * 2, PH * 2)), (W // 2 - PW, 560 + 40))
+            pygame.display.flip()
+            return
+        if self.state == "end":
+            s.blit(self.gfx.background("sky", 12), (0, 0))
+            self.draw_center("HAI LIBERATO I 12 CIMITERI", 300, (250, 210, 60), 10)
+            self.draw_center(f"PUNTI {self.score}", 480, scale=8)
+            self.draw_center("SOME HEROES NEVER DIE", 620, (150, 160, 190), 5)
+            self.draw_center("PREMI INVIO", 800, scale=5)
+            pygame.display.flip()
+            return
+        self.draw_world()
+        cam = self.cam
         for z in self.zombies:
-            z.draw(s, cx, self.frame)
-        if self.boss and self.boss.alive:
-            self.boss.draw(s, cx)
+            z.draw(s, self.gfx, cam)
+        for k in self.skels:
+            k.draw(s, self.gfx, cam)
+        for cr in self.crows:
+            cr.draw(s, self.gfx, cam)
+        if self.boss:
+            self.boss.draw(s, cam)
+        for l in self.lances:
+            l.draw(s, self.gfx, cam)
         for b in self.balls:
-            b.draw(s, cx)
+            b.draw(s, self.gfx, cam)
         p = self.player
         if self.state == "dead":
-            s.blit(self.bones, (int(p.x) - 3 - cx, min(int(p.y) + 16, 14 * TILE - 6)))
+            s.blit(self.gfx.bones, (int(p.x) - p.ox - cam, min(int(p.y) + 100, GROUND * TILE - 36)))
         else:
-            p.draw(s, cx)
+            p.draw(s, self.gfx, cam)
+        for e in self.effects:
+            px.draw_text(s, e.text, int(e.x) - cam, int(e.y), e.color, 4)
         self.draw_hud()
-        if self.state == "gameover":
-            draw_text(s, "GAME OVER", SW // 2 - 9 * 6, 110, PAL["R"], 3)
-            draw_text(s, "PREMI INVIO", SW // 2 - 22, 150)
-        elif self.state == "win":
-            draw_text(s, "YOU WIN!", SW // 2 - 8 * 6, 100, PAL["Y"], 3)
-            draw_text(s, f"SCORE {self.score}", SW // 2 - 26, 140)
-            draw_text(s, "PREMI INVIO", SW // 2 - 22, 152)
-        self.screen.blit(self.s, (0, 0))
+        if self.state == "card":
+            ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 170)); s.blit(ov, (0, 0))
+            self.draw_center(f"CIMITERO {ROMAN[self.ci]}", 300, (250, 210, 60), 14)
+            self.draw_center(self.cfg["name"].upper(), 440, scale=10)
+            sub = {"surface": "SOPRA", "crypt": "SOTTOTERRA", "arena": "IL DUELLO"}[self.part]
+            self.draw_center(sub, 560, (200, 200, 220), 8)
+            self.draw_center(f"GUARDIANO: {self.cfg['boss'].upper()}", 680, self.cfg["color"], 5)
+        elif self.state == "armor":
+            ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 190)); s.blit(ov, (0, 0))
+            self.draw_center("VITTORIA", 260, (250, 210, 60), 14)
+            self.draw_center("HAI CONQUISTATO L'ARMATURA", 420, scale=7)
+            self.draw_center(f"DEL {self.cfg['boss'].upper()}", 500, self.cfg["color"], 7)
+            self.draw_center(levels.ARMOR_NAMES[self.cfg["power"]].upper(), 640, (200, 220, 255), 9)
+            self.draw_center("PREMI INVIO", 820, (150, 160, 190), 5)
+        elif self.state == "gameover":
+            ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 170)); s.blit(ov, (0, 0))
+            self.draw_center("GAME OVER", 380, (230, 40, 40), 16)
+            self.draw_center(f"INVIO: RIPROVA IL CIMITERO {ROMAN[self.ci]}", 600, scale=6)
         pygame.display.flip()
 
     def run(self):
