@@ -17,11 +17,11 @@ FPS = 60
 TILE = 64
 ROWS = 17
 GROUND = levels.GROUND
-GRAVITY = 0.9
-MAX_FALL = 22
-RUN_ACC = 0.7
-RUN_MAX = 8.0
-JUMP_V = -22.0
+GRAVITY = 0.75
+MAX_FALL = 18
+RUN_ACC = 0.35
+RUN_MAX = 5.0
+JUMP_V = -20.0
 CLIMB = 5
 PLAYER_HP = 100
 SOLID = set("#D=S")
@@ -333,7 +333,7 @@ class Player(Entity):
                     self.vy = 0
                     self.on_ground = True
                     break
-        self.anim += abs(self.vx) / 64      # un passo ogni 8 fotogrammi a velocita' piena
+        self.anim += abs(self.vx) / 40      # un passo ogni 8 fotogrammi a velocita' piena
         if self.attack:
             name, f = self.attack
             f += 1

@@ -63,7 +63,7 @@ GOLD = {"H": "Y", "A": "Y", "a": "y", "B": "y", "b": "k", "S": "S"}
 def knight_cfg(i):
     name, weapon, reach, color, moves = KNIGHTS[i]
     return {"index": i, "num": i + 1, "name": name, "weapon": weapon, "reach": reach, "color": color,
-            "moves": moves, "hp": 120 + 30 * i, "dmg": 10 + 2 * i, "speed": 3.0 + 0.3 * i, "cool": max(10, 36 - 2 * i)}
+            "moves": moves, "hp": 120 + 30 * i, "dmg": 10 + 2 * i, "speed": 2.2 + 0.2 * i, "cool": max(10, 36 - 2 * i)}
 
 
 class Projectile:
