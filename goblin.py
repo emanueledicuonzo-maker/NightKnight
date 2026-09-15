@@ -868,7 +868,14 @@ class Game:
             if not e.alive:
                 continue
             if p.hurtbox().colliderect(er):
-                if p.vy > 0 and r.bottom - er.top < 40 and not isinstance(e, (Crow, Ghost)):
+                if isinstance(e, Crow):
+                    # il corvo disturba: spinge, fa sbagliare il colpo, ma non toglie vita
+                    if not p.invuln:
+                        p.vx = 3 * e.facing
+                        p.attack = None
+                        p.invuln = 20
+                        p.cosmo = max(0, p.cosmo - 2)
+                elif p.vy > 0 and r.bottom - er.top < 40 and not isinstance(e, Ghost):
                     self.hit_enemy(e, 10, pts=pts)
                     p.vy = -14
                     self.jb.fx("jump")
