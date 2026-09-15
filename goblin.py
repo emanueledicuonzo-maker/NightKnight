@@ -19,8 +19,8 @@ ROWS = 17
 GROUND = levels.GROUND
 GRAVITY = 0.75
 MAX_FALL = 18
-RUN_ACC = 0.35
-RUN_MAX = 5.0
+RUN_ACC = 0.25
+RUN_MAX = 3.2
 JUMP_V = -20.0
 CLIMB = 5
 PLAYER_HP = 100
@@ -344,7 +344,7 @@ class Player(Entity):
                     self.on_ground = True
                     break
         self.anim += abs(self.vx) / 40      # un passo ogni 8 fotogrammi a velocita' piena
-        self.run_t += abs(self.vx) / RUN_MAX * 0.4   # foglio corsa: 8 fotogrammi in ~20 frame
+        self.run_t += abs(self.vx) / RUN_MAX * 0.125   # passo: un fotogramma ogni 8 frame
         if self.attack:
             name, f = self.attack
             f += 1
