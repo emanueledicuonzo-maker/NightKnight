@@ -324,7 +324,7 @@ class Player(Entity):
                     self.vy = 0
                     self.on_ground = True
                     break
-        self.anim += abs(self.vx) / 8
+        self.anim += abs(self.vx) / 64      # un passo ogni 8 fotogrammi a velocita' piena
         if self.attack:
             name, f = self.attack
             f += 1
@@ -363,7 +363,7 @@ class Player(Entity):
         if not self.on_ground:
             return "jump"
         if abs(self.vx) > 0.5:
-            return ("run1", "idle", "run2", "idle")[int(self.anim) % 4]
+            return ("run1", "run2")[int(self.anim) % 2]
         return "idle"
 
     def draw(self, s, gfx, cam):
