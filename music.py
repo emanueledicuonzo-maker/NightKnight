@@ -1,4 +1,4 @@
-"""Musica ed effetti sintetizzati a codice: riff blues-rock in stile chiptune (shuffle, basso boogie, batteria)."""
+"""Colonna sonora ambient dark fantasy ed effetti sintetizzati localmente."""
 import numpy as np
 import pygame
 
@@ -83,14 +83,50 @@ TURN = [(0, 0, 1), (3, 3, 1), (6, 4, 1), (9, 5, 3)]
 def track(name):
     if name in _cache:
         return _cache[name]
-    if name == "surface":
-        snd = _render(150, 12, TWELVE, BOOGIE, [PENTA_A, PENTA_B, PENTA_A, PENTA_C, PENTA_B, REST, PENTA_A, PENTA_C, PENTA_B, PENTA_A, PENTA_C, TURN], key=40)
-    elif name == "crypt":
-        snd = _render(108, 12, TWELVE, [0, 0, 3, 3, 5, 5, 6, 6], [PENTA_B, REST, PENTA_A, REST, PENTA_C, PENTA_B, REST, PENTA_A, PENTA_C, REST, PENTA_B, TURN], key=38, lead_kind="tri")
-    elif name == "arena":
-        snd = _render(178, 12, TWELVE, [0, 0, 0, 7, 0, 0, 10, 7], [PENTA_C, PENTA_A, PENTA_C, PENTA_B, PENTA_C, PENTA_A, PENTA_B, PENTA_C, PENTA_A, PENTA_B, PENTA_C, TURN], key=43, lead_kind="saw")
-    else:
-        snd = _render(120, 4, [0, 5, 7, 0], BOOGIE, [PENTA_A, PENTA_B, PENTA_C, TURN], key=45, drums=False)
+    bpm, root = {"surface": (72, 38), "crypt": (56, 33), "arena": (96, 38),
+                 "victory": (76, 50)}.get(name, (72, 38))
+    beat = 60 / bpm
+    total = int(32 * beat * SR)
+    out = np.zeros((total, 2), dtype=np.float64)
+
+    def add(start, wave, gain, pan=0.0):
+        # Le code attraversano il punto di loop senza un taglio improvviso.
+        pos = int(start * SR) % total
+        stereo = wave[:, None] * gain * np.array([1 - pan * 0.45, 1 + pan * 0.45])
+        n = min(len(wave), total - pos)
+        out[pos:pos+n] += stereo[:n]
+        if n < len(wave):
+            out[:len(wave)-n] += stereo[n:]
+
+    chords = [(0, 3, 7), (-5, 0, 3), (-2, 2, 5), (-7, -2, 2)]
+    if name == "victory":
+        chords = [(0, 4, 7), (5, 9, 12), (7, 11, 14), (0, 4, 7)]
+    for bar in range(8):
+        chord = chords[bar % 4]
+        n = int(beat * 5 * SR)
+        t = np.arange(n) / SR
+        envelope = np.sin(np.pi * np.arange(n) / n) ** 2
+        for j, semitone in enumerate(chord):
+            freq = _midi(root + semitone)
+            wave = (np.sin(2*np.pi*freq*t) + 0.35*np.sin(2*np.pi*freq*2.002*t)
+                    + 0.14*np.sin(2*np.pi*freq*3*t)) * envelope
+            add(bar * 4 * beat, wave, 0.075, (j - 1) * 0.65)
+        for step in (0, 2.5):
+            n = int(beat * 3 * SR)
+            t = np.arange(n) / SR
+            freq = _midi(root + chord[(bar + int(step)) % 3] + 24)
+            wave = (np.sin(2*np.pi*freq*t) + 0.22*np.sin(2*np.pi*freq*2.76*t))
+            wave *= (1 - np.exp(-t * 35)) * np.exp(-t * 2.2)
+            add((bar * 4 + step) * beat, wave, 0.055, (-1 if bar % 2 else 1) * 0.6)
+            add((bar * 4 + step + 0.75) * beat, wave, 0.018, 0.0)
+        if name == "arena":
+            for step in (0, 1.5, 2, 3.5):
+                n = int(0.6 * SR)
+                t = np.arange(n) / SR
+                drum = np.sin(2*np.pi*(48*t + 1.4*(1-np.exp(-t*16)))) * np.exp(-t*9)
+                drum *= 1 - np.exp(-t*150)
+                add((bar * 4 + step) * beat, drum, 0.13)
+    snd = pygame.sndarray.make_sound((np.tanh(out) * 24000).astype(np.int16))
     _cache[name] = snd
     return snd
 
@@ -105,6 +141,12 @@ def sfx(name):
     elif name == "throw":
         n = int(0.12 * SR); t = np.arange(n) / SR
         w = np.random.default_rng(3).uniform(-1, 1, n) * np.exp(-t * 40) * 0.35
+    elif name == "flesh_hit":
+        n = int(0.18 * SR); t = np.arange(n) / SR
+        noise = np.random.default_rng(12).uniform(-1, 1, n)
+        noise = np.convolve(noise, np.ones(18) / 18, mode="same")
+        w = (0.7*np.sin(2*np.pi*(70*t + 0.4*(1-np.exp(-t*30))))*np.exp(-t*32)
+             + 0.55*noise*np.exp(-t*24)) * (1-np.exp(-t*400)) * 0.65
     elif name == "hit":
         n = int(0.15 * SR); t = np.arange(n) / SR
         w = (np.sign(np.sin(2 * np.pi * 110 * t)) + np.random.default_rng(4).uniform(-1, 1, n)) * np.exp(-t * 25) * 0.3
@@ -134,10 +176,13 @@ class Jukebox:
         self.on = True
         self.current = None
         self.chan = None
+        self.muted = False
         try:
             pygame.mixer.quit()
             pygame.mixer.init(frequency=SR, size=-16, channels=2, buffer=1024)
             self.chan = pygame.mixer.Channel(0)
+            pygame.mixer.set_reserved(1)
+            self.chan.set_volume(0.55)
         except pygame.error:
             self.on = False
 
@@ -151,6 +196,11 @@ class Jukebox:
         if self.on:
             self.current = None
             self.chan.fadeout(300)
+
+    def toggle_mute(self):
+        self.muted = not self.muted
+        if self.on:
+            self.chan.set_volume(0 if self.muted else 0.55)
 
     def fx(self, name):
         if self.on:

@@ -1,2 +1,2 @@
 #!/bin/sh
-cd "$(dirname "$0")" && exec .venv/bin/python goblin.py
+cd "$(dirname "$0")" && exec .venv/bin/python goblin.py "$@"

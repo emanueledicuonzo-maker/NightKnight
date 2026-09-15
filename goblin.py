@@ -1,16 +1,18 @@
 #!/usr/bin/env python3
 """Goblin - 12 cimiteri. Sopra, sottoterra, duello col Cavaliere. Linux 1920x1080."""
 import math
+import argparse
 import random
-import sys
 
 import pygame
 
 import assets
+import athletics
 import knights
 import levels
 import music
 import pixelart as px
+import progress
 
 W, H = 1920, 1080
 FPS = 60
@@ -19,12 +21,16 @@ ROWS = 17
 GROUND = levels.GROUND
 GRAVITY = 0.75
 MAX_FALL = 18
-RUN_ACC = 0.25
-RUN_MAX = 3.2
+RUN_ACC = 0.65
+RUN_MAX = 5.8
+SPRINT_MAX = 10.0
 JUMP_V = -20.0
+SHORT_JUMP_V = -16.0
 CLIMB = 5
+COYOTE_FRAMES = 6
+JUMP_BUFFER_FRAMES = 7
 PLAYER_HP = 100
-SOLID = set("#D=S")
+SOLID = set("#D=S^")
 ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII"]
 
 PS = 8          # scala pixel art personaggi
@@ -253,6 +259,10 @@ class Player(Entity):
         self.last_down = -999
         self.last_fwd = -999
         self.power = None
+        self.coyote = 0
+        self.jump_buffer = 0
+        self.jumped = False
+        self.mounted = False
 
     def hurtbox(self):
         return self.rect.inflate(-10, -6)
@@ -277,11 +287,17 @@ class Player(Entity):
         return None, 0
 
     def update(self, keys, lv):
+        self.jumped = False
+        self.coyote = COYOTE_FRAMES if self.on_ground else max(0, self.coyote - 1)
+        self.jump_buffer = max(0, self.jump_buffer - 1)
         left = keys[pygame.K_LEFT] or keys[pygame.K_a]
         right = keys[pygame.K_RIGHT] or keys[pygame.K_d]
         up = keys[pygame.K_UP] or keys[pygame.K_w]
         down = keys[pygame.K_DOWN] or keys[pygame.K_s]
         jump = keys[pygame.K_SPACE] or up
+        speed_limit = 12.0 if self.mounted else SPRINT_MAX if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] else RUN_MAX
+        if not self.on_ground:
+            speed_limit = max(speed_limit, abs(self.vx))
         r = self.rect
         on_ladder = lv.tile_at(r.centerx, r.centery) == "H"
         ladder_below = lv.tile_at(r.centerx, r.bottom + 2) == "H"
@@ -323,17 +339,17 @@ class Player(Entity):
             self.vx = 4 * self.facing
         elif not grounded_attack:
             if right and not left:
-                self.vx = min(self.vx + RUN_ACC, RUN_MAX); self.facing = 1
+                self.vx = min(self.vx + RUN_ACC, speed_limit); self.facing = 1
             elif left and not right:
-                self.vx = max(self.vx - RUN_ACC, -RUN_MAX); self.facing = -1
+                self.vx = max(self.vx - RUN_ACC, -speed_limit); self.facing = -1
             else:
                 self.vx *= 0.8 if self.on_ground else 0.98
                 if abs(self.vx) < 0.3:
                     self.vx = 0
         else:
             self.vx = 0
-        if not jump and self.vy < -8:
-            self.vy = -8
+        if not jump and self.vy < SHORT_JUMP_V:
+            self.vy = SHORT_JUMP_V
         self.move(lv)
         if self.vy >= 0 and not self.on_ground:
             r = self.rect
@@ -343,6 +359,8 @@ class Player(Entity):
                     self.vy = 0
                     self.on_ground = True
                     break
+        if self.on_ground and self.jump_buffer:
+            self.jumped = self.do_jump()
         self.anim += abs(self.vx) / 40      # un passo ogni 8 fotogrammi a velocita' piena
         self.run_t += abs(self.vx) / RUN_MAX * 0.125   # passo: un fotogramma ogni 8 frame
         if self.attack:
@@ -356,12 +374,16 @@ class Player(Entity):
     def do_jump(self):
         if self.climbing:
             self.climbing = False
+            self.on_ground = False
+            self.coyote = self.jump_buffer = 0
             self.vy = JUMP_V * 0.7
             return True
-        if self.on_ground:
-            self.vy = JUMP_V
+        if self.on_ground or self.coyote:
+            self.vy = JUMP_V - max(0, abs(self.vx) - RUN_MAX) * 0.7
             self.on_ground = False
+            self.coyote = self.jump_buffer = 0
             return True
+        self.jump_buffer = JUMP_BUFFER_FRAMES
         return False
 
     def start_attack(self, name):
@@ -408,7 +430,7 @@ class Player(Entity):
             fr = sheets["jump"][side]
             n = len(fr)
             if self.vy < 0:
-                i = min(n // 2 - 1, int((JUMP_V - self.vy) / -JUMP_V * (n // 2)))
+                i = min(n // 2 - 1, int((self.vy - JUMP_V) / -JUMP_V * (n // 2)))
             else:
                 i = n // 2 + min(n // 2 - 1, int(self.vy / 14 * (n // 2)))
             return fr[max(0, i)]
@@ -419,6 +441,11 @@ class Player(Entity):
 
     def draw(self, s, gfx, cam):
         if self.invuln and (self.invuln // 3) % 2 and not (self.attack and self.attack[0] == "cosmo"):
+            return
+        if self.mounted:
+            img = gfx.player[self.armor]["jump"][0 if self.facing > 0 else 1]
+            img = pygame.transform.smoothscale(img, (int(img.get_width()*0.8), int(img.get_height()*0.8)))
+            s.blit(img, (self.rect.centerx - img.get_width()//2 - cam, self.rect.bottom - 40 - img.get_height()))
             return
         img = self.sheet_frame(gfx)
         if img is not None:
@@ -650,15 +677,22 @@ class Effect:
 
 # ---------------------------------------------------------------- gioco
 class Game:
-    def __init__(self):
+    def __init__(self, windowed=False, save_path=progress.DEFAULT_PATH):
         pygame.init()
-        self.screen = pygame.display.set_mode((W, H), pygame.FULLSCREEN | pygame.SCALED)
+        flags = 0 if windowed else pygame.FULLSCREEN | pygame.SCALED
+        self.screen = pygame.display.set_mode((W, H), flags)
         pygame.display.set_caption("Goblin")
         self.clock = pygame.time.Clock()
         self.gfx = Gfx()
         self.jb = music.Jukebox()
         self.frame = 0
-        self.hi = 0
+        self.save_path = save_path
+        self.saved = progress.load(save_path)
+        self.hi = self.saved["high_score"]
+        self.save_error = None
+        self.running = True
+        self.paused = False
+        self.menu_index = 0
         self.state = "title"
         self.score = 0
         self.ci = 0
@@ -668,31 +702,93 @@ class Game:
         self.msg = None
         self.effects = []
         self.rounds = [0, 0]
+        self.hud_shade = pygame.Surface((W, 200), pygame.SRCALPHA)
+        for y in range(200):
+            alpha = int(170 * (1 - y / 200) ** 1.4)
+            pygame.draw.line(self.hud_shade, (0, 0, 0, alpha), (0, y), (W, y))
 
     # ---- flusso
-    def new_game(self, ci=0):
+    def save_progress(self, checkpoint=False, clear=False, next_cemetery=False):
+        self.hi = max(self.hi, self.score)
+        self.saved["high_score"] = self.hi
+        if clear:
+            self.saved["checkpoint"] = None
+        elif checkpoint:
+            self.saved["checkpoint"] = {
+                "cemetery": self.ci + 1 if next_cemetery else self.ci,
+                "part": "surface" if next_cemetery else self.part, "lives": self.lives,
+                "score": self.score, "powers": list(self.powers),
+            }
+        self.save_error = progress.save(self.saved, self.save_path)
+
+    def continue_game(self):
+        cp = self.saved["checkpoint"]
+        if cp:
+            self.ci, self.lives = cp["cemetery"], cp["lives"]
+            self.score, self.powers = cp["score"], list(cp["powers"])
+            self.start_part(cp["part"])
+
+    def set_paused(self, paused):
+        self.paused = paused
+        self.menu_index = 0
+        if pygame.mixer.get_init():
+            (pygame.mixer.pause if paused else pygame.mixer.unpause)()
+
+    def menu_items(self):
+        if self.paused:
+            return ["RIPRENDI", "TORNA AL TITOLO", "ESCI"]
+        return (["CONTINUA"] if self.saved["checkpoint"] else []) + ["NUOVA PARTITA", "PROVE ATLETICHE", "ESCI"]
+
+    def menu_key(self, k):
+        items = self.menu_items()
+        if k in (pygame.K_UP, pygame.K_w):
+            self.menu_index = (self.menu_index - 1) % len(items)
+        elif k in (pygame.K_DOWN, pygame.K_s):
+            self.menu_index = (self.menu_index + 1) % len(items)
+        elif k == pygame.K_RETURN:
+            action = items[self.menu_index]
+            if action == "RIPRENDI":
+                self.set_paused(False)
+            elif action == "TORNA AL TITOLO":
+                self.save_progress()
+                self.set_paused(False)
+                self.jb.stop()
+                self.state = "title"
+            elif action == "CONTINUA":
+                self.continue_game()
+            elif action == "NUOVA PARTITA":
+                self.new_game()
+            elif action == "PROVE ATLETICHE":
+                self.new_game(part="trials")
+            elif action == "ESCI":
+                self.running = False
+
+    def new_game(self, ci=0, part="surface"):
         if ci == 0:
             self.score = 0
             self.powers = []
         self.lives = 3
         self.ci = ci
-        self.start_part("surface")
+        self.start_part(part)
 
     def start_part(self, part):
         c = levels.cfg(self.ci)
         self.cfg = c
         self.part = part
-        g = {"surface": levels.gen_surface, "crypt": levels.gen_crypt, "arena": levels.gen_arena}[part](c)
+        g = {"surface": levels.gen_surface, "crypt": levels.gen_crypt, "trials": levels.gen_trials, "arena": levels.gen_arena}[part](c)
         self.lv = Level(g, part)
         self.rounds = [0, 0]
         self.spawn()
         self.state = "card"
         self.card_t = 150
-        self.jb.play({"surface": "surface", "crypt": "crypt", "arena": "arena"}[part])
+        self.jb.play({"surface": "surface", "crypt": "crypt", "trials": "surface", "arena": "arena"}[part])
+        self.save_progress(checkpoint=True)
 
     def spawn(self):
         lv = self.lv
-        self.player = p = Player(2 * TILE, GROUND * TILE - Entity.h)
+        floor = 15 if self.part == "crypt" else GROUND
+        self.player = p = Player(2 * TILE, floor * TILE - Entity.h)
+        p.on_ground = True
         p.power = self.powers[-1] if self.powers else None
         self.zombies, self.skels, self.crows, self.ghosts, self.balls = [], [], [], [], []
         for ch, c, r in lv.markers:
@@ -708,14 +804,15 @@ class Game:
         self.msg = None
         self.effects = []
         self.intro = 0
+        self.trials = athletics.Trials() if self.part == "trials" else None
         if self.part == "arena":
             self.start_round()
 
     def start_round(self):
-        c = self.cfg
-        self.player.hp = PLAYER_HP
-        self.player.x = 3 * TILE
-        self.player.armor = True
+        self.player = Player(3 * TILE, GROUND * TILE - Entity.h)
+        self.player.on_ground = True
+        self.player.power = self.powers[-1] if self.powers else None
+        self.effects = []
         self.boss = knights.GoldKnight(W - 5 * TILE, knights.knight_cfg(self.ci), self.gfx)
         self.balls = []
         self.intro = 150
@@ -724,15 +821,23 @@ class Game:
         self.ko_wait = 0
 
     def next_part(self):
+        if self.state == "armor":
+            return
         if self.part == "surface":
             self.start_part("crypt")
         elif self.part == "crypt":
+            self.start_part("trials")
+        elif self.part == "trials":
+            if not self.trials.complete:
+                return
+            self.score += max(500, 5000 - self.trials.elapsed // 6)
             self.start_part("arena")
         else:
             self.powers.append(self.cfg["power"])
             self.state = "armor"
             self.card_t = 260
             self.jb.play("victory")
+            self.save_progress(checkpoint=True, next_cemetery=True, clear=self.ci == 11)
 
     def after_armor(self):
         self.ci += 1
@@ -740,19 +845,22 @@ class Game:
             self.state = "end"
             self.hi = max(self.hi, self.score)
             self.jb.stop()
+            self.save_progress(clear=True)
         else:
             self.start_part("surface")
 
     # ---- danni
     def hurt_player(self, dmg, from_x):
         p = self.player
-        if p.invuln or self.state != "play" or (p.attack and p.attack[0] == "cosmo"):
+        if (p.invuln or self.state != "play" or (p.attack and p.attack[0] == "cosmo")
+                or (self.boss and self.boss.hp <= 0)):
             return
         p.invuln = 80
         p.vy = -9
         p.vx = 6 if p.x > from_x else -6
         p.attack = None
         p.climbing = False
+        p.coyote = p.jump_buffer = 0
         self.jb.fx("hurt")
         if p.armor:
             p.armor = False
@@ -767,9 +875,11 @@ class Game:
         self.jb.fx("ko")
 
     def hit_enemy(self, e, dmg, power=None, pts=100):
+        if not e.alive:
+            return
         e.hp -= dmg
         self.player.cosmo = min(100, self.player.cosmo + 6)
-        self.jb.fx("hit")
+        self.jb.fx("flesh_hit" if isinstance(e, Zombie) else "hit")
         if power == "ice":
             e.frozen = 90
         if e.hp <= 0:
@@ -778,6 +888,8 @@ class Game:
 
     # ---- aggiornamento
     def update(self):
+        if self.paused:
+            return
         self.frame += 1
         if self.state == "card":
             self.card_t -= 1
@@ -815,7 +927,12 @@ class Game:
             if self.intro > 70:
                 return
         keys = pygame.key.get_pressed()
-        p.update(keys, self.lv)
+        if self.trials:
+            self.trials.update_player(p, keys, self.lv)
+        else:
+            p.update(keys, self.lv)
+        if p.jumped:
+            self.jb.fx("jump")
         for e in self.effects:
             e.update()
         self.effects = [e for e in self.effects if e.alive]
@@ -825,15 +942,22 @@ class Game:
             self.die(); return
         r = p.rect
         # punte
-        if self.lv.tile_at(r.centerx, r.bottom - 6) == "^" or (p.on_ground and self.lv.tile_at(r.centerx, r.bottom + 2) == "^"):
+        if any(self.lv.tile_at(x, r.bottom - 6) == "^" or
+               (p.on_ground and self.lv.tile_at(x, r.bottom + 2) == "^")
+               for x in (r.left + 4, r.centerx, r.right - 5)):
             self.hurt_player(30, p.x - 10)
+        if self.state != "play":
+            return
         # uscita
         ec, er = self.lv.exit
         door = pygame.Rect(ec * TILE, (er - 1) * TILE, TILE, TILE * 2)
         if self.part != "arena" and r.colliderect(door):
-            self.jb.fx("pickup")
-            self.next_part()
-            return
+            if self.trials and not self.trials.complete:
+                self.msg = (f"PROVE {len(self.trials.done)} / 5", 60, (222, 201, 150))
+            else:
+                self.jb.fx("pickup")
+                self.next_part()
+                return
         # zombie
         if self.part == "surface":
             self.spawn_t -= 1
@@ -857,9 +981,11 @@ class Game:
             b.update(self.lv, self.cam)
         # lancio della lancia / hadouken / cosmo
         # colpi del giocatore sui nemici
-        abox, adm = p.attack_box()
         enemies = [(z, 100) for z in self.zombies if z.rise >= 20] + [(k, 300) for k in self.skels] + [(c, 150) for c in self.crows] + [(gh, 400) for gh in self.ghosts if gh.visible()]
         for e, pts in enemies:
+            if not e.alive:
+                continue
+            abox, adm = p.attack_box()
             er = e.rect
             if abox and abox.colliderect(er):
                 self.hit_enemy(e, adm * 2, p.power if p.attack[0] == "throw" else None, pts)
@@ -884,16 +1010,33 @@ class Game:
             sb = e.attack_box() if isinstance(e, Skeleton) else None
             if sb and sb.colliderect(p.hurtbox()):
                 self.hurt_player(30, e.x)
+            if self.state != "play":
+                return
         for b in self.balls:
+            if b.owner == "player" and b.alive:
+                for e, pts in enemies:
+                    if e.alive and b.rect.colliderect(e.rect):
+                        self.hit_enemy(e, b.dmg, pts=pts)
+                        b.alive = False
+                        break
+                if self.boss and b.alive and b.rect.colliderect(self.boss.rect):
+                    if self.boss.hit(b.dmg):
+                        self.score += 50
+                        p.cosmo = min(100, p.cosmo + 8)
+                        self.jb.fx("hit")
+                    b.alive = False
             if b.owner == "boss" and b.alive and b.rect.colliderect(p.hurtbox()):
                 b.alive = False
                 self.hurt_player(b.dmg, b.x)
+                if self.state != "play":
+                    return
         # boss
         bs = self.boss
         if bs:
             if bs.hp <= 0:
                 self.ko_wait += 1
                 if self.ko_wait == 1:
+                    self.balls = []
                     self.msg = ("K.O.", 120, (250, 210, 60))
                     self.jb.fx("ko")
                     self.score += 5000 * self.cfg["num"]
@@ -908,6 +1051,7 @@ class Game:
             else:
                 bs.update(self.lv, p, self.balls.append)
                 br = bs.rect
+                abox, adm = p.attack_box()
                 if abox and abox.colliderect(br) and bs.hit(adm, p.power if p.attack[0] == "throw" else None):
                     self.score += 50; p.cosmo = min(100, p.cosmo + 8); self.jb.fx("hit")
                 if not bs.hidden and p.hurtbox().colliderect(br):
@@ -926,6 +1070,11 @@ class Game:
         self.skels = [k for k in self.skels if k.alive]
         self.crows = [c for c in self.crows if c.alive]
         self.ghosts = [gh for gh in self.ghosts if gh.alive]
+        if self.trials:
+            points = self.trials.check_targets(self.balls)
+            if points:
+                self.score += points
+                self.jb.fx("hit")
         self.balls = [b for b in self.balls if b.alive]
 
     def lose_life(self):
@@ -934,22 +1083,40 @@ class Game:
             self.state = "gameover"
             self.hi = max(self.hi, self.score)
             self.jb.stop()
+            self.save_progress(clear=True)
         else:
             self.rounds = [0, 0]
             self.spawn()
             self.state = "play"
+            self.save_progress(checkpoint=True)
 
     # ---- tasti
     def key(self, k):
         p = self.player
+        if k == pygame.K_m:
+            self.jb.toggle_mute()
+            return
+        if k in (pygame.K_ESCAPE, pygame.K_p):
+            if self.state not in ("title", "end", "gameover"):
+                self.set_paused(not self.paused)
+            elif k == pygame.K_ESCAPE:
+                if self.state == "title":
+                    self.running = False
+                else:
+                    self.state = "title"
+                    self.menu_index = 0
+            return
+        if self.paused:
+            self.menu_key(k)
+            return
         if self.state == "title":
-            if k == pygame.K_RETURN:
-                self.new_game(0)
+            self.menu_key(k)
             return
         if self.state in ("gameover", "end"):
             if k == pygame.K_RETURN:
                 if self.state == "end":
                     self.state = "title"
+                    self.menu_index = 0
                 else:
                     self.new_game(self.ci)
             return
@@ -957,7 +1124,20 @@ class Game:
             if k == pygame.K_RETURN:
                 self.card_t = 0
             return
-        if self.state != "play" or (self.part == "arena" and self.intro > 70):
+        if self.state != "play" or (self.part == "arena" and (self.intro > 70 or self.boss.hp <= 0)):
+            return
+        if self.trials and k == pygame.K_e:
+            self.trials.interact(p, self.lv)
+            return
+        if self.trials and self.trials.attached:
+            if k == pygame.K_SPACE:
+                self.trials.release(p)
+                self.jb.fx("jump")
+            return
+        if k in (pygame.K_f, pygame.K_g):
+            if p.start_attack("throw" if k == pygame.K_f else "punch"):
+                self.balls.append(athletics.WeaponShot("javelin" if k == pygame.K_f else "dagger", p))
+                self.jb.fx("throw")
             return
         fwd = (pygame.K_RIGHT, pygame.K_d) if p.facing > 0 else (pygame.K_LEFT, pygame.K_a)
         if k in (pygame.K_DOWN, pygame.K_s):
@@ -985,45 +1165,56 @@ class Game:
     # ---- disegno
     def bar(self, x, y, w, frac, color, right=False):
         s = self.screen
-        pygame.draw.rect(s, (245, 245, 245), (x - 3, y - 3, w + 6, 26))
-        pygame.draw.rect(s, (120, 20, 20), (x, y, w, 20))
+        pygame.draw.rect(s, (105, 112, 115), (x - 2, y - 2, w + 4, 18), border_radius=3)
+        pygame.draw.rect(s, (15, 19, 22), (x, y, w, 14), border_radius=2)
         fw = int(w * max(0, min(1, frac)))
-        pygame.draw.rect(s, color, (x + w - fw if right else x, y, fw, 20))
+        if fw:
+            left = x + w - fw if right else x
+            pygame.draw.rect(s, color, (left, y, fw, 14), border_radius=2)
+            highlight = tuple(min(255, int(v * 1.2 + 15)) for v in color)
+            pygame.draw.line(s, highlight, (left, y + 2), (left + fw - 1, y + 2))
 
     def draw_hud(self):
         s, p = self.screen, self.player
-        px.draw_text(s, "ARTHUR", 40, 24, scale=5)
-        px.draw_text(s, f"X{self.lives}", 200, 24, (250, 210, 60), scale=5)
-        self.bar(40, 56, 560, p.hp / PLAYER_HP, (250, 210, 60))
-        px.draw_text(s, "COSMO", 40, 92, (150, 220, 255), scale=4)
-        self.bar(170, 92, 430, p.cosmo / 100, (100, 200, 255) if p.cosmo < 100 else (255, 255, 255))
-        if p.cosmo >= 100 and (self.frame // 15) % 2:
-            px.draw_text(s, "V!", 610, 92, (255, 255, 255), scale=4)
+        s.blit(self.hud_shade, (0, 0))
+        px.draw_text(s, "ARTHUR", 40, 22, (229, 229, 220), scale=5)
+        px.draw_text(s, f"{self.lives} VITE", 350, 28, (181, 190, 194), scale=3)
+        self.bar(40, 66, 400, p.hp / PLAYER_HP, (64, 153, 116) if p.hp > 30 else (183, 65, 67))
+        px.draw_text(s, f"{p.hp} / {PLAYER_HP}", 460, 60, (213, 220, 219), scale=3)
+        px.draw_text(s, "COSMO", 40, 94, (202, 178, 119), scale=3)
+        self.bar(130, 98, 310, p.cosmo / 100, (186, 155, 82))
+        if p.cosmo >= 100:
+            px.draw_text(s, "PRONTO", 460, 92, (224, 198, 129), scale=3)
         arm = "ARMATURA" if p.armor else "SENZA ARMATURA"
-        px.draw_text(s, arm, 40, 126, (200, 220, 255) if p.armor else (255, 120, 120), scale=4)
+        px.draw_text(s, arm, 40, 126, (168, 185, 196) if p.armor else (221, 126, 119), scale=3)
         if p.power:
-            px.draw_text(s, levels.ARMOR_NAMES[p.power], 40, 154, self.cfg["color"], scale=4)
+            px.draw_text(s, levels.ARMOR_NAMES[p.power], 40, 152, (202, 178, 119), scale=3)
         title = f"CIMITERO {ROMAN[self.ci]} - {self.cfg['name']}"
         px.draw_text(s, title, W // 2 - px.text_width(title, 5) // 2, 24, scale=5)
-        sub = {"surface": "SOPRA", "crypt": "SOTTOTERRA", "arena": "IL DUELLO"}[self.part]
+        sub = {"surface": "SOPRA", "crypt": "SOTTOTERRA", "trials": "LE PROVE", "arena": "IL DUELLO"}[self.part]
         px.draw_text(s, sub, W // 2 - px.text_width(sub, 4) // 2, 60, (200, 200, 220), scale=4)
         sc = f"PUNTI {self.score:08d}"
-        px.draw_text(s, sc, W - 40 - px.text_width(sc, 5), 24, (250, 210, 60), scale=5)
+        px.draw_text(s, sc, W - 40 - px.text_width(sc, 5), 24, (222, 201, 150), scale=5)
         if self.boss:
             name = self.cfg["boss"].upper()
             px.draw_text(s, name, W - 40 - px.text_width(name, 4), 130, scale=4)
-            self.bar(W - 600, 56, 560, self.boss.hp / self.boss.max_hp, self.cfg["color"], right=True)
+            self.bar(W - 440, 66, 400, self.boss.hp / self.boss.max_hp, (172, 66, 77), right=True)
             for i in range(2):
-                pygame.draw.circle(s, (250, 210, 60) if i < self.rounds[0] else (80, 80, 90), (W - 580 + i * 40, 102), 12)
-                pygame.draw.circle(s, self.cfg["color"] if i < self.rounds[1] else (80, 80, 90), (W - 80 - i * 40, 102), 12)
+                pygame.draw.circle(s, (222, 201, 150) if i < self.rounds[0] else (65, 70, 76), (580 + i * 28, 73), 7)
+                pygame.draw.circle(s, (172, 66, 77) if i < self.rounds[1] else (65, 70, 76), (W - 580 - i * 28, 73), 7)
         if self.msg:
             t, n, col = self.msg
             px.draw_text(s, t, W // 2 - px.text_width(t, 14) // 2, 380, col, scale=14)
+        if self.trials:
+            self.trials.draw_hud(s)
 
     def draw_world(self):
         s, cam, lv = self.screen, self.cam, self.lv
-        if self.part == "surface":
-            s.blit(self.gfx.background("sky", self.cfg["num"]), (0, 0))
+        if self.part in ("surface", "trials"):
+            sky = self.gfx.background("sky", self.cfg["num"])
+            off = -(int(cam * 0.08) % sky.get_width())
+            for x in range(off, W, sky.get_width()):
+                s.blit(sky, (x, 0))
             hills = self.gfx.background("hills", self.cfg["num"])
             hw = hills.get_width()
             off = -(int(cam * 0.3) % hw)
@@ -1036,7 +1227,7 @@ class Game:
         else:
             s.blit(self.gfx.background("arena_bg", self.cfg["num"]), (0, 0))
         c0 = max(0, cam // TILE)
-        if self.part == "surface":
+        if self.part in ("surface", "trials"):
             if not hasattr(self, "pit_shade"):
                 self.pit_shade = pygame.Surface((TILE, H - GROUND * TILE), pygame.SRCALPHA)
                 for yy in range(self.pit_shade.get_height()):
@@ -1066,19 +1257,34 @@ class Game:
     def draw_center(self, text, y, color=(245, 245, 245), scale=8):
         px.draw_text(self.screen, text, W // 2 - px.text_width(text, scale) // 2, y, color, scale)
 
+    def draw_menu(self, y):
+        for i, label in enumerate(self.menu_items()):
+            color = (222, 201, 150) if i == self.menu_index else (190, 195, 210)
+            self.draw_center(label, y + i * 64, color, 6)
+            if i == self.menu_index:
+                x = W // 2 - px.text_width(label, 6) // 2 - 36
+                cy = y + i * 64 + 14
+                pygame.draw.polygon(self.screen, color, [(x, cy - 10), (x + 14, cy), (x, cy + 10)])
+
+    def draw_save_status(self):
+        if self.save_error:
+            self.draw_center("SALVATAGGIO NON DISPONIBILE", H - 40, (255, 120, 120), 4)
+
     def draw(self):
         s = self.screen
         if self.state == "title":
             s.blit(self.gfx.background("sky", 1), (0, 0))
-            self.draw_center("GOBLIN", 260, (250, 210, 60), 24)
+            self.draw_center("GOBLIN", 230, (222, 201, 150), 24)
             self.draw_center("12 CIMITERI", 420, (200, 200, 220), 8)
             self.draw_center("SAME COURAGE, NEW NIGHTMARES", 500, (150, 160, 190), 4)
-            if (self.frame // 30) % 2:
-                self.draw_center("PREMI INVIO", 700, scale=6)
+            self.draw_center(f"RECORD {self.hi:08d}", 560, (200, 200, 220), 4)
+            self.draw_menu(610)
             self.draw_center("FRECCE MUOVI  SPAZIO SALTA  Z AFFONDO DI LANCIA  X PUGNO  C CALCIO", 900, (150, 160, 190), 4)
             self.draw_center("V COSMO: RAFFICA DI PUGNI     SU/GIU SULLE SCALE", 940, (150, 160, 190), 4)
             img = self.gfx.player[True]["idle"][0]
-            s.blit(pygame.transform.scale(img, (PW * 2, PH * 2)), (W // 2 - PW, 560 + 40))
+            hero = pygame.transform.smoothscale(img, (img.get_width() * 2, img.get_height() * 2))
+            s.blit(hero, (260 - hero.get_width() // 2, 880 - hero.get_height()))
+            self.draw_save_status()
             pygame.display.flip()
             return
         if self.state == "end":
@@ -1091,6 +1297,8 @@ class Game:
             return
         self.draw_world()
         cam = self.cam
+        if self.trials:
+            self.trials.draw(s, self.gfx, self.player, cam)
         for z in self.zombies:
             z.draw(s, self.gfx, cam)
         for k in self.skels:
@@ -1115,7 +1323,7 @@ class Game:
             ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 170)); s.blit(ov, (0, 0))
             self.draw_center(f"CIMITERO {ROMAN[self.ci]}", 300, (250, 210, 60), 14)
             self.draw_center(self.cfg["name"].upper(), 440, scale=10)
-            sub = {"surface": "SOPRA", "crypt": "SOTTOTERRA", "arena": "IL DUELLO"}[self.part]
+            sub = {"surface": "SOPRA", "crypt": "SOTTOTERRA", "trials": "LE PROVE", "arena": "IL DUELLO"}[self.part]
             self.draw_center(sub, 560, (200, 200, 220), 8)
             self.draw_center(f"GUARDIANO: {self.cfg['boss'].upper()}", 680, self.cfg["color"], 5)
         elif self.state == "armor":
@@ -1129,23 +1337,37 @@ class Game:
             ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 170)); s.blit(ov, (0, 0))
             self.draw_center("GAME OVER", 380, (230, 40, 40), 16)
             self.draw_center(f"INVIO: RIPROVA IL CIMITERO {ROMAN[self.ci]}", 600, scale=6)
+        if self.paused:
+            ov = pygame.Surface((W, H), pygame.SRCALPHA)
+            ov.fill((0, 0, 0, 195))
+            s.blit(ov, (0, 0))
+            self.draw_center("PAUSA", 300, (250, 210, 60), 14)
+            self.draw_menu(520)
+        self.draw_save_status()
         pygame.display.flip()
 
     def run(self):
-        while True:
+        while self.running:
             for e in pygame.event.get():
                 if e.type == pygame.QUIT:
-                    return
+                    self.running = False
+                if e.type == pygame.WINDOWFOCUSLOST and self.state not in ("title", "end", "gameover"):
+                    self.set_paused(True)
                 if e.type == pygame.KEYDOWN:
-                    if e.key == pygame.K_ESCAPE:
-                        return
                     self.key(e.key)
+            if not self.running:
+                break
             self.update()
             self.draw()
             self.clock.tick(FPS)
+        self.save_progress()
 
 
 if __name__ == "__main__":
-    Game().run()
-    pygame.quit()
-    sys.exit()
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--windowed", action="store_true", help="Avvia in finestra")
+    args = parser.parse_args()
+    try:
+        Game(windowed=args.windowed).run()
+    finally:
+        pygame.quit()

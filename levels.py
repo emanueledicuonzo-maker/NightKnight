@@ -59,12 +59,7 @@ def gen_surface(c):
             g[GROUND + 2][cc] = "D"
         x += seg
         if x < cols - 12:
-            gap = rnd.randrange(2, 4 + min(2, c["index"] // 3))
-            # lastre sopra il fosso
-            top = rnd.choice((10, 11))
-            for cc in range(x - 1, min(cols, x + gap + 1)):
-                if rnd.random() < 0.8:
-                    g[top][cc] = "="
+            gap = rnd.randrange(2, 4)
             x += gap
     for cc in range(cols - 12, cols):        # zona finale piena
         g[GROUND][cc] = "#"; g[GROUND + 1][cc] = "D"; g[GROUND + 2][cc] = "D"
@@ -109,8 +104,8 @@ def gen_crypt(c):
         kind = rnd.choice("abcb")
         if kind == "a":                        # fossa di punte
             w = rnd.randrange(2, 4)
-            for cc in range(x + 2, x + 2 + w):
-                g[15][cc] = "^"
+            # Il salto deve superare anche l'intera larghezza della hitbox.
+            g[15][x + 2] = "^"
             x += w + 5
         elif kind == "b":                      # torre di lastre con scala
             h = rnd.randrange(2, 4)
@@ -149,4 +144,19 @@ def gen_arena(c):
         g[GROUND][cc] = "#"; g[GROUND + 1][cc] = "D"; g[GROUND + 2][cc] = "D"
     for r in range(ROWS):
         g[r][0] = "S"; g[r][cols - 1] = "S"
+    return g
+
+
+def gen_trials(c):
+    g = _grid(112)
+    for cc in range(112):
+        for r in range(GROUND, ROWS):
+            g[r][cc] = "#" if r == GROUND else "D"
+    for start, end in ((12, 18), (32, 40)):
+        for cc in range(start, end):
+            for r in range(GROUND, ROWS):
+                g[r][cc] = "."
+    for cc in (52, 58, 64):
+        g[GROUND-1][cc] = "="
+    g[GROUND-1][108] = "E"
     return g

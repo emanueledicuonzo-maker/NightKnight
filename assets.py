@@ -35,7 +35,7 @@ def _fit_h(img, h):
 def load(name, w, h, fallback=None, exact=False, by_height=False, crop_top=0.0):
     """Immagine di nome `name` scalata a (w, h). fallback: funzione che restituisce una Surface.
     by_height: i personaggi vengono scalati sull'altezza, la larghezza segue l'immagine."""
-    key = (name, w, h, by_height, crop_top)
+    key = (name, w, h, exact, by_height, crop_top)
     if key in _cache:
         return _cache[key]
     path = os.path.join(DIR, name + ".png")
@@ -129,7 +129,7 @@ def sheet(name, h, cols=4, rows=2):
         scaled = pygame.transform.smoothscale(crop, (fw, fh))
         # tela comune: larghezza del fotogramma, altezza h, piedi in basso alla stessa quota
         canvas = pygame.Surface((fw, h), pygame.SRCALPHA)
-        canvas.blit(scaled, (0, int((b.top - top) * k)))
+        canvas.blit(scaled, (0, h - fh))
         frames.append(canvas)
     _cache[key] = frames
     return frames
