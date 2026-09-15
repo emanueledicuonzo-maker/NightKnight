@@ -47,6 +47,9 @@ def player_images(armor):
         fname = next((n for n in chain if assets.has(n)), pre + file)
         img = assets.load(fname, PW, PH, assets.pix(rows, remap, PS), by_height=True)
         out[name] = (img, assets.flip(img))
+        if fname != pre + file and assets.has(fname):
+            out.setdefault("_fallback", set()).add(name)     # posa vera mancante: si anima la posa di ripiego
+    out.setdefault("_fallback", set())
     return out
 
 
@@ -369,7 +372,27 @@ class Player(Entity):
     def draw(self, s, gfx, cam):
         if self.invuln and (self.invuln // 3) % 2 and not (self.attack and self.attack[0] == "cosmo"):
             return
-        img = gfx.player[self.armor][self.sprite_name()][0 if self.facing > 0 else 1]
+        name = self.sprite_name()
+        frames = gfx.player[self.armor]
+        img = frames[name][0 if self.facing > 0 else 1]
+        if name in frames["_fallback"]:
+            # animazione di ripiego: inclina e fa "camminare" la posa ferma
+            step = int(self.anim) % 2
+            if name in ("run1", "run2"):
+                ang, dy = (-9 if step else 9) * self.facing, -8 if step else 0
+            elif name in ("punch", "throw", "airpunch", "airthrow", "hado"):
+                ang, dy = -14 * self.facing, 0
+            elif name in ("kick", "airkick"):
+                ang, dy = 12 * self.facing, -6
+            elif name == "jump":
+                ang, dy = 8 * self.facing, 0
+            else:
+                ang, dy = 0, 0
+            if ang:
+                img = pygame.transform.rotate(img, ang)
+            r = self.rect
+            s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height() + dy))
+            return
         self.draw_img(s, img, cam)
         if self.attack and self.attack[0] == "cosmo":
             t = self.attack[1]
@@ -870,7 +893,7 @@ class Game:
         if not cosmo and sum(1 for l in self.lances if not l.cosmo) >= limit:
             return
         r = p.rect
-        l = Lance(r.right if p.facing > 0 else r.left - 120, r.top + 60, p.facing, p.power, angle)
+        l = Lance(r.right if p.facing > 0 else r.left - 120, r.top + 40, p.facing, p.power, angle)
         l.cosmo = cosmo
         if cosmo:
             l.dmg = 12
