@@ -24,8 +24,8 @@ CEMETERIES = [
     ("Oro Nero", "Re dei Cimiteri", (240, 190, 60), "big"),
 ]
 ARMOR_NAMES = {
-    "pierce": "lancia perforante", "double": "lancia doppia", "fire": "lancia di fuoco",
-    "ice": "lancia di ghiaccio", "bounce": "lancia rimbalzante", "big": "lancia gigante",
+    "pierce": "lancia lunga", "double": "doppio affondo", "fire": "lancia di fuoco",
+    "ice": "lancia di ghiaccio", "bounce": "lancia a due punte", "big": "lancia gigante",
 }
 
 

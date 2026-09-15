@@ -96,7 +96,6 @@ class Gfx:
         self.skeleton = [assets.load(f"skeleton_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], px.SKELETON_MAP, PS), by_height=True) for i in range(2)]
         self.crow = [assets.load(f"crow_{i + 1}", 16 * PS, 8 * PS, assets.pix(px.CROW[i], scale=PS)) for i in range(2)]
         self.ghost = [assets.load(f"ghost_{i + 1}", 16 * PS, 16 * PS, assets.pix(px.GHOST[i], scale=PS), by_height=True) for i in range(2)]
-        self.lance = assets.load("lance", 16 * PS, 6 * PS, assets.pix(px.LANCE, scale=PS))
         self.boss_cache = {}
         self.bg_cache = {}
 
@@ -257,6 +256,12 @@ class Player(Entity):
             return pygame.Rect(r.right if self.facing > 0 else r.left - 90, r.top + 50, 90, 46), 6
         if name == "kick" and 4 <= f <= 12:
             return pygame.Rect(r.right if self.facing > 0 else r.left - 110, r.top + 76, 110, 60), 9
+        if name == "throw" and (4 <= f <= 10 or (self.power == "double" and 14 <= f <= 19)):
+            reach = 170 + (60 if self.power == "pierce" else 0) + (100 if self.power == "big" else 0)
+            dmg = 12 * (2 if self.power in ("fire", "big") else 1)
+            if self.power == "bounce":
+                return pygame.Rect(r.left - reach, r.top + 50, r.w + reach * 2, 50), dmg
+            return pygame.Rect(r.right if self.facing > 0 else r.left - reach, r.top + 50, reach, 50), dmg
         if name == "cosmo" and 4 <= f <= 38 and f % 5 == 0:
             return pygame.Rect(r.right if self.facing > 0 else r.left - 170, r.top + 30, 170, 130), 12
         return None, 0
@@ -332,7 +337,7 @@ class Player(Entity):
         if self.attack:
             name, f = self.attack
             f += 1
-            limit = {"punch": 14, "kick": 18, "throw": 14, "cosmo": 40}[name]
+            limit = {"punch": 14, "kick": 18, "throw": 22 if self.power == "double" else 14, "cosmo": 40}[name]
             self.attack = None if f >= limit else (name, f)
         if self.invuln:
             self.invuln -= 1
@@ -583,54 +588,6 @@ class Ghost(Entity):
             pygame.draw.rect(s, (150, 220, 255), (int(self.x) - cam, self.y, self.w, self.h), 4)
 
 
-class Lance(Entity):
-    w, h = 120, 20
-    ox, oy = 4, 14
-
-    def __init__(self, x, y, d, power, angle=0.0):
-        super().__init__(x, y)
-        self.d = d
-        self.power = power
-        self.vx = 17 * d * math.cos(angle)
-        self.vy = -17 * math.sin(angle)
-        self.angle = angle
-        self.bounced = False
-        self.hits = set()
-        self.cosmo = False
-        self.dmg = 10 * (2 if power in ("fire", "big") else 1)
-        self.t = 0
-
-    def update(self, lv, cam):
-        self.t += 1
-        self.x += self.vx
-        self.y += self.vy
-        r = self.rect
-        if lv.solid(r.centerx, r.centery):
-            if self.power == "bounce" and not self.bounced:
-                self.bounced = True
-                self.vx = -self.vx
-                self.d = -self.d
-                self.x += self.vx * 2
-            else:
-                self.alive = False
-        if r.right < cam - 100 or r.left > cam + W + 100 or r.top > H + 50 or r.bottom < -400:
-            self.alive = False
-
-    def draw(self, s, gfx, cam):
-        img = gfx.lance if self.d > 0 else assets.flip(gfx.lance)
-        if self.power == "big":
-            img = pygame.transform.scale(img, (img.get_width() * 3 // 2, img.get_height() * 3 // 2))
-        if self.angle:
-            img = pygame.transform.rotate(img, math.degrees(self.angle) * self.d)
-        if self.power == "fire":
-            pygame.draw.circle(s, (250, 120, 30), (self.rect.centerx - cam, self.rect.centery), 14 + (self.t % 3) * 3)
-        elif self.power == "ice":
-            pygame.draw.circle(s, (150, 220, 255), (self.rect.centerx - cam, self.rect.centery), 12)
-        elif self.cosmo:
-            pygame.draw.circle(s, (255, 220, 100), (self.rect.centerx - cam, self.rect.centery), 16, 3)
-        s.blit(img, img.get_rect(center=(self.rect.centerx - cam, self.rect.centery)))
-
-
 class Effect:
     def __init__(self, x, y, text, color):
         self.x, self.y, self.text, self.color, self.t = x, y, text, color, 0
@@ -688,7 +645,7 @@ class Game:
         lv = self.lv
         self.player = p = Player(2 * TILE, GROUND * TILE - Entity.h)
         p.power = self.powers[-1] if self.powers else None
-        self.zombies, self.skels, self.crows, self.ghosts, self.lances, self.balls = [], [], [], [], [], []
+        self.zombies, self.skels, self.crows, self.ghosts, self.balls = [], [], [], [], []
         for ch, c, r in lv.markers:
             if ch == "k":
                 self.skels.append(Skeleton(c, r))
@@ -711,7 +668,7 @@ class Game:
         self.player.x = 3 * TILE
         self.player.armor = True
         self.boss = knights.GoldKnight(W - 5 * TILE, knights.knight_cfg(self.ci), self.gfx)
-        self.balls, self.lances = [], []
+        self.balls = []
         self.intro = 150
         self.round_no = self.rounds[0] + self.rounds[1] + 1
         self.msg = (f"ROUND {self.round_no}", 90, (250, 210, 60))
@@ -847,32 +804,18 @@ class Game:
             cr.update(self.lv, p)
         for gh in self.ghosts:
             gh.update(self.lv, p)
-        for l in self.lances:
-            l.update(self.lv, self.cam)
         for b in self.balls:
             b.update(self.lv, self.cam)
         # lancio della lancia / hadouken / cosmo
-        if p.attack:
-            name, f = p.attack
-            if name == "throw" and f == 4:
-                self.throw_lance()
-                if p.power == "double":
-                    self.throw_lance(angle=0.35)
         # colpi del giocatore sui nemici
         abox, adm = p.attack_box()
         enemies = [(z, 100) for z in self.zombies if z.rise >= 20] + [(k, 300) for k in self.skels] + [(c, 150) for c in self.crows] + [(gh, 400) for gh in self.ghosts if gh.visible()]
         for e, pts in enemies:
             er = e.rect
             if abox and abox.colliderect(er):
-                self.hit_enemy(e, adm * 2, pts=pts)
+                self.hit_enemy(e, adm * 2, p.power if p.attack[0] == "throw" else None, pts)
                 if not (p.attack and p.attack[0] == "cosmo"):
                     continue
-            for l in self.lances:
-                if l.alive and e.alive and id(e) not in l.hits and l.rect.colliderect(er):
-                    l.hits.add(id(e))
-                    self.hit_enemy(e, l.dmg, l.power, pts)
-                    if l.power != "pierce" and not l.cosmo:
-                        l.alive = False
             if not e.alive:
                 continue
             if p.hurtbox().colliderect(er):
@@ -909,15 +852,8 @@ class Game:
             else:
                 bs.update(self.lv, p, self.balls.append)
                 br = bs.rect
-                if abox and abox.colliderect(br) and bs.hit(adm):
+                if abox and abox.colliderect(br) and bs.hit(adm, p.power if p.attack[0] == "throw" else None):
                     self.score += 50; p.cosmo = min(100, p.cosmo + 8); self.jb.fx("hit")
-                for l in self.lances:
-                    if l.alive and id(bs) not in l.hits and l.rect.colliderect(br):
-                        if bs.hit(l.dmg, l.power):
-                            l.hits.add(id(bs))
-                            self.score += 50; p.cosmo = min(100, p.cosmo + 8); self.jb.fx("hit")
-                            if l.power != "pierce":
-                                l.alive = False
                 if not bs.hidden and p.hurtbox().colliderect(br):
                     if p.vy > 0 and r.bottom - br.top < 50:
                         p.vy = -14
@@ -934,21 +870,7 @@ class Game:
         self.skels = [k for k in self.skels if k.alive]
         self.crows = [c for c in self.crows if c.alive]
         self.ghosts = [gh for gh in self.ghosts if gh.alive]
-        self.lances = [l for l in self.lances if l.alive]
         self.balls = [b for b in self.balls if b.alive]
-
-    def throw_lance(self, angle=0.0, cosmo=False):
-        p = self.player
-        limit = 3 if p.power in ("double", "pierce") else 2
-        if not cosmo and sum(1 for l in self.lances if not l.cosmo) >= limit:
-            return
-        r = p.rect
-        l = Lance(r.right if p.facing > 0 else r.left - 120, r.top + 40, p.facing, p.power, angle)
-        l.cosmo = cosmo
-        if cosmo:
-            l.dmg = 12
-        self.lances.append(l)
-        self.jb.fx("throw")
 
     def lose_life(self):
         self.lives -= 1
@@ -1088,7 +1010,7 @@ class Game:
             self.draw_center("SAME COURAGE, NEW NIGHTMARES", 500, (150, 160, 190), 4)
             if (self.frame // 30) % 2:
                 self.draw_center("PREMI INVIO", 700, scale=6)
-            self.draw_center("FRECCE MUOVI  SPAZIO SALTA  Z LANCIA  X PUGNO  C CALCIO", 900, (150, 160, 190), 4)
+            self.draw_center("FRECCE MUOVI  SPAZIO SALTA  Z AFFONDO DI LANCIA  X PUGNO  C CALCIO", 900, (150, 160, 190), 4)
             self.draw_center("V COSMO: RAFFICA DI PUGNI     SU/GIU SULLE SCALE", 940, (150, 160, 190), 4)
             img = self.gfx.player[True]["idle"][0]
             s.blit(pygame.transform.scale(img, (PW * 2, PH * 2)), (W // 2 - PW, 560 + 40))
@@ -1114,8 +1036,6 @@ class Game:
             gh.draw(s, self.gfx, cam)
         if self.boss:
             self.boss.draw(s, cam)
-        for l in self.lances:
-            l.draw(s, self.gfx, cam)
         for b in self.balls:
             b.draw(s, self.gfx, cam)
         p = self.player
