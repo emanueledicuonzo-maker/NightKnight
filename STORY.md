@@ -34,7 +34,7 @@ un uomo che corre piu' veloce e muore prima.
 corpo rimanda indietro. NightKnight non produce energia: accumula quella che gli
 viene tirata addosso e la restituisce. Serve per l'ultima fase dello scontro finale.
 
-**Ogni mondo pesa diverso.** Le gravita' sono quelle vere. Le cinque prove atletiche
+**Ogni mondo pesa diverso.** Le gravita' sono quelle vere. Le prove atletiche
 prima di ogni duello servono a imparare quanto si salta su quel satellite. Non sono
 un intermezzo: sono il tutorial di un mondo che cambia sotto i piedi.
 
@@ -182,48 +182,58 @@ grande, vola; se l'ha trascurata, la fase 3 e' un muro. E' l'unico punto del gio
 dove la compagna non e' un aiuto ma la condizione per proseguire — e c'e' un conto in
 sospeso, perche' e' Luna che l'ha sbiancata a meta' volo.
 
-## Le cinque discipline sono cinque abilita'
+## Le discipline sono abilita'
 
 Le prove non sono un livello a parte: sono **dove NightKnight impara**. Ogni
 disciplina sblocca un'abilita' permanente, che da quel momento si usa nei cimiteri
 per attraversare posti dove prima non si passava. Un mondo gia' visitato torna
 percorribile in modo nuovo.
 
-L'input e' alla *Decathlon*: si alterna rapidamente Z e X per caricare la rincorsa,
-e si cronometra il rilascio. Non e' un tasto che esegue l'abilita': e' lo sforzo che
-la produce.
+L'input e' alla *Decathlon*: si alterna rapidamente Z e X per caricare, e si
+cronometra il rilascio. Non e' un tasto che esegue l'abilita': e' lo sforzo che la
+produce.
 
-### Fase 1 — i primi cinque mondi insegnano
+### La rincorsa e' il verbo
+
+Non e' un'abilita' fra le altre: e' la barra che le alimenta quasi tutte. Si carica
+correndo, e **il contesto decide cosa ne esce**. Stesso input, quattro mosse.
+
+| Se davanti c'e' | Esce |
+| --- | --- |
+| un fosso | salto in lungo |
+| un ostacolo alto | salto in alto — piu' e' alto, piu' rincorsa serve |
+| una liana a portata | lancio in volo |
+| un Guardiano | sprint con la spada alzata |
+
+### Fase 1 — gli otto mondi che insegnano
 
 Ogni mondo insegna l'abilita' di cui ha bisogno: e' l'ostacolo del posto a rendere
 necessaria proprio quella.
 
 | Mondo | Disciplina | Abilita' | Perche' proprio li' |
 | --- | --- | --- | --- |
-| 01 Titano | salto in lungo | **Rincorsa** | e' la gravita' piu' alta dei dodici: qui si impara a spingere |
-| 02 Nix | liana | **Presa** | gravita' quasi nulla, non si atterra: ci si aggrappa |
-| 03 Io | cavallo | **Cavalcata** | il terreno brucia e si rifa' di continuo: a piedi non ci si resta |
-| 04 Europa | giavellotto | **Lancio lungo** | sul ghiaccio non ci si avvicina: si colpisce da lontano |
-| 05 Rea | pugnali | **Lancio rapido** | fra le radici serve un taglio corto e veloce |
+| 01 Titano | salto in lungo | **Rincorsa** | nella nebbia il fosso non si vede: ci si fida della spinta, non degli occhi |
+| 02 Nix | liana | **Presa** | gravita' quasi nulla, non si atterra: ci si aggrappa. Da qui la liana lancia anche in alto |
+| 03 Io | salto in alto | **Salto in alto** | la gravita' piu' alta dei dodici, e le colate da scavalcare |
+| 04 Europa | giavellotto | **Giavellotto** | sul ghiaccio non ci si avvicina: raggiunge un Guardiano da meta' arena |
+| 05 Rea | pugnali | **Pugnali** | fra le radici serve un taglio corto e veloce |
+| 06 Caronte | lancio del disco | **Disco** (arma che si vince) | il traghettatore va e torna, e cosi' il disco: colpisce all'andata e al ritorno |
+| 07 Ganimede | corsa con spada alzata | **Sprint d'assalto** | si carica nel buio fra un lampo e l'altro |
+| 08 Fobos | ostacoli a cavallo | **Cavalcata** | dove non pesi niente il cavallo non si ferma piu' |
 
-### Fase 2 — gli altri sette misurano
+Il **disco** e' l'unica disciplina che consegna un'arma invece di un movimento. Uno
+solo in aria per volta.
 
-Dal sesto mondo in poi le prove diventano **record**. Si ripetono per migliorare
-l'abilita': rincorsa piu' lunga, cavallo piu' veloce, presa piu' salda. La gravita'
-del mondo entra nel punteggio, quindi il record di Miranda non e' confrontabile con
-quello di Io — ogni satellite ha la sua classifica.
+### Fase 2 — gli ultimi quattro misurano
 
-### Uso nei cimiteri
+Su Nereide, Miranda, Umbriel e Oberon le prove diventano **record**. Si ripetono per
+migliorare l'abilita': rincorsa piu' lunga, disco piu' veloce, presa piu' salda. La
+gravita' del mondo entra nel punteggio, quindi il record di Miranda non e'
+confrontabile con quello di Io — ogni satellite ha la sua classifica.
 
-| Abilita' | Comando | A cosa serve fuori dalle prove |
-| --- | --- | --- |
-| Rincorsa | Maiusc + movimento, poi Spazio | fossi larghi, piattaforme alte |
-| Presa | E per afferrare, Spazio per lasciare | voragini, pareti senza scale |
-| Cavalcata | E per salire e scendere | tratti lunghi, ostacoli in serie |
-| Lancio lungo | F | bersagli in parabola, nemici fuori portata, meccanismi a distanza |
-| Lancio rapido | G | linea tesa, corta e veloce: correzione fine dopo quella grossolana |
-
-I cimiteri dal sesto in poi sono disegnati dando per acquisite tutte e cinque.
+Le discipline non restano nell'area delle prove: un fosso da salto in lungo, un muro
+da salto in alto, una liana sopra una voragine compaiono dentro ai cimiteri, ogni
+tanto, dal mondo in cui sono state imparate in poi.
 
 ## Nomi e diritti
 

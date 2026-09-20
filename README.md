@@ -51,6 +51,10 @@ gli ostacoli ed E permette di scendere quando si e' a terra. I bersagli accettan
 solo l'arma della loro specialita'. I lanci sono disponibili anche fuori dalle
 prove. Perdere una vita ricomincia la sezione, comprese le prove.
 
+> Questa e' l'implementazione attuale: cinque prove in un percorso a se'.
+> Il progetto in `STORY.md` le trasforma in otto discipline che sbloccano
+> abilita' permanenti, usate poi dentro ai cimiteri. Non ancora implementato.
+
 Le corde usano [Pymunk](https://www.pymunk.org/en/latest/pymunk.constraints.html).
 
 ## Progressi
