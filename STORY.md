@@ -163,8 +163,8 @@ stanno fra x5,5 e x136: scalabili con un solo moltiplicatore per livello.
 ## Luna — il tredicesimo satellite
 
 Non ha un Guardiano perche' e' lei. Dopo Oberon non c'e' un altro cimitero: c'e' il
-cielo, e il salto che lo attraversa. Alta **tre volte** NightKnight, il doppio di
-qualunque Guardiano.
+cielo, e il salto che lo attraversa. Alta **tre volte** NightKnight, una volta e
+mezza qualunque Guardiano.
 
 Porta quattro armi. Le prime tre sono quelle che ha prestato ai suoi — fuoco,
 ghiaccio, vento — e si schivano. La quarta e' la luce che ha rubato per dodici mondi,
