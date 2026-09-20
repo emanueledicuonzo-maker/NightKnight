@@ -10,18 +10,18 @@ ROWS = 17
 GROUND = 14
 
 CEMETERIES = [
-    ("Nebbia", "Cavaliere della Nebbia", (150, 160, 180), "pierce"),
-    ("Corvi", "Cavaliere dei Corvi", (40, 40, 60), "double"),
-    ("Fuoco Fatuo", "Cavaliere del Fuoco", (240, 110, 30), "fire"),
-    ("Ghiaccio", "Cavaliere del Gelo", (120, 200, 255), "ice"),
-    ("Radici", "Cavaliere delle Radici", (90, 140, 60), "bounce"),
-    ("Ossa", "Cavaliere delle Ossa", (230, 230, 220), "big"),
-    ("Fulmini", "Cavaliere del Tuono", (250, 230, 90), "pierce"),
-    ("Sangue", "Cavaliere del Sangue", (190, 30, 40), "double"),
-    ("Abisso", "Cavaliere dell'Abisso", (60, 40, 120), "fire"),
-    ("Peste", "Cavaliere della Peste", (120, 160, 40), "ice"),
-    ("Ombra", "Cavaliere dell'Ombra", (50, 50, 60), "bounce"),
-    ("Oro Nero", "Re dei Cimiteri", (240, 190, 60), "big"),
+    ("Titano", "Guardiano di Titano", (150, 160, 180), "pierce"),
+    ("Nix", "Guardiano di Nix", (40, 40, 60), "double"),
+    ("Io", "Guardiano di Io", (240, 110, 30), "fire"),
+    ("Europa", "Guardiano di Europa", (120, 200, 255), "ice"),
+    ("Rea", "Guardiano di Rea", (90, 140, 60), "bounce"),
+    ("Caronte", "Guardiano di Caronte", (230, 230, 220), "big"),
+    ("Ganimede", "Guardiano di Ganimede", (250, 230, 90), "pierce"),
+    ("Fobos", "Guardiano di Fobos", (190, 30, 40), "double"),
+    ("Nereide", "Guardiano di Nereide", (60, 40, 120), "fire"),
+    ("Miranda", "Guardiano di Miranda", (120, 160, 40), "ice"),
+    ("Umbriel", "Guardiano di Umbriel", (50, 50, 60), "bounce"),
+    ("Oberon", "Oberon, il Re", (240, 190, 60), "big"),
 ]
 ARMOR_NAMES = {
     "pierce": "lancia lunga", "double": "doppio affondo", "fire": "lancia di fuoco",

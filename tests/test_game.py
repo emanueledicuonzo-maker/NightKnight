@@ -232,8 +232,8 @@ class GameTests(unittest.TestCase):
         self.assertGreater(jb.chan.get_volume(), 0)
 
     def test_exact_and_fitted_assets_have_separate_cache_entries(self):
-        fitted = assets.load("arthur_idle", 300, 100)
-        exact = assets.load("arthur_idle", 300, 100, exact=True)
+        fitted = assets.load("knight_idle", 300, 100)
+        exact = assets.load("knight_idle", 300, 100, exact=True)
         self.assertIsNot(fitted, exact)
 
     def test_render_all_sections_and_menus(self):

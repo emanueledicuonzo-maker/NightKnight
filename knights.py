@@ -15,18 +15,18 @@ W = 1920
 
 # nome, arma, portata arma, colore, mosse
 KNIGHTS = [
-    ("Cavaliere d'Oro della Nebbia", "spada", 150, (200, 205, 225), ["combo", "slash", "flykick", "kick"]),
-    ("Cavaliere d'Oro dei Corvi", "ascia", 140, (60, 60, 90), ["heavy", "throw", "sweep", "punch"]),
-    ("Cavaliere d'Oro del Fuoco", "martello", 130, (240, 110, 30), ["pound", "uppercut", "jumpsmash", "kick"]),
-    ("Cavaliere d'Oro del Gelo", "lancia", 230, (120, 200, 255), ["thrust", "spinkick", "dashthrust", "punch"]),
-    ("Cavaliere d'Oro delle Radici", "catene", 300, (90, 160, 60), ["whip", "spinkick", "combo", "sweep"]),
-    ("Cavaliere d'Oro delle Ossa", "arco", 90, (235, 235, 220), ["arrow", "backflip", "kick", "roundhouse"]),
-    ("Cavaliere d'Oro del Tuono", "doppie lame", 120, (250, 230, 90), ["combo", "slash", "teleport", "flykick"]),
-    ("Cavaliere d'Oro del Sangue", "bastone", 190, (200, 40, 50), ["spin", "polevault", "sweep", "thrust"]),
-    ("Cavaliere d'Oro dell'Abisso", "falce", 200, (110, 70, 200), ["slash", "heavy", "roundhouse", "teleport"]),
-    ("Cavaliere d'Oro della Peste", "mazza", 130, (140, 190, 50), ["dash", "pound", "combo", "heavy"]),
-    ("Cavaliere d'Oro dell'Ombra", "artigli", 100, (80, 80, 100), ["combo", "dive", "dash", "teleport"]),
-    ("Re dei Cavalieri d'Oro", "scettro", 160, (255, 200, 60), ["dashthrust", "teleport", "combo", "flykick", "uppercut", "slash"]),
+    ("Guardiano di Titano", "spada", 150, (200, 205, 225), ["combo", "slash", "flykick", "kick"]),
+    ("Guardiano di Nix", "ascia", 140, (60, 60, 90), ["heavy", "throw", "sweep", "punch"]),
+    ("Guardiano di Io", "martello", 130, (240, 110, 30), ["pound", "uppercut", "jumpsmash", "kick"]),
+    ("Guardiano di Europa", "lancia", 230, (120, 200, 255), ["thrust", "spinkick", "dashthrust", "punch"]),
+    ("Guardiano di Rea", "catene", 300, (90, 160, 60), ["whip", "spinkick", "combo", "sweep"]),
+    ("Guardiano di Caronte", "arco", 90, (235, 235, 220), ["arrow", "backflip", "kick", "roundhouse"]),
+    ("Guardiano di Ganimede", "doppie lame", 120, (250, 230, 90), ["combo", "slash", "teleport", "flykick"]),
+    ("Guardiano di Fobos", "bastone", 190, (200, 40, 50), ["spin", "polevault", "sweep", "thrust"]),
+    ("Guardiano di Nereide", "falce", 200, (110, 70, 200), ["slash", "heavy", "roundhouse", "teleport"]),
+    ("Guardiano di Miranda", "mazza", 130, (140, 190, 50), ["dash", "pound", "combo", "heavy"]),
+    ("Guardiano di Umbriel", "artigli", 100, (80, 80, 100), ["combo", "dive", "dash", "teleport"]),
+    ("Oberon, il Re", "scettro", 160, (255, 200, 60), ["dashthrust", "teleport", "combo", "flykick", "uppercut", "slash"]),
 ]
 
 # libreria delle mosse: total, finestra attiva (a, b), portata, altezza (offset y, h), danno extra, tipo, pose

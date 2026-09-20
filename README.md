@@ -1,7 +1,8 @@
-# Goblin
+# NightKnight
 
-Gioco 2D per Linux in Python e Pygame: 12 cimiteri, ciascuno con superficie,
-cripta, prove atletiche e duello al meglio dei tre round contro un Cavaliere d'Oro.
+Gioco 2D per Linux in Python e Pygame: 12 satelliti, ciascuno con superficie,
+cripta, prove atletiche e duello al meglio dei tre round contro un Guardiano.
+Storia completa in `STORY.md`.
 
 ## Avvio
 
@@ -23,7 +24,7 @@ Per ricrearlo: `python3 -m venv .venv`, poi `.venv/bin/pip install -r requiremen
 | Z | Affondo di lancia |
 | X | Pugno |
 | C | Calcio |
-| V | Cosmo, quando la barra e' piena |
+| V | Albedo, quando la barra e' piena |
 | Maiusc + movimento | Rincorsa: aumenta velocita' e lunghezza del salto |
 | F | Lancio del giavellotto |
 | G | Lancio del pugnale |

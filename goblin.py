@@ -41,7 +41,7 @@ PW, PH = 16 * PS, 24 * PS
 def player_images(armor):
     out = {}
     remap = None if armor else px.UNDERWEAR
-    pre = "arthur_" if armor else "arthur_nude_"
+    pre = "knight_" if armor else "knight_nude_"
     for name, (torso, legs) in px.PLAYER_FRAMES.items():
         rows = px.HEAD + px.TORSO[torso] + px.LEGS[legs]
         file = {"run1": "run1", "run2": "run2", "jump": "jump", "punch": "punch", "kick": "kick",
@@ -49,7 +49,7 @@ def player_images(armor):
                 "airthrow": "throw", "climb": "climb", "idle": "idle"}[name]
         chain = [pre + file, pre + "idle", pre + "run1"]
         if not armor:
-            chain += ["arthur_" + file, "arthur_idle", "arthur_run1"]
+            chain += ["knight_" + file, "knight_idle", "knight_run1"]
         fname = next((n for n in chain if assets.has(n)), pre + file)
         img = assets.load(fname, PW, PH, assets.pix(rows, remap, PS), by_height=True)
         out[name] = (img, assets.flip(img))
@@ -98,7 +98,7 @@ class Gfx:
             self.deco["t2"] = assets.load("tomb2", TILE, TILE)
         self.player = {True: player_images(True), False: player_images(False)}
         self.sheets = {}
-        for armor, pre in ((True, "arthur_"), (False, "arthur_nude_")):
+        for armor, pre in ((True, "knight_"), (False, "knight_nude_")):
             d = {}
             for pose, file in (("run", "run_sheet"), ("punch", "punch_sheet"), ("kick", "kick_sheet"),
                                ("jump", "jump_sheet"), ("throw", "spear_lunge_sheet")):
