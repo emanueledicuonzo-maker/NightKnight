@@ -93,3 +93,29 @@ valutare difficolta' dei combattimenti e ritmo.
 ```sh
 SDL_VIDEODRIVER=dummy SDL_AUDIODRIVER=dummy .venv/bin/python -m unittest discover -s tests
 ```
+
+## Licenza
+
+Codice sorgente: **MIT** (vedi `LICENSE`). Immagini e suoni in `assets/`: **CC0 1.0**,
+cioe' pubblico dominio. Puoi usare, modificare, forkare e ridistribuire tutto,
+anche a scopo commerciale, senza chiedere permesso.
+
+Nota per chi forka: i nomi dei personaggi e alcuni elementi di scena sono un omaggio
+a *Ghosts 'n Goblins* e a *I Cavalieri dello Zodiaco*, che sono marchi dei rispettivi
+proprietari. La licenza qui sopra copre il codice e i render originali di questo
+repository, non quei marchi: se pubblichi la tua versione, conviene darle nomi propri.
+
+## Contribuire
+
+Ogni contributo e' benvenuto: forka, apri una pull request, oppure apri una issue
+per proporre un'idea o segnalare un bug. Non serve chiedere il permesso prima.
+
+Per far girare il progetto in locale:
+
+```sh
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+./goblin.sh --windowed
+```
+
+I test si lanciano con `.venv/bin/python -m pytest`.
