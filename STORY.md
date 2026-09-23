@@ -115,6 +115,27 @@ sceglie all'inizio e si porta fino alla fine. L'arma affine al satellite fa
 danni pieni; con l'arma sbagliata i nemici di quel satellite diventano molto più
 resistenti.
 
+## Il kit fisso
+
+Oltre all'arma scelta, NightKnight ha sempre con sé calci e sassi. Fanno meno
+danno dell'arma affine, ma sono la via d'uscita quando l'arma è sbagliata, e ogni
+mossa ha un ruolo preciso:
+
+| Mossa | Ruolo |
+| --- | --- |
+| Calcio | Respinge il nemico: spinge gli scheletri nei crepacci o sui geyser, apre la guardia degli scudati |
+| Calcio volante | In salto, colpisce dall'alto: contro gli sciami e i nemici bassi come ratti e ragni |
+| Calcio volante girato | Due giri in aria, colpisce e respinge **tutti i nemici intorno**, davanti e dietro |
+| Sassi | Colpi deboli a distanza, infiniti: contro i volanti quando Bianca è scarica |
+
+Il **calcio volante girato** è la mossa per uscire dall'accerchiamento, e ha tre
+regole:
+
+- si esegue **solo dopo la rincorsa**: corsa, salto, calcio;
+- è più potente del calcio volante semplice e colpisce tutti i nemici intorno;
+- all'atterraggio NightKnight resta **scoperto per un attimo**: sbagliato in
+  mezzo a uno sciame, si paga.
+
 ## Pool dei nemici e delle insidie
 
 Ogni satellite pesca **2 volanti, 3 terrestri e 4 insidie**. Scheletri normali,

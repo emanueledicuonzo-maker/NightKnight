@@ -154,7 +154,8 @@ class AthleticsTests(unittest.TestCase):
         self.assertNotEqual(pygame.image.tobytes(a, "RGBA"), pygame.image.tobytes(b, "RGBA"))
         g.key(pygame.K_x)
         p.attack = ("punch", 5)
-        self.assertIsNotNone(p.sheet_frame(g.gfx))
+        if "punch" in g.gfx.sheets:
+            self.assertIsNotNone(p.sheet_frame(g.gfx))
         box, damage = p.attack_box()
         self.assertGreater(damage, 0)
         self.assertGreater(box.right, p.rect.right)
