@@ -98,6 +98,28 @@ class TraversalTests(unittest.TestCase):
             g.update()
         self.assertLess(skeleton.hp, hp)
 
+    def test_spinning_kick_needs_a_run_up_hits_all_around_and_leaves_you_open(self):
+        g = self.game
+        p = g.player
+        p.on_ground = False
+        p.vx = goblin.RUN_MAX                     # senza rincorsa: calcio volante semplice
+        g.key(pygame.K_c)
+        self.assertEqual(p.attack[0], "kick")
+        p.attack = None
+        p.vx = goblin.SPRINT_MAX                  # dopo la rincorsa: calcio girato
+        g.key(pygame.K_c)
+        self.assertEqual(p.attack[0], "spin")
+        p.attack = ("spin", 10)
+        box, _ = p.attack_box()
+        self.assertLess(box.left, p.rect.left - 100)
+        self.assertGreater(box.right, p.rect.right + 100)
+        p.on_ground = True
+        keys = defaultdict(bool)
+        p.update(keys, g.lv)
+        self.assertIsNone(p.attack)
+        self.assertGreater(p.recover, 0)
+        self.assertFalse(p.start_attack("throw"))     # scoperto per un attimo
+
     def test_creatures_sound_like_flesh_and_skeletons_like_bone(self):
         g = self.game
         with patch.object(g.jb, "fx") as fx:

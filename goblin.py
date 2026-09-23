@@ -37,6 +37,9 @@ MAX_FALL = 18
 RUN_ACC = 0.65
 RUN_MAX = 5.8
 SWORD_REACH = 170
+SPIN_REACH = 130
+SPIN_FRAMES = 42
+SPIN_RECOVERY = 26      # all'atterraggio dopo il calcio girato si resta scoperti
 SPRINT_MAX = 10.0
 JUMP_V = -20.0
 SHORT_JUMP_V = -16.0
@@ -296,6 +299,7 @@ class Player(Entity):
         self.run_t = 0.0
         self.attack = None
         self.swing = 0
+        self.recover = 0
         self.climbing = False
         self.last_down = -999
         self.last_fwd = -999
@@ -313,6 +317,9 @@ class Player(Entity):
             return None, 0
         name, f = self.attack
         r = self.rect
+        if name == "spin" and 6 <= f <= 34:
+            # calcio volante girato: due giri, colpisce tutto intorno, davanti e dietro
+            return r.inflate(2 * SPIN_REACH, 60), 14
         if name == "kick" and 4 <= f <= 12:
             return pygame.Rect(r.right if self.facing > 0 else r.left - 110, r.top + 76, 110, 60), 9
         if name == "throw" and 4 <= f <= 10:
@@ -369,7 +376,13 @@ class Player(Entity):
                     self.invuln -= 1
                 return
         grounded_attack = self.attack and self.on_ground
-        if not grounded_attack:
+        if self.recover:
+            # atterraggio pesante dopo il calcio girato: niente comandi per un attimo
+            self.recover -= 1
+            self.vx *= 0.7
+        elif self.attack and self.attack[0] == "spin":
+            pass                          # in volo il giro conserva lo slancio
+        elif not grounded_attack:
             if right and not left:
                 self.vx = min(self.vx + RUN_ACC, speed_limit); self.facing = 1
             elif left and not right:
@@ -398,8 +411,11 @@ class Player(Entity):
         if self.attack:
             name, f = self.attack
             f += 1
-            limit = {"punch": 14, "kick": 18, "throw": 14}[name]
+            limit = {"punch": 14, "kick": 18, "throw": 14, "spin": SPIN_FRAMES}[name]
             self.attack = None if f >= limit else (name, f)
+            if name == "spin" and (self.attack is None or self.on_ground):
+                self.attack = None
+                self.recover = SPIN_RECOVERY
         if self.invuln:
             self.invuln -= 1
 
@@ -419,7 +435,7 @@ class Player(Entity):
         return False
 
     def start_attack(self, name):
-        if not self.attack and not self.climbing:
+        if not self.attack and not self.climbing and not self.recover:
             self.attack = (name, 0)
             self.swing += 1               # ogni colpo tocca ciascun nemico una volta sola
             return True
@@ -434,10 +450,11 @@ class Player(Entity):
         if self.attack:
             name, f = self.attack
             base = "flykick" if name == "kick" and not self.on_ground and "flykick" in sheets else name
+            base = "spinkick" if name == "spin" else base
             if base not in sheets:
                 return None
             fr = sheets[base][side]
-            limit = {"punch": 14, "kick": 18, "throw": 14}[name]
+            limit = {"punch": 14, "kick": 18, "throw": 14, "spin": SPIN_FRAMES}[name]
             return fr[min(len(fr) - 1, f * len(fr) // limit)]
         if not self.on_ground:
             if "jump" not in sheets:
@@ -1171,7 +1188,7 @@ class Game:
             er = e.rect
             if abox and abox.colliderect(er) and getattr(e, "swing", None) != p.swing:
                 e.swing = p.swing
-                self.hit_enemy(e, 1, pts=pts, weapon=p.attack[0] == "throw")
+                self.hit_enemy(e, 2 if p.attack[0] == "spin" else 1, pts=pts, weapon=p.attack[0] == "throw")
                 continue
             if not e.alive:
                 continue
@@ -1333,8 +1350,10 @@ class Game:
                 self.balls.append(Stone(p))
                 self.jb.fx("throw")
         elif k == pygame.K_c:
-            if p.start_attack("kick"):
-                self.jb.fx("swing")
+            # dopo la rincorsa, in salto, il calcio diventa il calcio volante girato
+            spin = not p.on_ground and abs(p.vx) > RUN_MAX + 0.5
+            if p.start_attack("spin" if spin else "kick"):
+                self.jb.fx("sword" if spin else "swing")
         elif k == pygame.K_v:
             self.luce_burst()
 
