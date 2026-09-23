@@ -1141,6 +1141,11 @@ class Game:
         if p.hp == 0:
             self.die()
 
+    def boss_spawn(self, projectile):
+        self.balls.append(projectile)
+        if projectile.kind == "hook":
+            self.jb.fx("hook")
+
     def die(self):
         self.state, self.state_t = "dead", 0
         self.jb.fx("death")
@@ -1258,6 +1263,14 @@ class Game:
                 self.jb.fx("door")
                 self.next_part()
                 return
+        # Nel duello il Guardiano e' aiutato solo da pochi volanti
+        if self.part == "arena" and self.ci == 0 and self.boss and self.boss.hp > 0 and not self.intro:
+            self.arena_flyer_t = getattr(self, "arena_flyer_t", 300) - 1
+            if self.arena_flyer_t <= 0 and sum(c.alive for c in self.crows) < levels.TITAN_ARENA_FLYERS_MAX:
+                self.arena_flyer_t = 420
+                side = random.choice((-1, 1))
+                x = -80 if side < 0 else W + 20
+                self.crows.append(Flyer(x, random.randrange(160, 380), random.choice(levels.TITAN_ARENA_FLYERS)))
         if self.waves:
             event = self.waves.update(p, self.skels, self.crows)
             if event:
@@ -1354,7 +1367,7 @@ class Game:
                     self.jb.fx("ko")
                     self.score += 5000 * self.cfg["num"]
                     self.rounds[0] += 1
-                bs.update(self.lv, p, self.balls.append)
+                bs.update(self.lv, p, self.boss_spawn)
                 if self.ko_wait > 130:
                     if self.rounds[0] >= 2:
                         self.next_part()
@@ -1362,7 +1375,7 @@ class Game:
                         self.start_round()
                     return
             else:
-                bs.update(self.lv, p, self.balls.append)
+                bs.update(self.lv, p, self.boss_spawn)
                 br = bs.rect
                 abox, adm = p.attack_box()
                 if abox and abox.colliderect(br) and bs.hit(adm, p.power if p.attack[0] == "throw" else None):

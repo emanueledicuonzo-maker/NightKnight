@@ -13,10 +13,12 @@ GROUND = 14
 GRAVITY = 0.9
 MAX_FALL = 22
 W = 1920
+HUMAN_H = 198
+REAL_H = 192              # altezza dello sprite di NightKnight             # altezza di riferimento per le mosse dei Guardiani
 
 # nome, arma, portata arma, colore, mosse
 KNIGHTS = [
-    ("Guardiano di Titano", "spada", 150, (200, 205, 225), ["combo", "slash", "flykick", "kick"]),
+    ("Guardiano di Titano", "alabarda", 170, (200, 205, 225), ["slash", "hook", "kick", "heavy"]),
     ("Guardiano di Nix", "ascia", 140, (60, 60, 90), ["heavy", "throw", "sweep", "punch"]),
     ("Guardiano di Io", "martello", 130, (240, 110, 30), ["pound", "uppercut", "jumpsmash", "kick"]),
     ("Guardiano di Europa", "lancia", 230, (120, 200, 255), ["thrust", "spinkick", "dashthrust", "punch"]),
@@ -48,6 +50,7 @@ MOVES = {
     "whip":       dict(total=40, act=(16, 24), reach=None, box=(50, 40), dmg=9, kind="weapon", pose="attack"),
     "pound":      dict(total=48, act=(20, 26), reach=120, box=(100, 60), dmg=10, kind="weapon", pose="attack", proj=("shock", 24)),
     "jumpsmash":  dict(total=70, act=(50, 56), reach=140, box=(100, 60), dmg=12, kind="air", pose="attack", vy=-22, vx=6, proj=("shock2", 50)),
+    "hook":       dict(total=60, act=None, reach=None, box=None, dmg=10, kind="ranged", pose="special", proj=("hook", 14)),
     "throw":      dict(total=44, act=None, reach=None, box=None, dmg=10, kind="ranged", pose="special", proj=("axe", 16)),
     "arrow":      dict(total=36, act=None, reach=None, box=None, dmg=8, kind="ranged", pose="special", proj=("arrow", 14)),
     "wave":       dict(total=44, act=None, reach=None, box=None, dmg=14, kind="ranged", pose="special", proj=("wave", 18)),
@@ -57,7 +60,7 @@ MOVES = {
     "polevault":  dict(total=56, act=(20, 44), reach=120, box=(60, 60), dmg=9, kind="air", pose="kick", vy=-21, vx=8),
     "dive":       dict(total=60, act=(24, 50), reach=110, box=(60, 60), dmg=10, kind="air", pose="attack", vy=-20, vx=10),
 }
-RANGED = {"throw", "arrow", "wave", "pound", "teleport", "dash", "dashthrust", "flykick", "polevault", "dive", "jumpsmash"}
+RANGED = {"hook", "throw", "arrow", "wave", "pound", "teleport", "dash", "dashthrust", "flykick", "polevault", "dive", "jumpsmash"}
 GOLD = {"H": "Y", "A": "Y", "a": "y", "B": "y", "b": "k", "S": "S"}
 
 
@@ -76,6 +79,8 @@ class Projectile:
         self.origin = x
         if kind == "axe":
             self.w, self.h, self.vx = 70, 70, 14 * d
+        elif kind == "hook":
+            self.w, self.h, self.vx = 60, 50, 16 * d
         elif kind == "arrow":
             self.w, self.h, self.vx = 90, 14, (22 + speed_bonus) * d
         elif kind == "wave":
@@ -94,6 +99,13 @@ class Projectile:
             self.x += self.vx
             if self.t > 90:
                 self.alive = False
+        elif self.kind == "hook":
+            # il gancio corre sulla catena, poi torna alla mano
+            if self.t > 30:
+                self.vx = -16 * self.d
+            self.x += self.vx
+            if self.t > 30 and (self.x - self.origin) * self.d <= 0:
+                self.alive = False
         else:
             self.x += self.vx
         self.rect = pygame.Rect(int(self.x), int(self.y), self.w, self.h)
@@ -106,6 +118,16 @@ class Projectile:
     def draw(self, s, gfx, cam):
         r = self.rect.move(-cam, 0)
         c = self.color
+        if self.kind == "hook":
+            y = r.centery
+            x0 = self.origin - cam
+            for i in range(0, abs(r.centerx - x0), 14):
+                cx = x0 + i * (1 if r.centerx > x0 else -1)
+                pygame.draw.ellipse(s, (70, 62, 56), (cx - 7, y - 4, 14, 8), 3)
+            tip = r.right if self.d > 0 else r.left
+            pygame.draw.arc(s, (150, 140, 130), (tip - 30, y - 30, 60, 60), 0.3, 3.4, 8)
+            pygame.draw.circle(s, (40, 34, 30), (r.centerx, y), 9)
+            return
         if self.kind == "axe":
             ang = self.t * 20 * self.d
             pts = []
@@ -150,6 +172,10 @@ class GoldKnight:
         self.t = 0
         self.hidden = False
         self.imgs = gfx.knight(cfg["num"], cfg["color"])
+        if not self.imgs["pixel"]:
+            # Guardiano disegnato: alto il doppio di NightKnight
+            self.w, self.h = 130, 360
+            self.y = float(GROUND * TILE - self.h)
 
     @property
     def rect(self):
@@ -197,9 +223,12 @@ class GoldKnight:
         reach = m["reach"] if m["reach"] is not None else self.reach
         bw, bh = m["box"]
         r = self.rect
+        # i colpi si misurano dai piedi, all'altezza di un corpo umano: un
+        # Guardiano alto il doppio non deve colpire sopra la testa di NightKnight
+        body = r.bottom - HUMAN_H
         if m.get("both"):
-            return pygame.Rect(r.left - reach, r.top + 40, r.w + reach * 2, 100)
-        top = r.top + 40 + bw if bw >= 0 else r.top
+            return pygame.Rect(r.left - reach, body + 40, r.w + reach * 2, 100)
+        top = body + 40 + bw if bw >= 0 else body
         x = r.right if self.facing > 0 else r.left - reach
         return pygame.Rect(x, top, reach, bh)
 
@@ -283,13 +312,16 @@ class GoldKnight:
                 elif kind == "shock":
                     spawn(Projectile("shock", r.right if self.facing > 0 else r.left - 60, r.bottom - 50, self.facing, self.move_dmg(), self.cfg["color"]))
                 elif kind == "arrow":
-                    spawn(Projectile("arrow", r.right if self.facing > 0 else r.left - 90, r.top + 60, self.facing, self.move_dmg(), self.cfg["color"], self.cfg["index"] // 2))
+                    spawn(Projectile("arrow", r.right if self.facing > 0 else r.left - 90, r.bottom - HUMAN_H + 60, self.facing, self.move_dmg(), self.cfg["color"], self.cfg["index"] // 2))
                     if self.cfg["index"] >= 5:
-                        spawn(Projectile("arrow", r.right if self.facing > 0 else r.left - 90, r.top + 110, self.facing, self.move_dmg(), self.cfg["color"], self.cfg["index"] // 2))
+                        spawn(Projectile("arrow", r.right if self.facing > 0 else r.left - 90, r.bottom - HUMAN_H + 110, self.facing, self.move_dmg(), self.cfg["color"], self.cfg["index"] // 2))
+                elif kind == "hook":
+                    base = r.bottom - HUMAN_H
+                    spawn(Projectile("hook", r.right if self.facing > 0 else r.left - 60, base + 70, self.facing, self.move_dmg(), self.cfg["color"]))
                 elif kind == "axe":
-                    spawn(Projectile("axe", r.right if self.facing > 0 else r.left - 70, r.top + 50, self.facing, self.move_dmg(), self.cfg["color"]))
+                    spawn(Projectile("axe", r.right if self.facing > 0 else r.left - 70, r.bottom - HUMAN_H + 50, self.facing, self.move_dmg(), self.cfg["color"]))
                 elif kind == "wave":
-                    spawn(Projectile("wave", r.right if self.facing > 0 else r.left - 110, r.top + 10, self.facing, self.move_dmg(), self.cfg["color"], self.cfg["index"] // 3))
+                    spawn(Projectile("wave", r.right if self.facing > 0 else r.left - 110, r.bottom - HUMAN_H + 10, self.facing, self.move_dmg(), self.cfg["color"], self.cfg["index"] // 3))
             self.move = (name, f) if f < m["total"] else None
             if self.move is None:
                 self.cool = self.cfg["cool"] + random.randrange(0, 20)
@@ -407,7 +439,7 @@ def knight_images(gfx, num, color):
             if assets.has(f"boss{num:02d}_{name}"):
                 raw[name] = pygame.image.load(os.path.join(assets.DIR, f"boss{num:02d}_{name}.png")).convert_alpha()
     heights = sorted(i.get_height() for i in raw.values())
-    k = bh / heights[len(heights) // 2] if heights else 1
+    k = 2 * REAL_H / heights[len(heights) // 2] if heights else 1
     for pose, chain in fallback_real.items():
         img = None
         if real_any:
@@ -417,7 +449,7 @@ def knight_images(gfx, num, color):
                     img = pygame.transform.smoothscale(r, (max(1, int(r.get_width() * k)), max(1, int(r.get_height() * k))))
                     break
                 if assets.has(f"boss{num:02d}_{name}"):
-                    img = assets.load(f"boss{num:02d}_{name}", bw, bh, by_height=True)
+                    img = assets.load(f"boss{num:02d}_{name}", bw * 3, 2 * REAL_H, by_height=True)
                     break
         if img is None and pose in pix:
             torso, legs = pix[pose]

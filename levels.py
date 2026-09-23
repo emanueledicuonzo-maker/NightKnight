@@ -159,6 +159,9 @@ TITAN_WAVES = [
 WAVE_WIDTH = 30
 # Nelle prove pochissimi nemici: disturbano, non trasformano le prove in battaglia.
 # (specie, colonna[, riga per i volanti])
+# Nel duello, di tanto in tanto, un volante in aiuto al Guardiano (mai piu' di due).
+TITAN_ARENA_FLYERS = ["crow", "jelly", "skeleton_fly"]
+TITAN_ARENA_FLYERS_MAX = 2
 TITAN_TRIAL_FOES = [("lizard", 22), ("skeleton", 27), ("crow", 58, 5)]
 
 
