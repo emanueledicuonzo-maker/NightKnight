@@ -16,8 +16,8 @@ class TitanTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         # La suite precedente chiude pygame: non riusare font legati a SDL chiuso.
-        goblin.px._font.cache_clear()
-        goblin.px._text_image.cache_clear()
+        goblin.fonts._font.cache_clear()
+        goblin.fonts._text_image.cache_clear()
         cls.temp = tempfile.TemporaryDirectory()
         cls.game = goblin.Game(windowed=True, save_path=Path(cls.temp.name) / "save.json")
 
@@ -72,7 +72,6 @@ class TitanTests(unittest.TestCase):
             g.update()
         self.assertTrue(spento.liberated)
         self.assertEqual(g.player.albedo, goblin.LUCE_PER_PRISONER)
-        self.assertEqual(g.zombies, [])
         g.spawn()                                  # vita persa: si riparte dalla sezione
         self.assertTrue(first().liberated)
         self.assertEqual(g.player.albedo, goblin.LUCE_PER_PRISONER)
@@ -107,6 +106,6 @@ class TitanTests(unittest.TestCase):
             for vent in g.geysers:
                 vent.age = age
             g.draw()
-        g.start_part("crypt")
+        g.start_part("arena")
         self.assertEqual(g.geysers, [])
         self.assertEqual(g.spenti, [])

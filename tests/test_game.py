@@ -12,7 +12,6 @@ import pygame
 
 import assets
 import goblin
-import levels
 import progress
 import music
 import numpy as np
@@ -29,12 +28,12 @@ class ProgressTests(unittest.TestCase):
     def test_checkpoint_roundtrip_and_validation(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "save.json"
-            cp = {"cemetery": 2, "part": "crypt", "lives": 2, "score": 1234,
-                  "powers": [levels.cfg(i)["power"] for i in range(2)]}
+            cp = {"cemetery": 0, "part": "arena", "lives": 2, "score": 1234,
+                  "luce": 50, "freed": [[0, "surface", 416]], "pass": False}
             data = {"high_score": 5000, "checkpoint": cp}
             self.assertIsNone(progress.save(data, path))
             self.assertEqual(progress.load(path), data)
-            cp["powers"] = []
+            cp["part"] = "crypt"                       # le vecchie sezioni non esistono piu'
             path.write_text(json.dumps(data))
             self.assertEqual(progress.load(path), {"high_score": 5000, "checkpoint": None})
 
@@ -62,33 +61,28 @@ class GameTests(unittest.TestCase):
         g = self.game
         g.state = "play"
         g.key(pygame.K_ESCAPE)
-        before = (g.frame, g.player.x, g.player.y, g.spawn_t)
+        before = (g.frame, g.player.x, g.player.y)
         g.key(pygame.K_z)
         for _ in range(10):
             g.update()
-        self.assertEqual(before, (g.frame, g.player.x, g.player.y, g.spawn_t))
+        self.assertEqual(before, (g.frame, g.player.x, g.player.y))
         self.assertIsNone(g.player.attack)
         g.key(pygame.K_RETURN)
         g.update()
         self.assertFalse(g.paused)
         self.assertEqual(g.frame, before[0] + 1)
 
-    def test_continue_restores_section_and_powers(self):
+    def test_continue_restores_section_and_light(self):
         g = self.game
-        g.ci = 2
-        g.score = 1200
-        g.lives = 2
-        g.powers = [levels.cfg(i)["power"] for i in range(2)]
-        g.start_part("crypt")
+        g.score, g.lives, g.luce = 1200, 2, 50
+        g.start_part("arena")
         checkpoint = progress.load(g.save_path)["checkpoint"]
-        g.player.x = 2000
         g.score = 9999
         g.save_progress()
         g.continue_game()
-        self.assertEqual(g.part, "crypt")
+        self.assertEqual(g.part, "arena")
         self.assertEqual(g.score, checkpoint["score"])
-        self.assertEqual(g.player.x, 2 * goblin.TILE)
-        self.assertEqual(g.player.power, checkpoint["powers"][-1])
+        self.assertEqual(g.player.albedo, 50)
         self.assertEqual(g.lives, 2)
 
     def test_gameover_clears_checkpoint_keeps_record(self):
@@ -102,9 +96,8 @@ class GameTests(unittest.TestCase):
 
     def test_new_round_resets_combat_state(self):
         g = self.game
-        g.powers = ["ice"]
         g.start_part("arena")
-        g.player.attack = ("cosmo", 30)
+        g.player.attack = ("throw", 3)
         g.player.vy = -15
         g.player.invuln = 70
         g.player.climbing = True
@@ -112,39 +105,18 @@ class GameTests(unittest.TestCase):
         self.assertIsNone(g.player.attack)
         self.assertEqual((g.player.vx, g.player.vy, g.player.invuln), (0, 0, 0))
         self.assertFalse(g.player.climbing)
-        self.assertEqual(g.player.power, "ice")
 
-    def test_victory_is_saved_before_reward_screen_closes(self):
+    def test_one_round_victory_ends_the_demo(self):
         g = self.game
-        g.start_part("arena")
         g.state = "play"
         g.next_part()
-        cp = progress.load(g.save_path)["checkpoint"]
-        self.assertEqual((cp["cemetery"], cp["part"]), (1, "surface"))
-        self.assertEqual(cp["powers"], [levels.cfg(0)["power"]])
+        self.assertEqual(g.part, "arena")
+        g.state = "play"
         g.next_part()
-        self.assertEqual(len(g.powers), 1)
-        g.continue_game()
-        self.assertEqual((g.ci, g.part), (1, "surface"))
-
-    def test_all_cemetery_rewards_reach_the_ending(self):
-        g = self.game
-        for i in range(12):
-            self.assertEqual(g.ci, i)
-            g.state = "play"
-            g.next_part()
-            if i > 0:                        # Titano e' un unico percorso fino al duello
-                self.assertEqual(g.part, "trials")
-                g.state = "play"
-                g.next_part()
-            self.assertEqual(g.part, "arena")
-            g.state = "play"
-            g.next_part()
-            self.assertEqual(g.state, "victory")
-            self.assertEqual(len(g.powers), i + 1)
-            g.after_victory()
-        self.assertEqual(g.state, "end")
+        self.assertEqual(g.state, "victory")
         self.assertIsNone(progress.load(g.save_path)["checkpoint"])
+        g.after_victory()
+        self.assertEqual(g.state, "end")
 
     def test_cancelled_attack_does_not_hit_later_enemy(self):
         g = self.game
@@ -153,8 +125,8 @@ class GameTests(unittest.TestCase):
         p.on_ground = True
         p.attack = ("throw", 5)
         def enemy(x):
-            return SimpleNamespace(x=x, rect=pygame.Rect(x, p.y, 70, 176), alive=True,
-                                   hp=100, frozen=0, update=lambda *_: None)
+            return SimpleNamespace(x=x, rect=pygame.Rect(x, p.y, 70, 176), alive=True, spec={"pts": 300},
+                                   hp=100, frozen=0, update=lambda *_: None, attack_box=lambda: None)
         touching = enemy(p.x)
         ahead = enemy(p.rect.right + 30)
         g.skels = [touching, ahead]
@@ -182,11 +154,10 @@ class GameTests(unittest.TestCase):
         g.key(pygame.K_x)
         self.assertIsNone(g.player.attack)
         g.update()
-        self.assertEqual(g.rounds, [1, 0])
         score = g.score
         g.update()
-        self.assertEqual(g.rounds, [1, 0])
         self.assertEqual(g.score, score)
+        self.assertNotEqual(g.state, "dead")
 
     def test_jump_sheet_advances_during_ascent(self):
         p = self.game.player
@@ -200,7 +171,7 @@ class GameTests(unittest.TestCase):
         self.assertIs(p.sheet_frame(self.game.gfx), frames[len(frames) // 2 - 1])
 
     def test_jump_is_available_immediately_after_spawn(self):
-        for part in ("surface", "crypt", "trials", "arena"):
+        for part in ("surface", "arena"):
             self.game.start_part(part)
             p = self.game.player
             self.assertTrue(p.on_ground)
@@ -208,7 +179,7 @@ class GameTests(unittest.TestCase):
             self.assertLess(p.vy, 0)
 
     def test_ambient_tracks_have_stereo_signal_without_clipping(self):
-        for name in ("surface", "crypt", "arena", "victory"):
+        for name in ("surface", "trials", "arena", "victory"):
             samples = pygame.sndarray.array(music.track(name)).astype(np.int32)
             self.assertEqual(samples.shape[1], 2)
             self.assertGreater(samples.std(), 100)
@@ -232,7 +203,7 @@ class GameTests(unittest.TestCase):
 
     def test_render_all_sections_and_menus(self):
         g = self.game
-        for part in ("surface", "crypt", "arena"):
+        for part in ("surface", "arena"):
             g.start_part(part)
             g.state = "play"
             g.cam = min(1300, g.lv.w - goblin.W)

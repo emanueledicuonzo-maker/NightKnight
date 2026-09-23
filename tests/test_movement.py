@@ -19,17 +19,17 @@ def spans(row, value):
 
 class MovementTests(unittest.TestCase):
     def setUp(self):
-        self.lv = goblin.Level(levels.gen_arena(levels.cfg(0)), "arena")
+        self.lv = goblin.Level(levels.gen_arena(), "arena")
         self.keys = defaultdict(bool)
 
-    def test_every_surface_gap_is_jumpable_both_ways(self):
-        for cemetery in range(12):
-            lv = goblin.Level(levels.gen_surface(levels.cfg(cemetery)), "surface")
-            for start, end in spans(lv.g[levels.GROUND], "."):
-                if cemetery == 0 and start <= levels.TITAN_PASS_ROPE < end:
-                    continue            # il lago del cavo si attraversa appesi al cavo
+    def test_every_titan_lake_is_jumpable_both_ways(self):
+        lv = goblin.Level(levels.gen_surface(), "surface")
+        for start, end in spans(lv.g[levels.GROUND], "."):
+            if start <= levels.TITAN_PASS_ROPE < end:
+                continue            # il lago del cavo si attraversa appesi al cavo
+            if True:
                 for facing in (1, -1):
-                    with self.subTest(cemetery=cemetery + 1, gap=(start, end), facing=facing):
+                    with self.subTest(gap=(start, end), facing=facing):
                         x = start * 64 - 32 if facing == 1 else end * 64 - goblin.Player.w + 32
                         p = goblin.Player(x, levels.GROUND * 64 - goblin.Player.h)
                         p.on_ground = True
@@ -50,13 +50,13 @@ class MovementTests(unittest.TestCase):
                         else:
                             self.assertLess(p.rect.left, start * 64)
 
-    def test_tapped_jump_from_rest_clears_every_surface_gap(self):
-        for cemetery in range(12):
-            lv = goblin.Level(levels.gen_surface(levels.cfg(cemetery)), "surface")
-            for start, end in spans(lv.g[levels.GROUND], "."):
-                if cemetery == 0 and start >= levels.TITAN_PASS_START:
-                    continue            # nella traversata i laghi vogliono la rincorsa
-                with self.subTest(cemetery=cemetery + 1, gap=(start, end)):
+    def test_tapped_jump_from_rest_clears_the_lakes_of_the_waves(self):
+        lv = goblin.Level(levels.gen_surface(), "surface")
+        for start, end in spans(lv.g[levels.GROUND], "."):
+            if start >= levels.TITAN_PASS_START:
+                continue            # nella traversata i laghi vogliono la rincorsa
+            if True:
+                with self.subTest(gap=(start, end)):
                     p = goblin.Player(start * 64 - goblin.Player.w - 8,
                                       levels.GROUND * 64 - goblin.Player.h)
                     p.on_ground = True
@@ -68,28 +68,6 @@ class MovementTests(unittest.TestCase):
                             break
                     self.assertTrue(p.on_ground)
                     self.assertGreater(p.rect.right, end * 64)
-
-    def test_every_crypt_has_a_walkable_route_with_spike_jumps(self):
-        for cemetery in range(12):
-            with self.subTest(cemetery=cemetery + 1):
-                lv = goblin.Level(levels.gen_crypt(levels.cfg(cemetery)), "crypt")
-                p = goblin.Player(2 * 64, 15 * 64 - goblin.Player.h)
-                p.on_ground = True
-                hazards = list(spans(lv.g[15], "^"))
-                keys = defaultdict(bool, {pygame.K_RIGHT: True, pygame.K_SPACE: True})
-                exit_x = lv.exit[0] * 64
-                for _ in range(lv.w):
-                    for start, end in hazards:
-                        if p.on_ground and start * 64 - p.w - 12 <= p.x < start * 64 - p.w:
-                            p.do_jump()
-                    p.update(keys, lv)
-                    self.assertLess(p.rect.bottom, goblin.H)
-                    if p.on_ground:
-                        for x in (p.rect.left + 4, p.rect.right - 5):
-                            self.assertNotEqual(lv.tile_at(x, p.rect.bottom + 2), "^")
-                    if p.rect.right > exit_x:
-                        break
-                self.assertGreater(p.rect.right, exit_x, (p.x, p.y))
 
     def test_late_jump_has_no_double_jump(self):
         p = goblin.Player(200, 600)
@@ -126,12 +104,3 @@ class MovementTests(unittest.TestCase):
             p.update(self.keys, self.lv)
             self.assertFalse(p.jumped)
         self.assertTrue(p.on_ground)
-
-    def test_spikes_support_feet_instead_of_swallowing_player(self):
-        self.lv.g[levels.GROUND][5] = "^"
-        p = goblin.Player(5 * 64, levels.GROUND * 64 - goblin.Player.h - 10)
-        p.vy = 8
-        for _ in range(3):
-            p.update(self.keys, self.lv)
-        self.assertTrue(p.on_ground)
-        self.assertEqual(p.rect.bottom, levels.GROUND * 64)

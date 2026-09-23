@@ -98,12 +98,13 @@ class TraversalTests(unittest.TestCase):
             g.update()
         self.assertLess(skeleton.hp, hp)
 
-    def test_zombie_hit_uses_flesh_sound(self):
+    def test_creatures_sound_like_flesh_and_skeletons_like_bone(self):
         g = self.game
-        zombie = goblin.Zombie(500, levels.cfg(0))
         with patch.object(g.jb, "fx") as fx:
-            g.hit_enemy(zombie, 3)
-            fx.assert_called_once_with("flesh_hit")
+            g.hit_enemy(goblin.Walker(500, "lizard"), 0.1)
+            fx.assert_called_with("flesh_hit")
+            g.hit_enemy(goblin.Walker(500, "skeleton"), 0.1)
+            fx.assert_called_with("hit")
 
 
 if __name__ == "__main__":

@@ -1,9 +1,8 @@
-"""Caricamento immagini: assets/<nome>.png se esiste, altrimenti pixel art ingrandita."""
+"""Caricamento delle immagini di assets/: scala, fogli di sprite, figure separate per sagoma."""
 import os
 
 import pygame
 
-import pixelart as px
 
 DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets")
 _cache = {}
@@ -67,10 +66,6 @@ def flip(img):
     if key not in _cache:
         _cache[key] = pygame.transform.flip(img, True, False)
     return _cache[key]
-
-
-def pix(rows, remap=None, scale=6):
-    return lambda: px.sprite(rows, remap, scale=scale)
 
 
 def _main_blob(cell):
