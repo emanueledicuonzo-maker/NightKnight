@@ -65,7 +65,8 @@ class TitanTests(unittest.TestCase):
 
     def test_prisoners_give_light_once_and_stay_freed_after_a_death(self):
         g = self.game
-        spento = g.spenti[0]
+        first = lambda: min(g.spenti, key=lambda s: s.x)     # il primo, a terra
+        spento = first()
         g.player.x = spento.x - g.player.w / 2
         for _ in range(4):
             g.update()
@@ -73,9 +74,9 @@ class TitanTests(unittest.TestCase):
         self.assertEqual(g.player.albedo, goblin.LUCE_PER_PRISONER)
         self.assertEqual(g.zombies, [])
         g.spawn()                                  # vita persa: si riparte dalla sezione
-        self.assertTrue(g.spenti[0].liberated)
+        self.assertTrue(first().liberated)
         self.assertEqual(g.player.albedo, goblin.LUCE_PER_PRISONER)
-        g.player.x = g.spenti[0].x - g.player.w / 2
+        g.player.x = first().x - g.player.w / 2
         g.update()
         self.assertEqual(g.player.albedo, goblin.LUCE_PER_PRISONER)
 

@@ -21,11 +21,16 @@ W, H = 1920, 1080
 FPS = 60
 TILE = 64
 SKY_PAN = 360        # di quanto scorre il cielo dall'inizio alla fine del livello
+# Zoom: il mondo si disegna in una vista di VW x VH pixel ingrandita a tutto
+# schermo; il terreno resta alla stessa altezza. Cielo, fondali e HUD no.
+ZOOM = 1.5
+VW, VH = int(W / ZOOM), int(H / ZOOM)
 LUCE_MAX, LUCE_UNIT, LUCE_PER_PRISONER = 100, 25, 5
 BURST_FRAMES = 70    # durata del volo di Bianca durante la raffica
 TITAN_N = 6          # il terreno di Titano copre 6x6 tessere
 ROWS = 17
 GROUND = levels.GROUND
+VIEW_Y = int(GROUND * TILE * (1 - 1 / ZOOM))    # riga del mondo in cima alla vista
 GRAVITY = 0.75
 MAX_FALL = 18
 RUN_ACC = 0.65
@@ -364,16 +369,15 @@ class Player(Entity):
             return None, 0
         name, f = self.attack
         r = self.rect
-        if name == "punch" and 3 <= f <= 9:
-            return pygame.Rect(r.right if self.facing > 0 else r.left - 90, r.top + 50, 90, 46), 6
         if name == "kick" and 4 <= f <= 12:
             return pygame.Rect(r.right if self.facing > 0 else r.left - 110, r.top + 76, 110, 60), 9
         if name == "throw" and (4 <= f <= 10 or (self.power == "double" and 14 <= f <= 19)):
             reach = 170 + (60 if self.power == "pierce" else 0) + (100 if self.power == "big" else 0)
             dmg = 12 * (2 if self.power in ("fire", "big") else 1)
+            # il fendente scende fino ai piedi: prende anche lucertole e ratti
             if self.power == "bounce":
-                return pygame.Rect(r.left - reach, r.top + 50, r.w + reach * 2, 50), dmg
-            return pygame.Rect(r.right if self.facing > 0 else r.left - reach, r.top + 50, reach, 50), dmg
+                return pygame.Rect(r.left - reach, r.top + 40, r.w + reach * 2, r.h - 40), dmg
+            return pygame.Rect(r.right if self.facing > 0 else r.left - reach, r.top + 40, reach, r.h - 40), dmg
         if name == "albedo" and 4 <= f <= 38 and f % 5 == 0:
             return pygame.Rect(r.right if self.facing > 0 else r.left - 170, r.top + 30, 170, 130), 12
         return None, 0
@@ -730,7 +734,7 @@ class Bianca:
             # raffica: si illumina e attraversa la parte alta dello schermo
             self.burst -= 1
             k = 1 - self.burst / BURST_FRAMES
-            self.x, self.y, self.facing = cam - 200 + (W + 400) * k, 160 + math.sin(k * math.pi * 2) * 40, 1
+            self.x, self.y, self.facing = cam - 200 + (VW + 400) * k, VIEW_Y + 90 + math.sin(k * math.pi * 2) * 30, 1
             return
         # Resta poco dietro e sopra al protagonista; il ritardo rende il volo vivo.
         offset = -155 if player.facing > 0 else 155
@@ -770,6 +774,39 @@ FLYERS = {
     "skeleton_fly": dict(frames="skeleton_fly_{}", h=PH, box=(80, 150), hp=14, dmg=25, pts=500),
     "jelly":        dict(frames="jelly_atmo_{}", h=150, box=(110, 120), hp=8, dmg=20, pts=350, drift=True),
 }
+
+
+class Stone:
+    """Sasso lanciato da NightKnight: arco basso, danno piccolo, sempre disponibile."""
+    owner = "player"
+
+    def __init__(self, p):
+        self.d = p.facing
+        self.x = p.rect.right if self.d > 0 else p.rect.left - 20
+        self.y = p.rect.top + 40
+        self.vx, self.vy = 15 * self.d, -5.0
+        self.dmg = 6
+        self.alive = True
+        self.t = 0
+        self.kind = "stone"
+
+    @property
+    def rect(self):
+        return pygame.Rect(int(self.x), int(self.y), 22, 22)
+
+    def update(self, lv, cam):
+        self.t += 1
+        self.x += self.vx
+        self.vy += 0.35
+        self.y += self.vy
+        if lv.solid(self.x + 11, self.y + 11) or self.t > 120:
+            self.alive = False
+
+    def draw(self, s, gfx, cam):
+        c = (int(self.x) - cam + 11, int(self.y) + 11)
+        pygame.draw.circle(s, (20, 16, 14), c, 12)
+        pygame.draw.circle(s, (150, 140, 128), c, 9)
+        pygame.draw.circle(s, (196, 188, 174), (c[0] - 3, c[1] - 3), 3)
 
 
 class Walker(Skeleton):
@@ -942,6 +979,7 @@ class Game:
         flags = 0 if windowed else pygame.FULLSCREEN | pygame.SCALED
         self.screen = pygame.display.set_mode((W, H), flags)
         self.luce, self.freed = 0, set()      # Luce di Bianca e prigionieri gia' liberati
+        self.reached_pass = False             # su Titano: arrivati alla traversata
         pygame.display.set_caption("NightKnight")
         self.clock = pygame.time.Clock()
         self.gfx = Gfx()
@@ -981,6 +1019,7 @@ class Game:
                 "part": "surface" if next_cemetery else self.part, "lives": self.lives,
                 "score": self.score, "powers": list(self.powers),
                 "luce": self.luce, "freed": sorted(list(f) for f in self.freed),
+                "pass": self.reached_pass and not next_cemetery,
             }
         self.save_error = progress.save(self.saved, self.save_path)
 
@@ -990,6 +1029,7 @@ class Game:
             self.ci, self.lives = cp["cemetery"], cp["lives"]
             self.score, self.powers = cp["score"], list(cp["powers"])
             self.luce = max(0, min(LUCE_MAX, int(cp.get("luce", 0))))
+            self.reached_pass = cp.get("pass") is True
             self.freed = {tuple(f) for f in cp.get("freed", []) if isinstance(f, list) and len(f) == 3}
             self.start_part(cp["part"])
 
@@ -1002,7 +1042,7 @@ class Game:
     def menu_items(self):
         if self.paused:
             return ["RIPRENDI", "TORNA AL TITOLO", "ESCI"]
-        return (["CONTINUA"] if self.saved["checkpoint"] else []) + ["NUOVA PARTITA", "PROVE ATLETICHE", "ESCI"]
+        return (["CONTINUA"] if self.saved["checkpoint"] else []) + ["NUOVA PARTITA", "ESCI"]
 
     def menu_key(self, k):
         items = self.menu_items()
@@ -1024,10 +1064,6 @@ class Game:
             elif action == "NUOVA PARTITA":
                 self.state = "weapon_select"
                 self.weapon_i = 0
-            elif action == "PROVE ATLETICHE":
-                self.state = "weapon_select"
-                self.weapon_i = 0
-                self.weapon_part = "trials"
             elif action == "ESCI":
                 self.running = False
 
@@ -1036,12 +1072,15 @@ class Game:
             self.score = 0
             self.powers = []
             self.luce, self.freed = 0, set()
+            self.reached_pass = False
         self.lives = 3
         self.ci = ci
         self.weapon_part = part
         self.start_part(part)
 
     def start_part(self, part):
+        if part != "surface":
+            self.reached_pass = False
         c = levels.cfg(self.ci)
         self.cfg = c
         self.part = part
@@ -1088,9 +1127,11 @@ class Game:
         self.msg = None
         self.effects = []
         self.intro = 0
-        self.trials = athletics.Trials() if self.part == "trials" else None
-        if self.part == "trials" and self.ci == 0:
-            for kind, col, *row in levels.TITAN_TRIAL_FOES:
+        self.cable = None
+        if self.part == "surface" and self.ci == 0:
+            self.cable = athletics.Cable(levels.TITAN_PASS_ROPE * TILE)
+            for kind, col, *row in levels.TITAN_PASS_FOES:
+                col += levels.TITAN_PASS_START
                 if row:
                     flyer = Flyer(col * TILE, row[0] * TILE, kind)
                     flyer.state = "wait"          # aspetta il passaggio, come i corvi di guardia
@@ -1099,7 +1140,13 @@ class Game:
                     self.skels.append(Walker(col * TILE, kind))
         self.waves = None
         if self.part == "surface" and self.ci == 0:
-            self.waves = waves.WaveDirector(levels.TITAN_ARENAS, levels.TITAN_WAVES, Walker, Flyer, seed=self.ci)
+            self.waves = waves.WaveDirector(levels.TITAN_ARENAS, levels.TITAN_WAVES, Walker, Flyer, seed=self.ci,
+                                            flyer_y=(VIEW_Y + 40, VIEW_Y + 260))
+            if self.reached_pass:
+                # si era gia' arrivati alla traversata: si riparte da li', ondate superate
+                for w in self.waves.waves:
+                    w.state = "done"
+                p.x = (levels.TITAN_PASS_START + 1) * TILE
         if self.part == "arena":
             self.start_round()
 
@@ -1121,14 +1168,13 @@ class Game:
     def next_part(self):
         if self.state == "victory":
             return
-        # Un'unica ambientazione per satellite: dalla superficie si passa alle prove.
-        # La cripta resta nel codice per i satelliti dove si vive sotto (Europa).
-        if self.part in ("surface", "crypt"):
+        # Titano e' un unico percorso (ondate, poi traversata) e poi il duello.
+        # Gli altri satelliti hanno ancora il vecchio impianto a sezioni.
+        if self.part == "surface" and self.ci == 0:
+            self.start_part("arena")
+        elif self.part in ("surface", "crypt"):
             self.start_part("trials")
         elif self.part == "trials":
-            if not self.trials.complete:
-                return
-            self.score += max(500, 5000 - self.trials.elapsed // 6)
             self.start_part("arena")
         else:
             self.powers.append(self.cfg["power"])
@@ -1176,12 +1222,11 @@ class Game:
         self.bianca.burst = BURST_FRAMES
         self.jb.fx("luce")
         for c in self.crows:
-            if c.alive and self.cam - 100 < c.x < self.cam + W + 100:
+            if c.alive and self.cam - 100 < c.x < self.cam + VW + 100:
                 self.hit_enemy(c, 999, pts=getattr(c, "spec", {}).get("pts", 150))
         if self.boss and self.boss.hp > 0:
             self.boss.hp = max(0, self.boss.hp - max(1, round(self.boss.max_hp * 0.05 * units)))
             self.boss.flash = 20
-        self.effects.append(Effect(p.x, p.y - 60, f"LUCE x{units}", (255, 236, 190)))
         return True
 
     def boss_spawn(self, projectile):
@@ -1252,8 +1297,8 @@ class Game:
             if self.intro > 70:
                 return
         keys = pygame.key.get_pressed()
-        if self.trials:
-            self.trials.update_player(p, keys, self.lv)
+        if self.cable:
+            self.cable.update_player(p, keys, self.lv)
         else:
             p.update(keys, self.lv)
         if self.bianca:
@@ -1264,20 +1309,17 @@ class Game:
         for e in self.effects:
             e.update()
         self.effects = [e for e in self.effects if e.alive]
-        target = p.rect.centerx - W // 2
-        self.cam = int(max(0, min(target, self.lv.w - W)))
+        target = p.rect.centerx - VW // 2
+        self.cam = int(max(0, min(target, self.lv.w - VW)))
         lock = self.waves.lock() if self.waves else None
         if lock:
             # porte stagne chiuse: si resta nell'arena finche' l'ondata non e' finita
             p.x = max(lock[0] + 30, min(p.x, lock[1] - 30 - p.w))
-            self.cam = lock[0]
+            self.cam = int(max(lock[0], min(target, lock[1] - VW)))
         if p.y > H + 50:
             self.die(); return
         r = p.rect
         for geyser in self.geysers:
-            if abs(p.rect.centerx - geyser.x) < 550 and not self.geyser_hint:
-                self.msg = ("ATTENDI IL GETTO", 180, (239, 201, 143))
-                self.geyser_hint = True
             if geyser.update(p):
                 self.hurt_player(25, geyser.x)
             if geyser.phase != geyser.previous_phase and abs(geyser.x - p.x) < W:
@@ -1289,7 +1331,6 @@ class Game:
                 p.albedo = min(LUCE_MAX, p.albedo + LUCE_PER_PRISONER)
                 self.freed.add((self.ci, self.part, int(spento.x)))
                 self.jb.fx("prisoner")
-                self.effects.append(Effect(spento.x, spento.floor - 190, "LUCE LIBERATA", (255, 201, 120)))
         # punte
         if any(self.lv.tile_at(x, r.bottom - 6) == "^" or
                (p.on_ground and self.lv.tile_at(x, r.bottom + 2) == "^")
@@ -1301,29 +1342,28 @@ class Game:
         ec, er = self.lv.exit
         door = pygame.Rect(ec * TILE, (er - 1) * TILE, TILE, TILE * 2)
         if self.part != "arena" and r.colliderect(door):
-            if self.trials and not self.trials.complete:
-                self.msg = (f"PROVE {len(self.trials.done)} / 5", 60, (222, 201, 150))
-            else:
-                self.jb.fx("door")
-                self.next_part()
-                return
+            self.jb.fx("door")
+            self.next_part()
+            return
         # Nel duello il Guardiano e' aiutato solo da pochi volanti
         if self.part == "arena" and self.ci == 0 and self.boss and self.boss.hp > 0 and not self.intro:
             self.arena_flyer_t = getattr(self, "arena_flyer_t", 300) - 1
             if self.arena_flyer_t <= 0 and sum(c.alive for c in self.crows) < levels.TITAN_ARENA_FLYERS_MAX:
                 self.arena_flyer_t = 420
                 side = random.choice((-1, 1))
-                x = -80 if side < 0 else W + 20
-                self.crows.append(Flyer(x, random.randrange(160, 380), random.choice(levels.TITAN_ARENA_FLYERS)))
+                x = self.cam - 80 if side < 0 else self.cam + VW + 20
+                self.crows.append(Flyer(x, random.randrange(VIEW_Y + 40, VIEW_Y + 240), random.choice(levels.TITAN_ARENA_FLYERS)))
+        if (self.part == "surface" and self.ci == 0 and not self.reached_pass
+                and p.x > levels.TITAN_PASS_START * TILE):
+            self.reached_pass = True
+            self.jb.play("trials")
+            self.save_progress(checkpoint=True)
         if self.waves:
             event = self.waves.update(p, self.skels, self.crows)
             if event:
                 kind, wave = event
                 self.jb.fx("door")
-                if kind == "start":
-                    self.msg = (wave.name, 120, (239, 201, 143))
-                else:
-                    self.msg = ("VIA LIBERA", 90, (170, 220, 170))
+                if kind == "clear":
                     self.score += 1000 * wave.total // 10
         # zombie
         if self.part == "surface" and self.ci != 0:
@@ -1438,11 +1478,6 @@ class Game:
         self.skels = [k for k in self.skels if k.alive]
         self.crows = [c for c in self.crows if c.alive]
         self.ghosts = [gh for gh in self.ghosts if gh.alive]
-        if self.trials:
-            points = self.trials.check_targets(self.balls)
-            if points:
-                self.score += points
-                self.jb.fx("target")
         self.balls = [b for b in self.balls if b.alive]
 
     def lose_life(self):
@@ -1486,7 +1521,7 @@ class Game:
             elif k in (pygame.K_RIGHT, pygame.K_d, pygame.K_DOWN, pygame.K_s):
                 self.weapon_i = (self.weapon_i + 1) % len(levels.WEAPONS)
             elif k == pygame.K_RETURN:
-                self.new_game(part=getattr(self, "weapon_part", "surface"))
+                self.new_game()
             elif k == pygame.K_ESCAPE:
                 self.state = "title"
             return
@@ -1504,18 +1539,13 @@ class Game:
             return
         if self.state != "play" or (self.part == "arena" and (self.intro > 70 or self.boss.hp <= 0)):
             return
-        if self.trials and k == pygame.K_e:
-            self.trials.interact(p, self.lv)
+        if self.cable and k == pygame.K_e:
+            self.cable.interact(p, self.lv)
             return
-        if self.trials and self.trials.attached:
+        if self.cable and self.cable.attached:
             if k == pygame.K_SPACE:
-                self.trials.release(p)
+                self.cable.release(p)
                 self.jb.fx("jump")
-            return
-        if k in (pygame.K_f, pygame.K_g):
-            if p.start_attack("throw" if k == pygame.K_f else "punch"):
-                self.balls.append(athletics.WeaponShot("javelin" if k == pygame.K_f else "dagger", p))
-                self.jb.fx("throw")
             return
         fwd = (pygame.K_RIGHT, pygame.K_d) if p.facing > 0 else (pygame.K_LEFT, pygame.K_a)
         if k in (pygame.K_DOWN, pygame.K_s):
@@ -1533,6 +1563,7 @@ class Game:
                 self.jb.fx("sword")
         elif k == pygame.K_x:
             if p.start_attack("punch"):
+                self.balls.append(Stone(p))
                 self.jb.fx("throw")
         elif k == pygame.K_c:
             if p.start_attack("kick"):
@@ -1563,15 +1594,13 @@ class Game:
         self.bar(130, 98, 310, p.albedo / 100, (186, 155, 82))
         if p.albedo >= LUCE_UNIT:
             px.draw_text(s, f"V x{p.albedo // LUCE_UNIT}", 460, 92, (224, 198, 129), scale=3)
-        if p.power:
-            px.draw_text(s, levels.ARMOR_NAMES[p.power], 40, 152, (202, 178, 119), scale=3)
         weapon = getattr(p, "weapon", None)
         if weapon:
             label = weapon["name"].upper()
             px.draw_text(s, label, 40, 178, (190, 210, 225), scale=3)
         title = f"SATELLITE {ROMAN[self.ci]} - {self.cfg['name']}"
         px.draw_text(s, title, W // 2 - px.text_width(title, 5) // 2, 24, scale=5)
-        sub = {"surface": "SUPERFICIE", "crypt": "SOTTO LA CROSTA", "trials": "LE PROVE", "arena": "IL DUELLO"}[self.part]
+        sub = {"surface": "SUPERFICIE", "crypt": "SOTTO LA CROSTA", "trials": "LA TRAVERSATA", "arena": "IL DUELLO"}[self.part]
         px.draw_text(s, sub, W // 2 - px.text_width(sub, 4) // 2, 60, (200, 200, 220), scale=4)
         sc = f"PUNTI {self.score:08d}"
         px.draw_text(s, sc, W - 40 - px.text_width(sc, 5), 24, (222, 201, 150), scale=5)
@@ -1585,8 +1614,6 @@ class Game:
         if self.msg:
             t, n, col = self.msg
             px.draw_text(s, t, W // 2 - px.text_width(t, 14) // 2, 380, col, scale=14)
-        if self.trials:
-            self.trials.draw_hud(s)
 
     def draw_world(self):
         s, cam, lv = self.screen, self.cam, self.lv
@@ -1617,6 +1644,10 @@ class Game:
             s.blit(self.gfx.background("crypt_bg", self.cfg["num"]), (0, 0))
         else:
             s.blit(self.gfx.background("arena_bg", self.cfg["num"]), (0, 0))
+
+    def draw_tiles(self):
+        """Terreno, laghi e arredi: disegnati nella vista del mondo (zoom)."""
+        s, cam, lv = self.screen, self.cam, self.lv
         c0 = max(0, cam // TILE)
         if self.part in ("surface", "trials"):
             if not hasattr(self, "pit_shade"):
@@ -1709,15 +1740,19 @@ class Game:
             pygame.display.flip()
             return
         self.draw_world()
+        screen = self.screen
+        if getattr(self, "world_surf", None) is None:
+            self.world_surf = pygame.Surface((VW, H), pygame.SRCALPHA)
+        self.world_surf.fill((0, 0, 0, 0))
+        self.screen = s = self.world_surf
+        self.draw_tiles()
         cam = self.cam
         for spento in self.spenti:
             spento.draw(s, cam, self.gfx.spento_sleeping, self.gfx.spento_awake)
-        if getattr(self, "waves", None):
-            self.waves.draw_doors(s, cam, 420)
         for geyser in self.geysers:
             geyser.draw(s, cam)
-        if self.trials:
-            self.trials.draw(s, self.gfx, self.player, cam)
+        if self.cable:
+            self.cable.draw(s, cam)
         if self.bianca:
             self.bianca.draw(s, self.gfx, cam)
         for z in self.zombies:
@@ -1739,12 +1774,16 @@ class Game:
             p.draw(s, self.gfx, cam)
         for e in self.effects:
             px.draw_text(s, e.text, int(e.x) - cam, int(e.y), e.color, 4)
+        # la vista del mondo si ingrandisce sopra cielo e fondali
+        self.screen = s = screen
+        view = self.world_surf.subsurface((0, VIEW_Y, VW, VH))
+        s.blit(pygame.transform.smoothscale(view, (W, H)), (0, 0))
         self.draw_hud()
         if self.state == "card":
             ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 170)); s.blit(ov, (0, 0))
             self.draw_center(f"SATELLITE {ROMAN[self.ci]}", 300, (250, 210, 60), 14)
             self.draw_center(self.cfg["name"].upper(), 440, scale=10)
-            sub = {"surface": "SUPERFICIE", "crypt": "SOTTO LA CROSTA", "trials": "LE PROVE", "arena": "IL DUELLO"}[self.part]
+            sub = {"surface": "SUPERFICIE", "crypt": "SOTTO LA CROSTA", "trials": "LA TRAVERSATA", "arena": "IL DUELLO"}[self.part]
             self.draw_center(sub, 560, (200, 200, 220), 8)
             self.draw_center(f"GUARDIANO: {self.cfg['boss'].upper()}", 680, self.cfg["color"], 5)
             self.draw_center(f"GRAVITA {self.cfg['gravity'].upper()}  |  ARIA {self.cfg['air'].upper()}", 755, (210, 210, 220), 3)

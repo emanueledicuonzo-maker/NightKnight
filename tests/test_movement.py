@@ -26,6 +26,8 @@ class MovementTests(unittest.TestCase):
         for cemetery in range(12):
             lv = goblin.Level(levels.gen_surface(levels.cfg(cemetery)), "surface")
             for start, end in spans(lv.g[levels.GROUND], "."):
+                if cemetery == 0 and start <= levels.TITAN_PASS_ROPE < end:
+                    continue            # il lago del cavo si attraversa appesi al cavo
                 for facing in (1, -1):
                     with self.subTest(cemetery=cemetery + 1, gap=(start, end), facing=facing):
                         x = start * 64 - 32 if facing == 1 else end * 64 - goblin.Player.w + 32
@@ -52,6 +54,8 @@ class MovementTests(unittest.TestCase):
         for cemetery in range(12):
             lv = goblin.Level(levels.gen_surface(levels.cfg(cemetery)), "surface")
             for start, end in spans(lv.g[levels.GROUND], "."):
+                if cemetery == 0 and start >= levels.TITAN_PASS_START:
+                    continue            # nella traversata i laghi vogliono la rincorsa
                 with self.subTest(cemetery=cemetery + 1, gap=(start, end)):
                     p = goblin.Player(start * 64 - goblin.Player.w - 8,
                                       levels.GROUND * 64 - goblin.Player.h)

@@ -133,10 +133,10 @@ class GameTests(unittest.TestCase):
             self.assertEqual(g.ci, i)
             g.state = "play"
             g.next_part()
-            self.assertEqual(g.part, "trials")
-            g.trials.done = set(range(5))
-            g.state = "play"
-            g.next_part()
+            if i > 0:                        # Titano e' un unico percorso fino al duello
+                self.assertEqual(g.part, "trials")
+                g.state = "play"
+                g.next_part()
             self.assertEqual(g.part, "arena")
             g.state = "play"
             g.next_part()

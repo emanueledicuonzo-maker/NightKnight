@@ -93,7 +93,9 @@ def _grid(cols):
 
 def gen_surface(c):
     if c["index"] == 0:
-        return gen_titan_surface()
+        # Un unico percorso: le ondate, poi il terreno si fa difficile.
+        first, second = gen_titan_surface(), gen_titan_pass()
+        return [a + b for a, b in zip(first, second)]
     rnd = random.Random(100 + c["index"])
     cols = 110 + 8 * c["index"]
     g = _grid(cols)
@@ -157,12 +159,12 @@ TITAN_WAVES = [
     dict(name="LA NUBE", roster=[("crow", 20), ("jelly", 6), ("skeleton_fly", 4)], alive=12),
 ]
 WAVE_WIDTH = 30
-# Nelle prove pochissimi nemici: disturbano, non trasformano le prove in battaglia.
+# Nella traversata pochissimi nemici: disturbano, non la trasformano in battaglia.
 # (specie, colonna[, riga per i volanti])
 # Nel duello, di tanto in tanto, un volante in aiuto al Guardiano (mai piu' di due).
 TITAN_ARENA_FLYERS = ["crow", "jelly", "skeleton_fly"]
 TITAN_ARENA_FLYERS_MAX = 2
-TITAN_TRIAL_FOES = [("lizard", 22), ("skeleton", 27), ("crow", 58, 5)]
+TITAN_PASS_FOES = [("lizard", 28), ("skeleton", 74), ("crow", 100, 4)]   # colonne dall'inizio della traversata
 
 
 def gen_titan_surface():
@@ -183,7 +185,6 @@ def gen_titan_surface():
         g[GROUND-1][col] = "q"
     for col in (6, 13, 20, 53, 59, 71, 104, 111, 122, 152, 157, 167, 174, 206, 213):
         g[GROUND-1][col] = "u"
-    g[GROUND-1][cols - 2] = "E"
     return g
 
 
@@ -241,6 +242,55 @@ def gen_arena(c):
         g[GROUND][cc] = "#"; g[GROUND + 1][cc] = "D"; g[GROUND + 2][cc] = "D"
     for r in range(ROWS):
         g[r][0] = "S"; g[r][cols - 1] = "S"
+    return g
+
+
+def _rock(g, c0, c1, h):
+    """Cumulo o parete di roccia alta h tessere, da colonna c0 a c1 esclusa."""
+    for c in range(c0, c1):
+        for r in range(GROUND - h, ROWS):
+            g[r][c] = "#" if r == GROUND - h else "D"
+
+
+def _lake(g, c0, c1):
+    for c in range(c0, c1):
+        for r in range(GROUND, ROWS):
+            g[r][c] = "."
+
+
+def _ladder(g, c, h):
+    """Scala di servizio accostata a una parete alta h."""
+    for r in range(GROUND - h, GROUND):
+        g[r][c] = "H"
+
+
+TITAN_PASS_START = 216       # dove finiscono le ondate e comincia la traversata
+TITAN_PASS_ROPE = TITAN_PASS_START + 82      # colonna del cavo sopra il lago grande
+
+
+def gen_titan_pass():
+    """Seconda parte di Titano: attraversare il satellite. Cumuli di rocce,
+    pareti da scalare con le scale di servizio, pilastri sopra i laghi di
+    metano, un cavo sopra il lago grande. Con la gravita' di Titano si salta
+    alto (circa 5 tessere) e lontano (quasi 6): le pareti sono alte 7."""
+    cols = 128
+    g = _grid(cols)
+    _rock(g, 0, cols, 0)
+    _rock(g, 10, 13, 1); _rock(g, 13, 16, 2); _rock(g, 16, 19, 3)      # gradini di roccia
+    _lake(g, 22, 27)
+    _rock(g, 35, 45, 7); _ladder(g, 34, 7)                              # prima parete
+    _lake(g, 57, 71)
+    _rock(g, 60, 62, 2); _rock(g, 65, 67, 2)                            # pilastri nel lago
+    for c in (60, 61, 65, 66):
+        for r in range(GROUND, ROWS):
+            g[r][c] = "D"
+    _lake(g, 78, 87)                                                     # lago del cavo
+    _rock(g, 93, 96, 2); _rock(g, 96, 105, 4)
+    _lake(g, 106, 111)
+    g[GROUND - 1][50] = "q"
+    for c, h in ((30, 0), (40, 7), (90, 0), (100, 4), (116, 0)):
+        g[GROUND - 1 - h][c] = "u"
+    g[GROUND - 1][cols - 4] = "E"
     return g
 
 
