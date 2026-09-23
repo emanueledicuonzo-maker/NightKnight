@@ -109,24 +109,17 @@ class OxygenStation:
     def near(self, player):
         return abs(player.rect.centerx - self.x) < self.RANGE and abs(player.rect.bottom - self.floor) < 120
 
-    def draw(self, screen, cam, active):
+    def draw(self, screen, cam, active, img):
         self.t += 1
         x, f = int(self.x - cam), self.floor
-        if not -120 < x < screen.get_width() + 120:
+        if not -200 < x < screen.get_width() + 200:
             return
-        pygame.draw.rect(screen, (20, 16, 14), (x - 34, f - 150, 68, 150), border_radius=10)
-        pygame.draw.rect(screen, (96, 104, 104), (x - 30, f - 146, 60, 142), border_radius=8)
-        for dx in (-17, 3):                       # due bombole
-            pygame.draw.rect(screen, (20, 16, 14), (x + dx - 2, f - 118, 18, 96), border_radius=8)
-            pygame.draw.rect(screen, (70, 150, 170), (x + dx, f - 116, 14, 92), border_radius=7)
-        light = (110, 230, 150) if (self.t // 20) % 2 or active else (40, 90, 60)
-        pygame.draw.circle(screen, (20, 16, 14), (x, f - 134), 8)
-        pygame.draw.circle(screen, light, (x, f - 134), 5)
+        screen.blit(img, (x - img.get_width() // 2, f - img.get_height()))
         if active:
             for i in range(4):                      # sbuffi d'aria mentre si ricarica
                 k = ((self.t * 3 + i * 25) % 100) / 100
-                pygame.draw.circle(screen, (220, 240, 245), (x + int(20 * math.sin(i + self.t / 9)), int(f - 150 - k * 60)),
-                                   int(3 + k * 6), 1)
+                pygame.draw.circle(screen, (220, 240, 245), (x + 30 + int(14 * math.sin(i + self.t / 9)),
+                                   int(f - img.get_height() * 0.45 - k * 70)), int(3 + k * 7), 2)
 
 
 class GasVent:

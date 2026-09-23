@@ -32,6 +32,7 @@ OXYGEN_DRAIN = OXYGEN_MAX / (100 * 60)     # circa cento secondi di riserva all'
 OXYGEN_REFILL = 1.2
 CHILL_FRAMES = 50      # il metano sta un po' sotto il bordo del terreno
 BURST_FRAMES = 70    # durata del volo di Bianca durante la raffica
+ROCK_N = 4           # la roccia delle pareti copre 4x4 tessere
 TITAN_N = 6          # il terreno di Titano copre 6x6 tessere
 ROWS = 17
 GROUND = levels.GROUND
@@ -81,6 +82,9 @@ class Gfx:
             top = img.get_height() // 30          # striscia scura sopra la superficie
             img = img.subsurface((0, top, img.get_width(), img.get_height() - top))
             self.titan_ground = pygame.transform.smoothscale(img, (TILE * TITAN_N, TILE * TITAN_N))
+        # Roccia delle pareti e dei cumuli: strati di Titano, 4x4 tessere
+        rock = pygame.image.load(os.path.join(assets.DIR, "titan_rock.png")).convert()
+        self.titan_rock = pygame.transform.smoothscale(rock, (TILE * ROCK_N, TILE * ROCK_N))
         # Lago di metano: liquido scuro, un po' sotto il bordo, che riflette il cielo.
         depth = H - GROUND * TILE
         self.titan_lake = pygame.Surface((TILE, depth), pygame.SRCALPHA)
@@ -107,18 +111,10 @@ class Gfx:
         for y in range(8, TILE, 16):
             pygame.draw.rect(self.titan_ladder, (22, 18, 16), (12, y - 2, TILE - 24, 8))
             pygame.draw.rect(self.titan_ladder, (140, 132, 122), (14, y, TILE - 28, 4))
-        # Portello stagno dell'uscita
-        self.airlock = pygame.Surface((TILE * 2, TILE * 3), pygame.SRCALPHA)
-        a = self.airlock
-        pygame.draw.rect(a, (20, 16, 14), a.get_rect(), border_radius=18)
-        pygame.draw.rect(a, (92, 86, 80), a.get_rect().inflate(-10, -10), border_radius=14)
-        pygame.draw.rect(a, (46, 42, 40), a.get_rect().inflate(-34, -34), border_radius=10)
-        for y in range(30, TILE * 3 - 30, 26):
-            pygame.draw.polygon(a, (226, 176, 48), [(17, y), (27, y + 10), (27, y + 20), (17, y + 10)])
-            pygame.draw.polygon(a, (226, 176, 48), [(TILE * 2 - 17, y), (TILE * 2 - 27, y + 10), (TILE * 2 - 27, y + 20), (TILE * 2 - 17, y + 10)])
-        pygame.draw.circle(a, (20, 16, 14), (TILE, TILE + 20), 22)
-        pygame.draw.circle(a, (150, 140, 128), (TILE, TILE + 20), 17, 5)
-        pygame.draw.circle(a, (110, 220, 140), (TILE, 32), 8)
+        # Portello stagno dell'uscita, la capsula d'atterraggio, la stazione d'ossigeno
+        self.airlock = assets.load("portello", TILE * 5, int(PH * 1.5), by_height=True)
+        self.capsule = assets.load("capsula", TILE * 5, int(PH * 1.7), by_height=True)
+        self.station = assets.load("stazione_ossigeno", TILE * 3, int(PH * 1.05), by_height=True)
         self.player = player_images()
         self.sheets = {}
         # posa -> (file, colonne, righe): i fogli cartoon hanno griglie diverse
@@ -172,6 +168,9 @@ class Gfx:
             return self.titan_ladder
         if self.titan_ground is None or ch not in "#D":
             return None
+        if ch == "D" and r < GROUND:
+            # sopra il livello del suolo e' parete o cumulo: roccia a strati
+            return self.titan_rock.subsurface(((c % ROCK_N) * TILE, (r % ROCK_N) * TILE, TILE, TILE))
         row = 0 if ch == "#" else 1 + r % (TITAN_N - 1)
         return self.titan_ground.subsurface(((c % TITAN_N) * TILE, row * TILE, TILE, TILE))
 
@@ -1496,8 +1495,9 @@ class Game:
                     s.blit(self.gfx.titan_tile(ch, c, r), (x, y))
                     if ch in "#D":
                         self.rock_edges(s, lv, c, r, x, y)
-                elif ch == "E":
-                    s.blit(self.gfx.airlock, (x - TILE // 2, y + TILE - self.gfx.airlock.get_height()))
+                elif ch in "EP":
+                    img = self.gfx.airlock if ch == "E" else self.gfx.capsule
+                    s.blit(img, (x + TILE // 2 - img.get_width() // 2, y + TILE - img.get_height()))
 
     def draw_drizzle(self, s):
         """Pioviggine di metano: gocce lente e pesanti, in diagonale, davanti a tutto."""
@@ -1588,7 +1588,7 @@ class Game:
         for geyser in self.geysers:
             geyser.draw(s, cam)
         for st in self.stations:
-            st.draw(s, cam, st.near(self.player))
+            st.draw(s, cam, st.near(self.player), self.gfx.station)
         for vent in self.vents:
             vent.draw(s, cam)
         if self.cable:

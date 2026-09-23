@@ -3,7 +3,7 @@
 Legenda:
   # crosta   D roccia   H scala di servizio   S parete invisibile dell'arena
   E portello d'uscita   q geyser   u prigioniero   o stazione d'ossigeno
-  c sfiato di gas criogenico   . vuoto (o lago di metano)
+  c sfiato di gas criogenico   P capsula d'atterraggio   . vuoto (o lago di metano)
 """
 ROWS = 17
 GROUND = 14
@@ -84,6 +84,7 @@ def gen_titan_surface():
         g[GROUND-1][col] = "q"
     for col in (6, 13, 20, 53, 59, 71, 104, 111, 122, 152, 157, 167, 174, 206, 213):
         g[GROUND-1][col] = "u"
+    g[GROUND-1][1] = "P"                    # la capsula con cui NightKnight e' arrivato
     for col in (3, 64, 115, 163):           # stazioni d'ossigeno fra un'ondata e l'altra
         g[GROUND-1][col] = "o"
     for col in (184, 198):                  # gas criogenico nell'ultima ondata

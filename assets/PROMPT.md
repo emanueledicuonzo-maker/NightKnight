@@ -38,6 +38,11 @@ STYLE: match the attached character's dark 2D cartoon style exactly: bold clean 
 | `sky_01.png`, `hills_01.png`, `hills_02.png`, `titan_ground_grass.png` | Titano |
 | `skeleton_walk1/2`, `skeleton_fly_1/2`, `skeleton_2x_1/2`, `skeleton_3x_1/2` | scheletri |
 | `crow_1/2`, `lizard_cryo_1/2`, `worm_silicon_1/2` | corvo, lucertola, verme |
+| `jelly_atmo_1/2`, `miner_mutant_1/2` | medusa, minatore |
+| `boss01_*.png` | Guardiano di Titano: guardia + 8 pose |
+| `titan_rock.png` | roccia a strati delle pareti |
+| `stazione_ossigeno.png`, `portello.png`, `capsula.png` | stazione, uscita, capsula d'atterraggio |
+| `emblema.png` | stemma di NightKnight (titolo e HUD) |
 
 Le strip del cavaliere si possono generare con qualunque numero di fotogrammi:
 il gioco separa le figure seguendo le sagome. Nelle nuove strip aggiungere:
