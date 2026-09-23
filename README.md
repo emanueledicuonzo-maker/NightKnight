@@ -24,10 +24,10 @@ Per ricrearlo: `python3 -m venv .venv`, poi `.venv/bin/pip install -r requiremen
 | --- | --- |
 | Frecce o WASD | Movimento e scale |
 | Spazio / Su / W | Salto; tenere premuto per saltare piu' in alto |
-| Z | Affondo di lancia |
-| X | Pugno |
-| C | Calcio |
-| V | Bianca: raffica di luce, consumando 25 Luce per un'unita' |
+| Z | Colpo con l'arma scelta |
+| X | Lancio del sasso |
+| C | Calcio; in salto, calcio volante |
+| V | Bianca: raffica di Luce (tutte le unita' da 25 disponibili) |
 | Maiusc + movimento | Rincorsa: aumenta velocita' e lunghezza del salto |
 | F | Lancio del giavellotto |
 | G | Lancio del pugnale |
@@ -41,54 +41,23 @@ Dal menu di pausa si puo' tornare al titolo o uscire.
 
 ## Struttura dei livelli
 
-Ogni satellite ha tre parti: cinque minuti di superficie con ondate e insidie,
-due o tre minuti di prove ambientali e due o tre minuti di duello contro il
-Guardiano. La superficie usa due nemici volanti, tre terrestri e quattro insidie
-scelti dai pool descritti in `STORY.md`.
+Ogni satellite e' un'unica ambientazione in tre parti: 4/5 minuti di superficie
+con ondate e insidie, 2/3 minuti di prove con pochissimi nemici, 2/3 minuti di
+duello contro il Guardiano, aiutato solo da pochi volanti. Regole, nemici e
+tabelle dei satelliti sono in `STORY.md`.
 
-Bianca segue NightKnight e non muore. Ogni prigioniero illuminato dà 5 Luce;
-premendo `V`, una raffica costa 25 Luce, colpisce tutti i volanti presenti e il
-Guardiano. Ogni unità infligge il 5% della vita massima del Guardiano, fino al 20%
-con una barra piena.
+Oggi e' giocabile **Titano**: quattro arene chiuse da porte stagne (le ondate),
+geyser e laghi di metano fra un'arena e l'altra, quindici prigionieri, le prove
+atletiche con tre nemici e il Guardiano, alto il doppio di NightKnight, con
+alabarda e gancio. Gli altri undici satelliti usano ancora il vecchio impianto.
 
-Le prove riusano il terreno del satellite: massi, laghi, liane, cavi, ponti,
-piattaforme, gravita' e ostacoli. I nuovi fondali, nemici e pericoli sono ancora
-asset da creare; `STORY.md` è la specifica di riferimento.
+**Bianca** segue NightKnight e non muore. Ogni prigioniero liberato da' 5 Luce;
+con `V` Bianca attraversa il cielo e scarica tutte le unita' da 25: abbatte i
+volanti sullo schermo e toglie al Guardiano il 5% della vita per unita' (fino al
+20%). Luce e prigionieri liberati restano anche dopo una vita persa.
 
-<!-- Sezione storica dell'implementazione precedente, conservata temporaneamente.
-
-Da **Nuova partita**, la superficie di Titano contiene tre geyser, quattro
-Spenti e tre scheletri. I geyser iniziano ad attivarsi quando ci si avvicina:
-3 secondi di riposo, 1,5 secondi di sfiato innocuo, 1,5 secondi di eruzione.
-Il getto infligge 25 danni; nella pausa si puo' attraversare a passo normale.
-I laghi si saltano e le rive prima del salto sono libere dai getti.
-
-Passare vicino a uno Spento lo illumina e aggiunge 20 punti di Albedo, una sola
-volta per tentativo. Questi Spenti usano temporaneamente lo sprite zombi
-ricolorato. Alla ripartenza della sezione si azzerano sia le liberazioni sia
-l'Albedo: crescita persistente di Bianca e nuovi salvataggi arriveranno dopo.
-I geyser di acqua/ammoniaca sono una reinterpretazione fantascientifica.
-
-Dal titolo, **Prove atletiche** avvia una nuova partita direttamente sul percorso
-delle prove e sostituisce il checkpoint precedente. Nella campagna il percorso
-si trova tra cripta e duello. Comprende cinque specialita': salto in lungo con
-rincorsa, attraversamento con liana, ostacoli a cavallo, tre bersagli per il
-giavellotto e tre per i pugnali. La porta si apre dopo tutte e cinque le prove;
-il tempo impiegato determina un bonus finale.
-
-Per la liana, salta verso la corda e premi E per afferrarla. Le frecce danno
-slancio; Spazio lascia la presa conservando velocita'. A cavallo, Spazio salta
-gli ostacoli ed E permette di scendere quando si e' a terra. I bersagli accettano
-solo l'arma della loro specialita'. I lanci sono disponibili anche fuori dalle
-prove. Perdere una vita ricomincia la sezione, comprese le prove.
-
-> Questa e' l'implementazione attuale: cinque prove in un percorso a se'.
-> Il progetto in `STORY.md` le trasforma in otto discipline che sbloccano
-> abilita' permanenti, usate poi dentro ai cimiteri. Non ancora implementato.
-
-Le corde usano [Pymunk](https://www.pymunk.org/en/latest/pymunk.constraints.html).
-
--->
+Nelle prove: rincorsa con Maiusc, E per afferrare la liana o salire a cavallo,
+F e G per giavellotto e pugnali sui bersagli. La porta si apre dopo le cinque prove.
 
 ## Progressi
 
@@ -115,15 +84,16 @@ Il salto accetta un piccolo ritardo dopo il bordo (6 fotogrammi) e memorizza
 una pressione poco prima dell'atterraggio (7 fotogrammi). Rilasciare il tasto
 riduce l'altezza senza troncare il salto. Anche una pressione breve, partendo
 da fermo e muovendosi verso il bordo, supera le fosse generate (2-3 celle).
-La corsa raggiunge 5.8 pixel per fotogramma; le punte delle cripte sono
-dimensionate per essere superate con la velocita' attuale di Arthur.
+La corsa raggiunge 5.8 pixel per fotogramma.
 
 L'interfaccia usa font antialias inclusi nel progetto, con licenze in
-`assets/fonts/`. La musica usa accordi ambient minori, campane soffuse e
-percussioni nei duelli, a volume ridotto rispetto agli effetti.
+`assets/fonts/`. La musica e' solo basso e percussioni leggere, sintetizzati:
+in esplorazione il basso e' suonato al contrario, nel duello torna dritto. Ogni
+evento ha il suo effetto (fendente, sasso, calcio, ossa, prigioniero, geyser,
+porte stagne, gancio, raffica di Bianca...).
 
-I test simulano i salti delle fosse in entrambe le direzioni e un percorso
-senza danni da punte nelle 12 cripte, senza nemici. Verificano anche il flusso
+I test simulano i salti delle fosse, l'attraversamento dei geyser, i prigionieri
+e la raffica di Bianca. Verificano anche il flusso
 di ricompense fino al finale; non sostituiscono una partita completa per
 valutare difficolta' dei combattimenti e ritmo.
 
@@ -157,4 +127,4 @@ python3 -m venv .venv
 ./goblin.sh --windowed
 ```
 
-I test si lanciano con `.venv/bin/python -m pytest`.
+I test si lanciano come in **Verifica**.
