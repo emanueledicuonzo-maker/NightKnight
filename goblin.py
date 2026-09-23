@@ -128,10 +128,15 @@ class Gfx:
         self.bones = px.sprite(px.BONES, scale=PS)
         self.zombie = [assets.load(f"zombie_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], scale=PS), by_height=True) for i in range(2)]
         # Sagome provvisorie ottenute dagli asset esistenti, senza nuove immagini.
-        self.spento_sleeping = self.zombie[0].copy()
-        self.spento_sleeping.fill((70, 62, 52, 255), special_flags=pygame.BLEND_RGBA_MULT)
-        self.spento_awake = self.zombie[0].copy()
-        self.spento_awake.fill((90, 63, 25, 0), special_flags=pygame.BLEND_RGB_ADD)
+        # Prigionieri: coloni chiusi in una capsula, poco piu' alta di NightKnight.
+        if assets.has("prigioniero_spento") and assets.has("prigioniero_acceso"):
+            self.spento_sleeping = assets.load("prigioniero_spento", PW * 2, PH * 5 // 4, by_height=True)
+            self.spento_awake = assets.load("prigioniero_acceso", PW * 2, PH * 5 // 4, by_height=True)
+        else:
+            self.spento_sleeping = self.zombie[0].copy()
+            self.spento_sleeping.fill((70, 62, 52, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            self.spento_awake = self.zombie[0].copy()
+            self.spento_awake.fill((90, 63, 25, 0), special_flags=pygame.BLEND_RGB_ADD)
         self.skeleton = [assets.load(f"skeleton_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], px.SKELETON_MAP, PS), by_height=True) for i in range(2)]
         self.crow = [assets.load(f"crow_{i + 1}", 16 * PS, 8 * PS, assets.pix(px.CROW[i], scale=PS)) for i in range(2)]
         # Bianca resta pulcino nei primi quattro cimiteri: due pose di volo.
