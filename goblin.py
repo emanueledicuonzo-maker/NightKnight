@@ -1286,7 +1286,7 @@ class Game:
         px.draw_text(s, f"{self.lives} VITE", 350, 28, (181, 190, 194), scale=3)
         self.bar(40, 66, 400, p.hp / PLAYER_HP, (64, 153, 116) if p.hp > 30 else (183, 65, 67))
         px.draw_text(s, f"{p.hp} / {PLAYER_HP}", 460, 60, (213, 220, 219), scale=3)
-        px.draw_text(s, "ALBEDO", 40, 94, (202, 178, 119), scale=3)
+        px.draw_text(s, "LUCE", 40, 94, (202, 178, 119), scale=3)
         self.bar(130, 98, 310, p.albedo / 100, (186, 155, 82))
         if p.albedo >= 100:
             px.draw_text(s, "PRONTO", 460, 92, (224, 198, 129), scale=3)
@@ -1296,9 +1296,9 @@ class Game:
         if weapon:
             label = weapon["name"].upper()
             px.draw_text(s, label, 40, 178, (190, 210, 225), scale=3)
-        title = f"CIMITERO {ROMAN[self.ci]} - {self.cfg['name']}"
+        title = f"SATELLITE {ROMAN[self.ci]} - {self.cfg['name']}"
         px.draw_text(s, title, W // 2 - px.text_width(title, 5) // 2, 24, scale=5)
-        sub = {"surface": "SOPRA", "crypt": "SOTTOTERRA", "trials": "LE PROVE", "arena": "IL DUELLO"}[self.part]
+        sub = {"surface": "SUPERFICIE", "crypt": "SOTTO LA CROSTA", "trials": "LE PROVE", "arena": "IL DUELLO"}[self.part]
         px.draw_text(s, sub, W // 2 - px.text_width(sub, 4) // 2, 60, (200, 200, 220), scale=4)
         sc = f"PUNTI {self.score:08d}"
         px.draw_text(s, sc, W - 40 - px.text_width(sc, 5), 24, (222, 201, 150), scale=5)
@@ -1360,7 +1360,8 @@ class Game:
             if self.ci == 0:
                 haze = pygame.Surface((W, 105), pygame.SRCALPHA)
                 for yy in range(haze.get_height()):
-                    alpha = max(0, 68 - yy // 2)
+                    # sale e scende dolcemente: nessun bordo netto sopra il terreno
+                    alpha = int(60 * math.sin(math.pi * yy / haze.get_height()))
                     pygame.draw.line(haze, (184, 91, 31, alpha), (0, yy), (W, yy))
                 s.blit(haze, (0, GROUND * TILE - 75))
         for c in range(c0, min(lv.cols, c0 + W // TILE + 3)):
@@ -1408,7 +1409,7 @@ class Game:
             self.draw_center(f"RECORD {self.hi:08d}", 560, (200, 200, 220), 4)
             self.draw_menu(610)
             self.draw_center("FRECCE MUOVI  SPAZIO SALTA  Z AFFONDO DI LANCIA  X PUGNO  C CALCIO", 900, (150, 160, 190), 4)
-            self.draw_center("V ALBEDO: RAFFICA DI PUGNI     SU/GIU SULLE SCALE", 940, (150, 160, 190), 4)
+            self.draw_center("V LUCE: RAFFICA DI PUGNI     SU/GIU SULLE SCALE", 940, (150, 160, 190), 4)
             img = self.gfx.player["idle"][0]
             hero = pygame.transform.smoothscale(img, (img.get_width() * 2, img.get_height() * 2))
             s.blit(hero, (260 - hero.get_width() // 2, 880 - hero.get_height()))
@@ -1473,9 +1474,9 @@ class Game:
         self.draw_hud()
         if self.state == "card":
             ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 170)); s.blit(ov, (0, 0))
-            self.draw_center(f"CIMITERO {ROMAN[self.ci]}", 300, (250, 210, 60), 14)
+            self.draw_center(f"SATELLITE {ROMAN[self.ci]}", 300, (250, 210, 60), 14)
             self.draw_center(self.cfg["name"].upper(), 440, scale=10)
-            sub = {"surface": "SOPRA", "crypt": "SOTTOTERRA", "trials": "LE PROVE", "arena": "IL DUELLO"}[self.part]
+            sub = {"surface": "SUPERFICIE", "crypt": "SOTTO LA CROSTA", "trials": "LE PROVE", "arena": "IL DUELLO"}[self.part]
             self.draw_center(sub, 560, (200, 200, 220), 8)
             self.draw_center(f"GUARDIANO: {self.cfg['boss'].upper()}", 680, self.cfg["color"], 5)
             self.draw_center(f"GRAVITA {self.cfg['gravity'].upper()}  |  ARIA {self.cfg['air'].upper()}", 755, (210, 210, 220), 3)
@@ -1489,7 +1490,7 @@ class Game:
         elif self.state == "gameover":
             ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 170)); s.blit(ov, (0, 0))
             self.draw_center("GAME OVER", 380, (230, 40, 40), 16)
-            self.draw_center(f"INVIO: RIPROVA IL CIMITERO {ROMAN[self.ci]}", 600, scale=6)
+            self.draw_center(f"INVIO: RIPROVA IL SATELLITE {ROMAN[self.ci]}", 600, scale=6)
         if self.paused:
             ov = pygame.Surface((W, H), pygame.SRCALPHA)
             ov.fill((0, 0, 0, 195))
