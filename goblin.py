@@ -41,6 +41,10 @@ MAX_FALL = 18
 RUN_ACC = 0.65
 RUN_MAX = 5.8
 SWORD_REACH = 170
+SWORD_FRAMES = 20       # tre fendenti al secondo
+STONE_FRAMES = 30       # due sassi al secondo
+# Danno in colpi: la spada vale 2, il sasso sempre la meta'.
+SWORD_HIT, STONE_HIT = 2, 1
 SPIN_REACH = 130
 SPIN_FRAMES = 42
 SPIN_RECOVERY = 26      # all'atterraggio dopo il calcio girato si resta scoperti
@@ -420,7 +424,7 @@ class Player(Entity):
         if self.attack:
             name, f = self.attack
             f += 1
-            limit = {"punch": 14, "kick": 18, "throw": 14, "spin": SPIN_FRAMES}[name]
+            limit = {"punch": STONE_FRAMES, "kick": 18, "throw": SWORD_FRAMES, "spin": SPIN_FRAMES}[name]
             self.attack = None if f >= limit else (name, f)
             if name == "spin" and (self.attack is None or self.on_ground):
                 self.attack = None
@@ -463,7 +467,7 @@ class Player(Entity):
             if base not in sheets:
                 return None
             fr = sheets[base][side]
-            limit = {"punch": 14, "kick": 18, "throw": 14, "spin": SPIN_FRAMES}[name]
+            limit = {"punch": STONE_FRAMES, "kick": 18, "throw": SWORD_FRAMES, "spin": SPIN_FRAMES}[name]
             return fr[min(len(fr) - 1, f * len(fr) // limit)]
         if not self.on_ground:
             if "jump" not in sheets:
@@ -624,12 +628,13 @@ class Bianca:
 
 # Specie dei nemici nuovi. I camminatori ereditano dallo scheletro (colpo
 # ravvicinato, pestone, danni), i volanti dal corvo (volo e picchiata).
-# h: altezza dello sprite; box: sagoma colpibile; hp: colpi per abbatterlo.
+# h: altezza dello sprite; box: sagoma colpibile; hp: vita in colpi di sasso
+# (un fendente di spada ne vale due).
 WALKERS = {
     "skeleton":    dict(frames="skeleton_walk{}", h=PH, box=(70, 176), hp=1, speed=2.6, dmg=30, reach=70, pts=300),
     "skeleton_2x": dict(frames="skeleton_2x_{}", h=PH * 2, box=(120, 352), hp=2, speed=1.8, dmg=40, reach=150, pts=1500),
-    "skeleton_3x": dict(frames="skeleton_3x_{}", h=PH * 3, box=(170, 528), hp=3, speed=1.3, dmg=55, reach=220, pts=4000),
-    "miner":       dict(frames="miner_mutant_{}", h=PH, box=(80, 176), hp=2, speed=2.0, dmg=35, reach=95, pts=500),
+    "skeleton_3x": dict(frames="skeleton_3x_{}", h=PH * 3, box=(170, 528), hp=4, speed=1.3, dmg=55, reach=220, pts=4000),
+    "miner":       dict(frames="miner_mutant_{}", h=PH, box=(80, 176), hp=4, speed=2.0, dmg=35, reach=95, pts=500),
     "lizard":      dict(frames="lizard_cryo_{}", h=80, box=(170, 70), hp=1, speed=1.4, dmg=25, reach=60, pts=400, lunge=True),
     "worm":        dict(frames="worm_silicon_{}", h=230, box=(100, 200), hp=1, speed=0, dmg=30, reach=120, pts=600),
 }
@@ -649,7 +654,8 @@ class Stone:
         self.x = p.rect.right if self.d > 0 else p.rect.left - 20
         self.y = p.rect.top + 40
         self.vx, self.vy = 15 * self.d, -5.0
-        self.dmg = 0.5           # un sasso vale mezzo colpo
+        self.dmg = STONE_HIT          # contro i nemici: meta' della spada
+        self.boss_dmg = 6             # contro il Guardiano: meta' del fendente
         self.alive = True
         self.t = 0
         self.kind = "stone"
@@ -657,6 +663,11 @@ class Stone:
     @property
     def rect(self):
         return pygame.Rect(int(self.x), int(self.y), 22, 22)
+
+    @property
+    def hit_rect(self):
+        """Il sasso prende anche i nemici bassi (lucertole, ratti) sotto la sua traiettoria."""
+        return self.rect.inflate(16, 0).union(self.rect.move(0, 110))
 
     def update(self, lv, cam):
         self.t += 1
@@ -1217,7 +1228,8 @@ class Game:
             er = e.rect
             if abox and abox.colliderect(er) and getattr(e, "swing", None) != p.swing:
                 e.swing = p.swing
-                self.hit_enemy(e, 2 if p.attack[0] == "spin" else 1, pts=pts, weapon=p.attack[0] == "throw")
+                self.hit_enemy(e, SWORD_HIT if p.attack[0] in ("throw", "spin") else STONE_HIT,
+                               pts=pts, weapon=p.attack[0] == "throw")
                 continue
             if not e.alive:
                 continue
@@ -1242,12 +1254,12 @@ class Game:
         for b in self.balls:
             if b.owner == "player" and b.alive:
                 for e, pts in enemies:
-                    if e.alive and b.rect.colliderect(e.rect):
+                    if e.alive and getattr(b, "hit_rect", b.rect).colliderect(e.rect):
                         self.hit_enemy(e, b.dmg, pts=pts)
                         b.alive = False
                         break
                 if self.boss and b.alive and b.rect.colliderect(self.boss.rect):
-                    if self.boss.hit(b.dmg):
+                    if self.boss.hit(getattr(b, "boss_dmg", b.dmg)):
                         self.score += 50
                         self.shake = max(self.shake, 5)
                         self.jb.fx("boss_hit")

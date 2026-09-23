@@ -110,9 +110,13 @@ Una sequenza di assedi che cresce, non un posto pieno di nemici casuali:
 4. 30–40 volanti tutti insieme, mentre le insidie del satellite sono attive.
 
 Le ondate usano i due tipi di scheletro del satellite e la sua fauna, mescolati.
-La vita dei nemici si conta in colpi: scheletro 1, cavaliere-scheletro 2× 2,
-3× 3, minatore 2, tutti gli altri 1. Il calcio girato vale due colpi, il sasso
-mezzo; con l'arma non affine alla fauna del satellite il fendente vale mezzo colpo.
+Il sasso vale sempre **metà della spada**. Con la spada: uno scheletro (anche
+due insieme) e un cavaliere-scheletro 2× cadono con un fendente, il 3× e il
+minatore con due; vermi, lucertole, corvi, meduse e scheletri volanti con uno.
+Con i sassi serve il doppio, tranne che per i nemici da un colpo. La spada fa
+tre fendenti al secondo, il sasso due lanci. Il calcio girato vale come la
+spada, il calcio e il salto sulla testa come un sasso. Con l'arma non affine
+alla fauna del satellite il fendente vale quanto un sasso.
 
 Gli scheletri normali sono fragili: il pericolo nasce dal numero, dall'aria che
 finisce e dal terreno. I 2× e 3× sono gli avversari su cui si imparano tempi,
