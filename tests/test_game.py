@@ -108,12 +108,10 @@ class GameTests(unittest.TestCase):
         g.player.vy = -15
         g.player.invuln = 70
         g.player.climbing = True
-        g.player.armor = False
         g.start_round()
         self.assertIsNone(g.player.attack)
         self.assertEqual((g.player.vx, g.player.vy, g.player.invuln), (0, 0, 0))
         self.assertFalse(g.player.climbing)
-        self.assertTrue(g.player.armor)
         self.assertEqual(g.player.power, "ice")
 
     def test_victory_is_saved_before_reward_screen_closes(self):
@@ -145,9 +143,9 @@ class GameTests(unittest.TestCase):
             self.assertEqual(g.part, "arena")
             g.state = "play"
             g.next_part()
-            self.assertEqual(g.state, "armor")
+            self.assertEqual(g.state, "victory")
             self.assertEqual(len(g.powers), i + 1)
-            g.after_armor()
+            g.after_victory()
         self.assertEqual(g.state, "end")
         self.assertIsNone(progress.load(g.save_path)["checkpoint"])
 
@@ -180,7 +178,6 @@ class GameTests(unittest.TestCase):
         g.start_part("arena")
         g.state = "play"
         g.intro = 0
-        g.player.armor = False
         g.player.hp = 1
         g.boss.hp = 0
         g.hurt_player(100, g.player.x)
@@ -197,9 +194,9 @@ class GameTests(unittest.TestCase):
     def test_jump_sheet_advances_during_ascent(self):
         p = self.game.player
         p.on_ground = False
-        if "jump" not in self.game.gfx.sheets[True]:
+        if "jump" not in self.game.gfx.sheets:
             self.skipTest("No jump sheet installed")
-        frames = self.game.gfx.sheets[True]["jump"][0]
+        frames = self.game.gfx.sheets["jump"][0]
         p.vy = goblin.JUMP_V
         self.assertIs(p.sheet_frame(self.game.gfx), frames[0])
         p.vy = -1

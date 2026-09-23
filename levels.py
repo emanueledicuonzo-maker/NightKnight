@@ -46,18 +46,18 @@ SATELLITES = [
 # si porta la stessa arma fino alla fine. L'affinita' giusta evita le resistenze
 # della fauna locale, le altre restano utilizzabili ma rendono gli scontri duri.
 WEAPONS = [
-    ("lancia criogenica", "cryo", 1.35, "Congela le creature del metano."),
-    ("lama solare", "lumen", 1.30, "Brucia le presenze d'ombra."),
-    ("martello termico", "thermal", 1.45, "Spezza ghiaccio, zolfo e corazze."),
-    ("giavellotto cinetico", "kinetic", 1.25, "Per bersagli rapidi e a gravita minima."),
-    ("spada al plasma", "thermal", 1.15, "Calore costante a corto raggio."),
-    ("arco fotonico", "lumen", 1.20, "Luce concentrata contro gli spettri."),
-    ("falce orbitale", "kinetic", 1.20, "Ampia, ma lenta."),
-    ("mazza magnetica", "kinetic", 1.35, "Devasta ossa e metallo."),
-    ("frusta di cometa", "cryo", 1.10, "Tiene lontani i predatori volanti."),
-    ("pugnale a fusione", "thermal", 1.25, "Piccolo e feroce nel gelo."),
-    ("scettro aurorale", "lumen", 1.15, "Respinge le anime invisibili."),
-    ("ascia gravitazionale", "kinetic", 1.40, "Un colpo pesante nel vuoto."),
+    ("spada termica", "cryo", 1.35, "Scioglie la fauna gelata di Titano."),
+    ("lancia luminosa", "lumen", 1.30, "Porta luce dove la notte non finisce."),
+    ("martello sismico", "thermal", 1.45, "Spezza zolfo, roccia e corazze."),
+    ("falce a fusione", "thermal", 1.20, "Taglia il ghiaccio e cio' che vi si nasconde."),
+    ("arco magnetico", "lumen", 1.20, "Colpisce da lontano fra gli anelli."),
+    ("scettro aurorale", "thermal", 1.15, "Luce fredda contro le ombre del transito."),
+    ("mazza magnetica", "lumen", 1.35, "Devasta ossa e metallo fra i piloni."),
+    ("balestra cinetica", "kinetic", 1.25, "Per bersagli rapidi a gravita' minima."),
+    ("tridente termico", "thermal", 1.25, "Calore contro gli abissi di metano."),
+    ("frusta a impulsi", "kinetic", 1.10, "Tiene lontani i nemici sui ponti."),
+    ("pugnale dell'eclissi", "lumen", 1.25, "Piccolo e feroce nel buio."),
+    ("spada orbitale", "kinetic", 1.40, "La reliquia del re."),
 ]
 
 

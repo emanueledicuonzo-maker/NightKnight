@@ -39,20 +39,17 @@ PW, PH = 16 * PS, 24 * PS
 
 
 # ---------------------------------------------------------------- grafica
-def player_images(armor):
+def player_images():
     out = {}
-    remap = None if armor else px.UNDERWEAR
-    pre = "knight_" if armor else "knight_nude_"
+    pre = "knight_"
     for name, (torso, legs) in px.PLAYER_FRAMES.items():
         rows = px.HEAD + px.TORSO[torso] + px.LEGS[legs]
         file = {"run1": "run1", "run2": "run2", "jump": "jump", "punch": "punch", "kick": "kick",
                 "throw": "throw", "hado": "special", "airpunch": "punch", "airkick": "kick",
                 "airthrow": "throw", "climb": "climb", "idle": "idle"}[name]
         chain = [pre + file, pre + "idle", pre + "run1"]
-        if not armor:
-            chain += ["knight_" + file, "knight_idle", "knight_run1"]
         fname = next((n for n in chain if assets.has(n)), pre + file)
-        img = assets.load(fname, PW, PH, assets.pix(rows, remap, PS), by_height=True)
+        img = assets.load(fname, PW, PH, assets.pix(rows, None, PS), by_height=True)
         out[name] = (img, assets.flip(img))
         if fname != pre + file and assets.has(fname):
             out.setdefault("_fallback", set()).add(name)     # posa vera mancante: si anima la posa di ripiego
@@ -112,16 +109,13 @@ class Gfx:
         }
         if assets.has("tomb2"):
             self.deco["t2"] = assets.load("tomb2", TILE, TILE)
-        self.player = {True: player_images(True), False: player_images(False)}
+        self.player = player_images()
         self.sheets = {}
-        for armor, pre in ((True, "knight_"), (False, "knight_nude_")):
-            d = {}
-            for pose, file in (("run", "run_sheet"), ("punch", "punch_sheet"), ("kick", "kick_sheet"),
-                               ("jump", "jump_sheet"), ("throw", "spear_lunge_sheet")):
-                fr = assets.sheet(pre + file, PH)
-                if fr:
-                    d[pose] = (fr, [assets.flip(f) for f in fr])
-            self.sheets[armor] = d
+        for pose, file in (("run", "run_sheet"), ("punch", "punch_sheet"), ("kick", "kick_sheet"),
+                           ("jump", "jump_sheet"), ("throw", "spear_lunge_sheet")):
+            fr = assets.sheet("knight_" + file, PH)
+            if fr:
+                self.sheets[pose] = (fr, [assets.flip(f) for f in fr])
         self.bones = px.sprite(px.BONES, scale=PS)
         self.zombie = [assets.load(f"zombie_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], scale=PS), by_height=True) for i in range(2)]
         # Sagome provvisorie ottenute dagli asset esistenti, senza nuove immagini.
@@ -272,7 +266,6 @@ class Entity:
 class Player(Entity):
     def __init__(self, x, y):
         super().__init__(x, y)
-        self.armor = True
         self.hp = PLAYER_HP
         self.albedo = 0
         self.invuln = 0
@@ -436,7 +429,7 @@ class Player(Entity):
 
     def sheet_frame(self, gfx):
         """Fotogramma dal foglio di sprite, se esiste per la posa corrente."""
-        sheets = gfx.sheets[self.armor]
+        sheets = gfx.sheets
         side = 0 if self.facing > 0 else 1
         if self.climbing:
             return None
@@ -469,7 +462,7 @@ class Player(Entity):
         if self.invuln and (self.invuln // 3) % 2 and not (self.attack and self.attack[0] == "albedo"):
             return
         if self.mounted:
-            img = gfx.player[self.armor]["jump"][0 if self.facing > 0 else 1]
+            img = gfx.player["jump"][0 if self.facing > 0 else 1]
             img = pygame.transform.smoothscale(img, (int(img.get_width()*0.8), int(img.get_height()*0.8)))
             s.blit(img, (self.rect.centerx - img.get_width()//2 - cam, self.rect.bottom - 40 - img.get_height()))
             return
@@ -481,7 +474,7 @@ class Player(Entity):
                 pygame.draw.circle(s, (255, 220, 100), (self.rect.centerx - cam, self.rect.centery), 60 + t * 6, 6)
             return
         name = self.sprite_name()
-        frames = gfx.player[self.armor]
+        frames = gfx.player
         img = frames[name][0 if self.facing > 0 else 1]
         if name in frames["_fallback"]:
             # animazione di ripiego: inclina e fa "camminare" la posa ferma
@@ -890,7 +883,7 @@ class Game:
         self.ko_wait = 0
 
     def next_part(self):
-        if self.state == "armor":
+        if self.state == "victory":
             return
         if self.part == "surface":
             self.start_part("crypt")
@@ -903,12 +896,12 @@ class Game:
             self.start_part("arena")
         else:
             self.powers.append(self.cfg["power"])
-            self.state = "armor"
+            self.state = "victory"
             self.card_t = 260
             self.jb.play("victory")
             self.save_progress(checkpoint=True, next_cemetery=True, clear=self.ci == 11)
 
-    def after_armor(self):
+    def after_victory(self):
         self.ci += 1
         if self.ci >= 12:
             self.state = "end"
@@ -931,10 +924,8 @@ class Game:
         p.climbing = False
         p.coyote = p.jump_buffer = 0
         self.jb.fx("hurt")
-        # Gli sprite dell'armatura danneggiata arriveranno piu' avanti: fino ad
-        # allora NightKnight resta sempre corazzato, senza passare al costume nude.
+        # NightKnight non perde mai l'armatura: un colpo toglie solo vita.
         p.hp = max(0, p.hp - dmg)
-        self.effects.append(Effect(p.x, p.y - 30, "ARMATURA COLPITA", (255, 170, 120)))
         if p.hp == 0:
             self.die()
 
@@ -968,10 +959,10 @@ class Game:
             if self.card_t <= 0:
                 self.state = "play"
             return
-        if self.state == "armor":
+        if self.state == "victory":
             self.card_t -= 1
             if self.card_t <= 0:
-                self.after_armor()
+                self.after_victory()
             return
         if self.state == "dead":
             self.state_t += 1
@@ -1217,7 +1208,7 @@ class Game:
                 else:
                     self.new_game(self.ci)
             return
-        if self.state in ("card", "armor"):
+        if self.state in ("card", "victory"):
             if k == pygame.K_RETURN:
                 self.card_t = 0
             return
@@ -1282,8 +1273,6 @@ class Game:
         self.bar(130, 98, 310, p.albedo / 100, (186, 155, 82))
         if p.albedo >= 100:
             px.draw_text(s, "PRONTO", 460, 92, (224, 198, 129), scale=3)
-        arm = "ARMATURA" if p.armor else "SENZA ARMATURA"
-        px.draw_text(s, arm, 40, 126, (168, 185, 196) if p.armor else (221, 126, 119), scale=3)
         if p.power:
             px.draw_text(s, levels.ARMOR_NAMES[p.power], 40, 152, (202, 178, 119), scale=3)
         weapon = getattr(p, "weapon", None)
@@ -1403,7 +1392,7 @@ class Game:
             self.draw_menu(610)
             self.draw_center("FRECCE MUOVI  SPAZIO SALTA  Z AFFONDO DI LANCIA  X PUGNO  C CALCIO", 900, (150, 160, 190), 4)
             self.draw_center("V ALBEDO: RAFFICA DI PUGNI     SU/GIU SULLE SCALE", 940, (150, 160, 190), 4)
-            img = self.gfx.player[True]["idle"][0]
+            img = self.gfx.player["idle"][0]
             hero = pygame.transform.smoothscale(img, (img.get_width() * 2, img.get_height() * 2))
             s.blit(hero, (260 - hero.get_width() // 2, 880 - hero.get_height()))
             self.draw_save_status()
@@ -1475,12 +1464,10 @@ class Game:
             self.draw_center(f"GRAVITA {self.cfg['gravity'].upper()}  |  ARIA {self.cfg['air'].upper()}", 755, (210, 210, 220), 3)
             self.draw_center(f"CLIMA: {self.cfg['climate'].upper()}", 790, (210, 210, 220), 3)
             self.draw_center(f"FAUNA: {self.cfg['enemies'][0].upper()} / {self.cfg['enemies'][1].upper()}", 825, (210, 210, 220), 3)
-        elif self.state == "armor":
+        elif self.state == "victory":
             ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 190)); s.blit(ov, (0, 0))
             self.draw_center("VITTORIA", 260, (250, 210, 60), 14)
-            self.draw_center("HAI CONQUISTATO L'ARMATURA", 420, scale=7)
-            self.draw_center(f"DEL {self.cfg['boss'].upper()}", 500, self.cfg["color"], 7)
-            self.draw_center(levels.ARMOR_NAMES[self.cfg["power"]].upper(), 640, (200, 220, 255), 9)
+            self.draw_center(f"{self.cfg['boss'].upper()} E' CADUTO", 460, self.cfg["color"], 7)
             self.draw_center("PREMI INVIO", 820, (150, 160, 190), 5)
         elif self.state == "gameover":
             ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 170)); s.blit(ov, (0, 0))

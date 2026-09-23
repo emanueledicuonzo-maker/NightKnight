@@ -46,7 +46,6 @@ class TitanTests(unittest.TestCase):
         vent.age = vent.REST + vent.WARNING - 1
         g.update()
         self.assertEqual(g.player.hp, 75)
-        self.assertTrue(g.player.armor)
         g.update()
         self.assertEqual(g.player.hp, 75)  # invulnerabilita': niente danni ogni frame
 
