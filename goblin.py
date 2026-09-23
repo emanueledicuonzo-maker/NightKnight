@@ -21,6 +21,8 @@ W, H = 1920, 1080
 FPS = 60
 TILE = 64
 SKY_PAN = 360        # di quanto scorre il cielo dall'inizio alla fine del livello
+LUCE_MAX, LUCE_UNIT, LUCE_PER_PRISONER = 100, 25, 5
+BURST_FRAMES = 70    # durata del volo di Bianca durante la raffica
 TITAN_N = 6          # il terreno di Titano copre 6x6 tessere
 ROWS = 17
 GROUND = levels.GROUND
@@ -720,9 +722,16 @@ class Bianca:
         self.y = player.y - 110
         self.facing = 1
         self.t = 0
+        self.burst = 0
 
-    def update(self, player):
+    def update(self, player, cam=0):
         self.t += 1
+        if self.burst:
+            # raffica: si illumina e attraversa la parte alta dello schermo
+            self.burst -= 1
+            k = 1 - self.burst / BURST_FRAMES
+            self.x, self.y, self.facing = cam - 200 + (W + 400) * k, 160 + math.sin(k * math.pi * 2) * 40, 1
+            return
         # Resta poco dietro e sopra al protagonista; il ritardo rende il volo vivo.
         offset = -155 if player.facing > 0 else 155
         tx, ty = player.rect.centerx + offset, player.y - 105
@@ -736,6 +745,11 @@ class Bianca:
         if self.facing < 0:
             img = assets.flip(img)
         bob = int(math.sin(self.t / 11) * 7)
+        if self.burst:
+            glow = pygame.Surface((420, 420), pygame.SRCALPHA)
+            for rad in range(200, 20, -20):
+                pygame.draw.circle(glow, (255, 240, 200, 14), (210, 210), rad)
+            screen.blit(glow, (int(self.x) - 210 - cam, int(self.y) - 210))
         screen.blit(img, (int(self.x) - img.get_width() // 2 - cam,
                           int(self.y) - img.get_height() // 2 + bob))
 
@@ -927,6 +941,7 @@ class Game:
         pygame.init()
         flags = 0 if windowed else pygame.FULLSCREEN | pygame.SCALED
         self.screen = pygame.display.set_mode((W, H), flags)
+        self.luce, self.freed = 0, set()      # Luce di Bianca e prigionieri gia' liberati
         pygame.display.set_caption("NightKnight")
         self.clock = pygame.time.Clock()
         self.gfx = Gfx()
@@ -965,6 +980,7 @@ class Game:
                 "cemetery": self.ci + 1 if next_cemetery else self.ci,
                 "part": "surface" if next_cemetery else self.part, "lives": self.lives,
                 "score": self.score, "powers": list(self.powers),
+                "luce": self.luce, "freed": sorted(list(f) for f in self.freed),
             }
         self.save_error = progress.save(self.saved, self.save_path)
 
@@ -973,6 +989,8 @@ class Game:
         if cp:
             self.ci, self.lives = cp["cemetery"], cp["lives"]
             self.score, self.powers = cp["score"], list(cp["powers"])
+            self.luce = max(0, min(LUCE_MAX, int(cp.get("luce", 0))))
+            self.freed = {tuple(f) for f in cp.get("freed", []) if isinstance(f, list) and len(f) == 3}
             self.start_part(cp["part"])
 
     def set_paused(self, paused):
@@ -1017,6 +1035,7 @@ class Game:
         if ci == 0:
             self.score = 0
             self.powers = []
+            self.luce, self.freed = 0, set()
         self.lives = 3
         self.ci = ci
         self.weapon_part = part
@@ -1043,7 +1062,9 @@ class Game:
         p.power = self.powers[-1] if self.powers else None
         p.weapon = levels.weapon_cfg(self.weapon_i)
         p.gravity_scale = self.cfg["gravity_scale"]
-        self.bianca = Bianca(p) if self.ci < 4 else None
+        self.bianca = Bianca(p)
+        # La Luce e i prigionieri liberati restano anche dopo una vita persa
+        p.albedo = self.luce
         self.geysers, self.spenti = [], []
         self.geyser_hint = False
         self.zombies, self.skels, self.crows, self.ghosts, self.balls = [], [], [], [], []
@@ -1051,7 +1072,10 @@ class Game:
             if ch == "q":
                 self.geysers.append(titan.Geyser((c + .5) * TILE, (r + 1) * TILE))
             elif ch == "u":
-                self.spenti.append(titan.Spento((c + .5) * TILE, (r + 1) * TILE))
+                spento = titan.Spento((c + .5) * TILE, (r + 1) * TILE)
+                if (self.ci, self.part, int(spento.x)) in self.freed:
+                    spento.liberated, spento.glow = True, 60
+                self.spenti.append(spento)
             elif ch == "k":
                 self.skels.append(Skeleton(c, r))
             elif ch == "v":
@@ -1141,6 +1165,25 @@ class Game:
         if p.hp == 0:
             self.die()
 
+    def luce_burst(self):
+        """Bianca scarica tutta la Luce in una raffica: abbatte ogni volante sullo
+        schermo e toglie al Guardiano il 5% della vita per ogni unita' da 25."""
+        p = self.player
+        units = min(LUCE_MAX // LUCE_UNIT, p.albedo // LUCE_UNIT)
+        if units <= 0 or not self.bianca or self.bianca.burst:
+            return False
+        p.albedo -= units * LUCE_UNIT
+        self.bianca.burst = BURST_FRAMES
+        self.jb.fx("luce")
+        for c in self.crows:
+            if c.alive and self.cam - 100 < c.x < self.cam + W + 100:
+                self.hit_enemy(c, 999, pts=getattr(c, "spec", {}).get("pts", 150))
+        if self.boss and self.boss.hp > 0:
+            self.boss.hp = max(0, self.boss.hp - max(1, round(self.boss.max_hp * 0.05 * units)))
+            self.boss.flash = 20
+        self.effects.append(Effect(p.x, p.y - 60, f"LUCE x{units}", (255, 236, 190)))
+        return True
+
     def boss_spawn(self, projectile):
         self.balls.append(projectile)
         if projectile.kind == "hook":
@@ -1158,7 +1201,6 @@ class Game:
         weapon = self.player.weapon
         multiplier = weapon["damage"] if weapon["affinity"] == self.cfg["affinity"] else 0.35
         e.hp -= max(1, int(dmg * multiplier))
-        self.player.albedo = min(100, self.player.albedo + 6)
         bony = isinstance(e, Skeleton) and getattr(e, "kind", "skeleton").startswith("skeleton")
         self.jb.fx("hit" if bony or isinstance(e, Ghost) else "flesh_hit")
         if power == "ice":
@@ -1215,7 +1257,8 @@ class Game:
         else:
             p.update(keys, self.lv)
         if self.bianca:
-            self.bianca.update(p)
+            self.bianca.update(p, self.cam)
+        self.luce = p.albedo
         if p.jumped:
             self.jb.fx("jump")
         for e in self.effects:
@@ -1243,7 +1286,8 @@ class Game:
                 return
         for spento in self.spenti:
             if spento.update(p):
-                p.albedo = min(100, p.albedo + 20)
+                p.albedo = min(LUCE_MAX, p.albedo + LUCE_PER_PRISONER)
+                self.freed.add((self.ci, self.part, int(spento.x)))
                 self.jb.fx("prisoner")
                 self.effects.append(Effect(spento.x, spento.floor - 190, "LUCE LIBERATA", (255, 201, 120)))
         # punte
@@ -1326,7 +1370,6 @@ class Game:
                         p.vx = 3 * e.facing
                         p.attack = None
                         p.invuln = 20
-                        p.albedo = max(0, p.albedo - 2)
                 elif p.vy > 0 and r.bottom - er.top < 40 and not isinstance(e, Ghost):
                     self.hit_enemy(e, 10, pts=pts)
                     p.vy = -14
@@ -1348,7 +1391,6 @@ class Game:
                 if self.boss and b.alive and b.rect.colliderect(self.boss.rect):
                     if self.boss.hit(b.dmg):
                         self.score += 50
-                        p.albedo = min(100, p.albedo + 8)
                         self.jb.fx("boss_hit")
                     b.alive = False
             if b.owner == "boss" and b.alive and b.rect.colliderect(p.hurtbox()):
@@ -1379,12 +1421,12 @@ class Game:
                 br = bs.rect
                 abox, adm = p.attack_box()
                 if abox and abox.colliderect(br) and bs.hit(adm, p.power if p.attack[0] == "throw" else None):
-                    self.score += 50; p.albedo = min(100, p.albedo + 8); self.jb.fx("boss_hit")
+                    self.score += 50; self.jb.fx("boss_hit")
                 if not bs.hidden and p.hurtbox().colliderect(br):
                     if p.vy > 0 and r.bottom - br.top < 50:
                         p.vy = -14
                         if bs.hit(8):
-                            self.score += 50; p.albedo = min(100, p.albedo + 6)
+                            self.score += 50
                     else:
                         push = 1 if p.x < bs.x else -1
                         p.x -= push * 5
@@ -1496,10 +1538,7 @@ class Game:
             if p.start_attack("kick"):
                 self.jb.fx("swing")
         elif k == pygame.K_v:
-            if p.albedo >= 100 and p.start_attack("albedo"):
-                p.albedo = 0
-                p.invuln = 45
-                self.jb.fx("luce")
+            self.luce_burst()
 
     # ---- disegno
     def bar(self, x, y, w, frac, color, right=False):
@@ -1522,8 +1561,8 @@ class Game:
         px.draw_text(s, f"{p.hp} / {PLAYER_HP}", 460, 60, (213, 220, 219), scale=3)
         px.draw_text(s, "LUCE", 40, 94, (202, 178, 119), scale=3)
         self.bar(130, 98, 310, p.albedo / 100, (186, 155, 82))
-        if p.albedo >= 100:
-            px.draw_text(s, "PRONTO", 460, 92, (224, 198, 129), scale=3)
+        if p.albedo >= LUCE_UNIT:
+            px.draw_text(s, f"V x{p.albedo // LUCE_UNIT}", 460, 92, (224, 198, 129), scale=3)
         if p.power:
             px.draw_text(s, levels.ARMOR_NAMES[p.power], 40, 152, (202, 178, 119), scale=3)
         weapon = getattr(p, "weapon", None)

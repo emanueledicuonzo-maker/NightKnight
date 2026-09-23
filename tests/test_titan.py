@@ -63,18 +63,42 @@ class TitanTests(unittest.TestCase):
                 self.assertGreater(p.rect.left, vent.hitbox.right)
                 self.assertTrue(p.on_ground)
 
-    def test_spenti_award_albedo_once_and_reset_with_section(self):
+    def test_prisoners_give_light_once_and_stay_freed_after_a_death(self):
         g = self.game
         spento = g.spenti[0]
         g.player.x = spento.x - g.player.w / 2
         for _ in range(4):
             g.update()
         self.assertTrue(spento.liberated)
-        self.assertEqual(g.player.albedo, 20)
+        self.assertEqual(g.player.albedo, goblin.LUCE_PER_PRISONER)
         self.assertEqual(g.zombies, [])
-        g.spawn()
-        self.assertFalse(g.spenti[0].liberated)
-        self.assertEqual(g.player.albedo, 0)
+        g.spawn()                                  # vita persa: si riparte dalla sezione
+        self.assertTrue(g.spenti[0].liberated)
+        self.assertEqual(g.player.albedo, goblin.LUCE_PER_PRISONER)
+        g.player.x = g.spenti[0].x - g.player.w / 2
+        g.update()
+        self.assertEqual(g.player.albedo, goblin.LUCE_PER_PRISONER)
+
+    def test_bianca_burst_downs_flyers_and_spends_whole_units(self):
+        g = self.game
+        g.player.albedo = 60
+        crow = goblin.Flyer(g.cam + 600, 300, "crow")
+        g.crows.append(crow)
+        self.assertTrue(g.luce_burst())
+        self.assertFalse(crow.alive)
+        self.assertEqual(g.player.albedo, 10)      # due unita' da 25 spese, il resto rimane
+        self.assertFalse(g.luce_burst())           # Bianca e' ancora in volo
+
+    def test_bianca_burst_takes_five_percent_per_unit_from_the_guardian(self):
+        g = self.game
+        g.start_part("arena")
+        g.state = "play"
+        g.player.albedo = 100
+        hp = g.boss.hp
+        g.luce_burst()
+        self.assertEqual(hp - g.boss.hp, round(g.boss.max_hp * 0.20))
+        g.start_part("surface")
+        g.state = "play"
 
     def test_titan_render_all_phases(self):
         g = self.game
