@@ -95,17 +95,15 @@ NightKnight piccolissimo sotto.
 
 ### Le ondate della superficie
 
-Una sequenza di assedi, non un posto pieno di nemici casuali:
+Una sequenza di assedi che cresce, non un posto pieno di nemici casuali:
 
-1. pochi scheletri normali;
-2. uno sciame di 10–20 scheletri insieme;
-3. un cavaliere-scheletro **2×** con la spada, da affrontare corpo a corpo o con
-   l'arma scelta;
+1. pochi nemici, per capire gravità, aria e prima insidia;
+2. uno sciame di 10–20 nemici insieme;
+3. lo scheletro più pesante del satellite (2× o 3×), da affrontare corpo a
+   corpo o con l'arma scelta;
 4. 30–40 volanti tutti insieme, mentre le insidie del satellite sono attive.
 
-Il cavaliere-scheletro **3×**, più grosso e cattivo, non ha una regola fissa: può
-comparire in qualunque satellite e in qualunque punto della superficie.
-
+Le ondate usano i due tipi di scheletro del satellite e la sua fauna, mescolati.
 Gli scheletri normali sono fragili: il pericolo nasce dal numero, dall'aria che
 finisce e dal terreno. I 2× e 3× sono gli avversari su cui si imparano tempi,
 distanza e arma.
@@ -139,7 +137,7 @@ mossa ha un ruolo preciso:
 
 | Mossa | Ruolo |
 | --- | --- |
-| Calcio | Respinge il nemico: spinge gli scheletri nei crepacci o sui geyser, apre la guardia degli scudati |
+| Calcio | Respinge il nemico: spinge i nemici nei crepacci o sui geyser, apre la guardia dei custodi |
 | Calcio volante | In salto, colpisce dall'alto: contro gli sciami e i nemici bassi come ratti e ragni |
 | Calcio volante girato | Due giri in aria, colpisce e respinge **tutti i nemici intorno**, davanti e dietro |
 | Sassi | Colpi deboli a distanza, infiniti: contro i volanti quando Bianca è scarica |
@@ -154,13 +152,27 @@ regole:
 
 ## Pool dei nemici e delle insidie
 
-Ogni satellite pesca **2 volanti, 3 terrestri e 4 insidie**. Scheletri normali,
-cavalieri-scheletro 2× e 3× sono la famiglia base e possono comparire ovunque
-nelle ondate.
+Ogni satellite ha **2 tipi di scheletro, 2 volanti, 3 terrestri e 4 insidie**.
+
+### Gli scheletri
+
+La famiglia base, i coloni morti. Ha quattro tipi, e ogni satellite ne usa
+**due**, che si combinano fra loro. Le sei coppie possibili compaiono due volte
+ciascuna nei dodici satelliti.
+
+| Scheletri | Comportamento |
+| --- | --- |
+| Scheletri normali | Fragili, arrivano in gruppi da 10–20 |
+| Scheletri volanti | Galleggiano a bassa gravità e piombano dall'alto |
+| Cavalieri-scheletro 2× | Spada, duello ravvicinato, parate e affondi |
+| Cavalieri-scheletro 3× | Mini-boss lenti, arma pesante e molta vita |
+
+### Fauna e creature
+
+Volanti e terrestri sono solo creature del satellite, mai scheletri.
 
 | Nemici volanti | Comportamento |
 | --- | --- |
-| Scheletri volanti | Galleggiano a bassa gravità e piombano dall'alto |
 | Corvi necrofagi | Sciami veloci che puntano NightKnight, spingono e interrompono i colpi |
 | Pipistrelli del vuoto | Escono da crepe e attaccano in picchiata |
 | Arpie di ferraglia | Lanciano rottami dall'alto |
@@ -171,11 +183,6 @@ nelle ondate.
 
 | Nemici terrestri | Comportamento |
 | --- | --- |
-| Scheletri normali | Fragili, arrivano in gruppi da 10–20 |
-| Cavalieri-scheletro 2× | Spada, duello ravvicinato, parate e affondi |
-| Cavalieri-scheletro 3× | Mini-boss lenti, arma pesante e molta vita |
-| Scheletri lancieri | Tengono la distanza, costringono a saltare o deviare |
-| Scheletri scudati | Bloccano di fronte: vanno aggirati o colpiti dopo un attacco |
 | Cadaveri pressurizzati | Esplodono quando vengono colpiti o si avvicinano |
 | Minatori mutati | Usano picconi, scavano, emergono dal terreno |
 | Droni da manutenzione | Piccoli, veloci, riparano gli altri nemici |
@@ -211,20 +218,20 @@ nelle ondate.
 
 ### Arma, nemici e insidie
 
-| # | Satellite | Arma affine | 2 volanti | 3 terrestri | 4 insidie |
-| --- | --- | --- | --- | --- | --- |
-| 01 | Titano | Spada termica | scheletri volanti; corvi necrofagi | scheletri normali; lucertole criogeniche; vermi di silicio | geyser; gas criogenico; lago di metano; ossigeno scarso |
-| 02 | Nix | Lancia luminosa | pipistrelli del vuoto; falene ossee | scheletri scudati; ragni da condotto; copie difettose | nube ossea; sirene psichiche; crepacci; ossigeno scarso |
-| 03 | Io | Martello sismico | arpie di ferraglia; falene ossee | scheletri lancieri; cinghiali minerari; vermi di silicio | geyser di zolfo; pioggia di detriti; pavimento instabile; gas corrosivo |
-| 04 | Europa | Falce a fusione | meduse atmosferiche; angeli corrosi | lucertole criogeniche; ragni da condotto; scheletri scudati | ghiaccio che cede; gas criogenico; ossigeno scarso; pozze conduttive |
-| 05 | Rea | Arco magnetico | corvi necrofagi; droni becchino | cani da cava; ratti corazzati; scheletri normali | vento di frattura; pioggia di detriti; piastre magnetiche; tubi in pressione |
-| 06 | Caronte | Scettro aurorale | scheletri volanti; pipistrelli del vuoto | cavalieri-scheletro 2×; ragni da condotto; copie difettose | nube ossea; ossigeno scarso; sirene psichiche; crepacci |
-| 07 | Ganimede | Mazza magnetica | arpie di ferraglia; droni becchino | golem di rottami; droni da manutenzione; scheletri lancieri | piastre magnetiche; pioggia di detriti; pozze conduttive; porte stagne |
-| 08 | Fobos | Balestra cinetica | corvi necrofagi; falene ossee | cani da cava; cinghiali minerari; scheletri normali | crepacci; ossigeno scarso; tubi in pressione; pioggia di detriti |
-| 09 | Nereide | Tridente termico | meduse atmosferiche; angeli corrosi | cadaveri pressurizzati; vermi di silicio; lucertole criogeniche | gas criogenico; pozze conduttive; pavimento instabile; ossigeno scarso |
-| 10 | Miranda | Frusta a impulsi | corvi necrofagi; falene ossee | golem di rottami; ratti corazzati; cinghiali minerari | pavimento instabile; vento di frattura; tubi in pressione; piastre magnetiche |
-| 11 | Umbriel | Pugnale dell'eclissi | pipistrelli del vuoto; scheletri volanti | scheletri scudati; ragni da condotto; copie difettose | nube ossea; sirene psichiche; ossigeno scarso; gas criogenico |
-| 12 | Oberon | Spada orbitale | angeli corrosi; droni becchino | cavalieri-scheletro 3×; custodi senza volto; golem di rottami | porte stagne; piastre magnetiche; pioggia di detriti; sirene psichiche |
+| # | Satellite | Arma affine | Scheletri | 2 volanti | 3 terrestri | 4 insidie |
+| --- | --- | --- | --- | --- | --- | --- |
+| 01 | Titano | Spada termica | normali + volanti | corvi necrofagi; meduse atmosferiche | minatori mutati; lucertole criogeniche; vermi di silicio | geyser; gas criogenico; lago di metano; ossigeno scarso |
+| 02 | Nix | Lancia luminosa | volanti + 2× | pipistrelli del vuoto; falene ossee | custodi senza volto; ragni da condotto; copie difettose | nube ossea; sirene psichiche; crepacci; ossigeno scarso |
+| 03 | Io | Martello sismico | normali + 2× | arpie di ferraglia; falene ossee | minatori mutati; cinghiali minerari; vermi di silicio | geyser di zolfo; pioggia di detriti; pavimento instabile; gas corrosivo |
+| 04 | Europa | Falce a fusione | normali + 3× | meduse atmosferiche; angeli corrosi | cadaveri pressurizzati; lucertole criogeniche; ragni da condotto | ghiaccio che cede; gas criogenico; ossigeno scarso; pozze conduttive |
+| 05 | Rea | Arco magnetico | volanti + 3× | corvi necrofagi; droni becchino | cani da cava; ratti corazzati; golem di rottami | vento di frattura; pioggia di detriti; piastre magnetiche; tubi in pressione |
+| 06 | Caronte | Scettro aurorale | 2× + 3× | droni becchino; pipistrelli del vuoto | custodi senza volto; ragni da condotto; copie difettose | nube ossea; ossigeno scarso; sirene psichiche; crepacci |
+| 07 | Ganimede | Mazza magnetica | normali + volanti | arpie di ferraglia; droni becchino | golem di rottami; droni da manutenzione; ratti corazzati | piastre magnetiche; pioggia di detriti; pozze conduttive; porte stagne |
+| 08 | Fobos | Balestra cinetica | volanti + 2× | corvi necrofagi; falene ossee | cani da cava; cinghiali minerari; minatori mutati | crepacci; ossigeno scarso; tubi in pressione; pioggia di detriti |
+| 09 | Nereide | Tridente termico | normali + 3× | meduse atmosferiche; angeli corrosi | cadaveri pressurizzati; vermi di silicio; lucertole criogeniche | gas criogenico; pozze conduttive; pavimento instabile; ossigeno scarso |
+| 10 | Miranda | Frusta a impulsi | volanti + 3× | corvi necrofagi; falene ossee | golem di rottami; ratti corazzati; cinghiali minerari | pavimento instabile; vento di frattura; tubi in pressione; piastre magnetiche |
+| 11 | Umbriel | Pugnale dell'eclissi | normali + 2× | pipistrelli del vuoto; angeli corrosi | custodi senza volto; ragni da condotto; copie difettose | nube ossea; sirene psichiche; ossigeno scarso; gas criogenico |
+| 12 | Oberon | Spada orbitale | 2× + 3× | angeli corrosi; droni becchino | custodi senza volto; golem di rottami; cani da cava | porte stagne; piastre magnetiche; pioggia di detriti; sirene psichiche |
 
 ### Scenari e prove
 
@@ -288,12 +295,12 @@ fatto.
 
 ## Asset
 
-Si conservano scheletri, corvi, prigionieri illuminati (oggi lo sprite zombi
-ricolorato) e le meccaniche delle prove (scale, porte, punte, cavallo, lancia).
-Gli asset della vecchia estetica da cimitero fantasy sono in `assets/inutili/`.
-Da disegnare: NightKnight, Bianca in cartoon, scheletro volante, 2× e 3×,
-prigionieri, animali mutanti, nuovi volanti, dodici Guardiani, fondali e terreni
-dei satelliti, insidie.
+Tutto è ridisegnato in cartoon. Già fatti: NightKnight (posa e sette
+animazioni), Bianca, i prigionieri illuminati, cielo, fondali e terreno di
+Titano. Delle immagini vecchie restano solo le meccaniche delle prove (scale,
+porte, punte, cavallo, lancia) finché non vengono ridisegnate; tutto il resto è
+in `assets/inutili/`.
+Prompt e stato di ogni immagine: `assets/PROMPT.md`.
 
 ## Ancora da decidere
 

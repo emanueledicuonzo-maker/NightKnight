@@ -1,144 +1,107 @@
-# Immagini per NightKnight — cartella assets/, nomi esatti, PNG
+# Immagini per NightKnight — prompt per ChatGPT "Crea immagine"
 
-Storia, personaggi e meccaniche: vedi `../STORY.md`.
+Storia, personaggi e tabelle dei satelliti: `../STORY.md`.
 
-## Prefisso di stile (vale per ogni immagine)
+## Regole comuni
 
-Render/illustrazione 3D iperrealistica dark fantasy, qualita' da poster premium,
-armature metalliche consumate e sporche, dettagli realistici di graffi, sangue secco,
-pelle, barba/capelli e cuoio, luce lunare fredda con rim light blu, contrasto alto,
-silhouette leggibile per un gioco a scorrimento laterale. Non pixel art, non cartoon,
-non anime, non low-poly.
+- **Stile:** 2D cartoon cupo. Contorni neri marcati, colori piatti con una o due
+  tonalità di ombra, forme un po' semplificate, superfici sporche e consumate.
+  Mai realistico, 3D, pixel art o anime.
+- **Riferimento:** allegare sempre `knight_idle.png`, per lo stile e per la scala.
+- **Sfondo:** PNG con trasparenza vera (canale alpha), niente scacchiera disegnata,
+  niente terreno, niente ombra a terra, niente testo.
+- **Direzione:** NightKnight e Bianca guardano a DESTRA, i nemici a SINISTRA.
+- **Download:** le immagini finiscono in `~/Scaricati`; il nome del file lo dà
+  Claude quando le inserisce.
 
-Per personaggi, nemici e oggetti: sfondo TRASPARENTE reale (PNG alpha), nessun
-terreno, nessuna ombra sul pavimento, soggetto intero visto di lato, RIVOLTO A
-DESTRA, centrato, 1024x1024 salvo dimensioni diverse specificate sotto.
+Blocco di stile da mettere in testa a ogni prompt:
 
-**Scala dei personaggi**, da rispettare come proporzione relativa:
-`NightKnight 1x · Guardiano 2x · Luna 3x`
+```text
+STYLE: match the attached character's dark 2D cartoon style exactly: bold clean black outlines, flat colors with one or two cel-shading tones, slightly simplified shapes, worn and dirty surfaces. Not realistic, not 3D, not pixel art. Do not draw the attached character: use him only for style and scale.
+```
 
-## NightKnight (protagonista) — GIA' FATTO
+## Fatto
 
-Cavaliere massiccio in armatura d'argento usurata, barba rossa/castana, panno
-cremisi, luce blu sui bordi. File `knight_*.png` e `knight_nude_*.png` (senza
-armatura, in mutande bianche a cuori rossi, elmo perso). Completo, non rigenerare.
+| File | Cosa |
+| --- | --- |
+| `knight_idle.png` | NightKnight in piedi |
+| `knight_run_sheet.png` | corsa, 4×2 |
+| `knight_sword_sheet.png` | colpo di spada, 4 fotogrammi |
+| `knight_stone_sheet.png` | lancio del sasso, 4 fotogrammi |
+| `knight_kick_sheet.png` | calcio, 3 fotogrammi |
+| `knight_flykick_sheet.png` | calcio volante, 3 fotogrammi |
+| `knight_spinkick_sheet.png` | calcio volante girato, 4×2 |
+| `knight_jump_sheet.png` | salto, 4×2 |
+| `bianca_chick_1/2.png` | Bianca, ali in alto / in basso |
+| `prigioniero_spento.png`, `prigioniero_acceso.png` | colono nella capsula |
+| `sky_01.png`, `hills_01.png`, `hills_02.png`, `titan_ground_grass.png` | Titano |
 
-## Bianca (compagna) — DA FARE, 8 immagini
+Le strip del cavaliere si possono generare con qualunque numero di fotogrammi:
+il gioco separa le figure seguendo le sagome. Nelle nuove strip aggiungere:
+`He always holds the SAME very long, thin industrial sword as in the reference.`
 
-Corvo **sbiancato, non albino**: piumaggio grigio-perla con le punte delle ali e
-della coda ancora nere, come se la trasformazione si fosse fermata a meta'. Occhi
-scuri, vivi. Deve distinguersi dai corvi neri anche in controluce.
+## Nemici
 
-Quattro stadi di crescita, due fotogrammi di volo ciascuno (ali in alto / ali in
-basso). Pulcino e giovane possono condividere la posa e cambiare solo proporzioni.
+Dopo il blocco di stile, questo testo comune e poi la descrizione del nemico.
+Ogni immagine contiene **due fotogrammi affiancati**, che Claude separa.
 
-    bianca_chick_1.png   bianca_chick_2.png    pulcino, piume arruffate, becco corto, testa grande
-    bianca_young_1.png   bianca_young_2.png    giovane, ali complete, corpo ancora magro
-    bianca_adult_1.png   bianca_adult_2.png    adulta, apertura alare ampia, posa in picchiata
-    bianca_great_1.png   bianca_great_2.png    grande, quasi alta quanto NightKnight, 1024x1024
+```text
+Enemy sprite for a side-scrolling game set in abandoned retro-futurist moon colonies. Two animation frames of the SAME creature side by side, same size, same framing, side view facing LEFT (toward the player), evenly spaced with a wide empty gap between them. Transparent PNG background with real alpha, no ground, no shadow, no text, no numbers.
 
-## I 12 Guardiani (boss) — 1024x1024, rivolti a DESTRA
+ENEMY:
+```
 
-Armatura d'oro completa, mantello, elmo. **Alti il doppio di NightKnight**: la
-proporzione si legge nell'immagine, non solo in gioco.
+### Scheletri (famiglia base, ogni satellite ne usa due)
 
-Nove pose per ognuno, `bossNN_<posa>.png` con NN = 01..12:
+| File | ENEMY |
+| --- | --- |
+| `skeleton_walk` | A skeleton of a former colonist, same height as the reference knight, wearing tattered remains of an old pressure suit, a cracked helmet ring around the neck, loose cables through the ribs. Walking: frame 1 left leg forward, frame 2 right leg forward. Fragile, comes in swarms. |
+| `skeleton_fly` | The same colonist skeleton, flying: a rusty broken jetpack on its back spitting a weak orange flame, legs dangling, arms reaching forward. Frame 1 flame long, frame 2 flame short. |
+| `skeleton_2x` | A skeleton knight TWICE as tall as the reference knight: heavier bones, patched plates of colony armor, a large industrial blade. Frame 1 guard stance, frame 2 slashing forward. |
+| `skeleton_3x` | A massive skeleton knight THREE times as tall as the reference knight, a broken crowned helmet, torn dark mantle, heavy armor bolted onto the bones, a huge two-handed sword. Slow and terrifying. Frame 1 raising the sword, frame 2 smashing down. |
 
-    idle      in guardia da combattimento
-    walk      passo
-    jump      calcio volante
-    punch     pugno teso
-    kick      calcio alto
-    attack    colpo con la propria arma
-    special   usa l'arma a distanza
-    hurt      colpito, piegato all'indietro
-    ko        a terra
+### Volanti
 
-Genera **prima l'idle** di ciascun Guardiano e usalo come riferimento visivo per le
-sue otto pose successive: armatura, colori, arma e proporzioni devono restare
-identici all'interno dello stesso boss.
+| File | ENEMY |
+| --- | --- |
+| `crow` | A scavenger crow of the colonies: black feathers, glowing amber eyes, a few small metal implants, still clearly a crow, about a third of the knight's height. Frame 1 wings up, frame 2 wings down, diving. |
+| `bat_void` | A void bat: leathery grey-violet wings with torn membranes, blind white eyes, oversized ears, a faint cold glow inside its mouth. Frame 1 wings spread, frame 2 wings folded in a dive. |
+| `harpy_scrap` | A scrap harpy: a gaunt bird-woman creature made half of rusted scrap metal, sheet-metal wings, clawed feet clutching a chunk of debris. Frame 1 hovering, frame 2 throwing the debris. |
+| `jelly_atmo` | An atmospheric jellyfish floating in thick air: a translucent pale orange bell with glowing veins, long trailing tentacles crackling with small electric sparks. Frame 1 bell expanded, frame 2 bell contracted with sparks. |
+| `drone_grave` | A gravedigger drone: an old boxy maintenance drone with four small rotors, a dented yellow-grey shell, a single red camera eye and a small shovel arm. Frame 1 hovering, frame 2 firing a weak pulse from the eye. |
+| `moth_bone` | A bone moth: a large moth with wings of thin pale bone plates and dusty grey fur, dark eye spots on the wings, shedding white dust. Frame 1 wings open, frame 2 wings closed, erratic. |
+| `angel_corroded` | A corroded angel: a tall thin winged figure like an old chapel statue, green-stained bronze skin, wings of corroded metal feathers, empty face, as tall as the reference knight. Frame 1 hovering with arms open, frame 2 diving down vertically. |
 
-    boss01  Guardiano di Titano     Nebbia    spada lunga, mantello di nebbia, occhi azzurri
-    boss02  Guardiano di Nix        Corvi     ascia bipenne, piume nere sull'elmo
-    boss03  Guardiano di Io         Fuoco     martello da guerra infuocato
-    boss04  Guardiano di Europa     Gelo      lancia di ghiaccio, brina sull'armatura
-    boss05  Guardiano di Rea        Radici    catene con uncini, edera sull'armatura
-    boss06  Guardiano di Caronte    Ossa      arco d'osso e frecce, elmo a teschio
-    boss07  Guardiano di Ganimede   Tuono     due lame corte elettriche
-    boss08  Guardiano di Fobos      Sangue    bastone lungo rosso, armatura macchiata
-    boss09  Guardiano di Nereide    Abisso    falce gigante, armatura viola scuro
-    boss10  Guardiano di Miranda    Peste     mazza chiodata, armatura verde corrosa
-    boss11  Guardiano di Umbriel    Ombra     artigli di metallo, armatura nera e oro
-    boss12  Oberon, il Re           —         scettro dorato, corona, l'armatura piu' ricca
+### Terrestri
 
-### Stato attuale
+| File | ENEMY |
+| --- | --- |
+| `miner_mutant` | A mutated miner: a hunched colonist in a torn orange mining suit fused with his gear, a helmet lamp flickering, one arm grown into a pickaxe. Frame 1 walking, frame 2 swinging the pickaxe. |
+| `keeper_faceless` | A faceless keeper: a tall slow humanoid in a long grey institutional coat, a smooth blank oval face with no features, heavy metal gloves, as tall as the reference knight. Frame 1 standing guard, frame 2 raising a gloved hand to strike. |
+| `copy_knight` | A faulty copy of the reference knight: same silhouette and armor but wrong colors, washed-out grey and sickly green, a flickering visor, a cracked sword, jerky posture like a bad recording. Frame 1 guard, frame 2 lunging. |
+| `corpse_pressure` | A pressurized corpse: a bloated colonist in a swollen, overinflated pressure suit, glowing warning lights on the chest, hissing valves, about to burst. No gore. Frame 1 shambling, frame 2 swelling up. |
+| `golem_scrap` | A scrap golem TWICE as tall as the reference knight: a lumbering body of welded pipes, car doors, tanks and cables, a furnace glowing in the chest. Frame 1 walking, frame 2 throwing a piece of metal. |
+| `drone_repair` | A small maintenance drone on four spider legs, low to the ground, a welding torch arm, a blinking green light, knee height. Frame 1 scuttling, frame 2 welding with sparks. |
+| `dog_quarry` | An eyeless quarry dog: a lean, hairless grey mining hound with no eyes, a large nose and bared teeth, a broken work collar with a tag. Frame 1 running, frame 2 leaping to bite. |
+| `rat_armored` | An armored rat: a cat-sized rat with overlapping metal-like plates on its back, a thick tail, sharp yellow teeth. Frame 1 running, frame 2 rearing up. |
+| `lizard_cryo` | A cryogenic lizard: long, low, pale blue-grey scaly body covered in frost, icy crystals along the spine, cold white breath. Frame 1 still and flat, frame 2 lunging with open jaws. |
+| `boar_mining` | A mining boar: a heavy boar with a reinforced metal plate welded on its forehead, drill-like tusks, rust-brown bristles. Frame 1 pawing the ground, frame 2 charging head down. |
+| `spider_duct` | A duct spider: a long-legged pale spider as big as a dog, hanging from a thread, legs like thin metal tubes, many small glowing eyes. Frame 1 hanging, frame 2 dropping with legs open. |
+| `worm_silicon` | A silicon worm emerging from the ground: segmented body made of glassy dark grey mineral plates, a round mouth with crystal teeth. Frame 1 half emerged, frame 2 fully raised spitting shards. |
 
-    boss01  fatte: idle walk attack special hurt   mancano: jump punch kick ko
-    boss02  fatte: idle                            mancano: le altre 8
-    boss03  fatte: idle                            mancano: le altre 8
-    boss04..boss12  nessuna: 9 pose ciascuno
+## Guardiani
 
-Ordine consigliato: prima **un idle per boss04..boss12** (9 immagini), cosi' tutti e
-dodici i mondi diventano giocabili; poi si riempiono le pose.
+Alti il doppio di NightKnight, cavalieri e non soldati, ciascuno con arma e
+aspetto del suo satellite. Prima si genera solo la posa in guardia; poi le altre
+pose (camminata, attacco, speciale, colpito, a terra) partendo da quella.
 
-## Luna (boss finale) — 1024x2048 VERTICALE
+### Titano — proposta, da confermare
 
-Alta tre volte NightKnight. A 1024x1024 si perderebbero volto e armatura una volta
-scalata in gioco: generare in verticale.
+Armatura di rame e ottone brunita dalla foschia, elmo con una grata che sfiata
+nebbia arancione, mantello ruggine, alabarda da estrazione con gancio da pozzo.
 
-Figura femminile enorme in armatura bianco-argentea, luce fredda che le esce
-dall'interno attraverso le fessure dell'armatura. Quattro fasi che ne cambiano
-l'aspetto, non solo l'attacco:
+```text
+The Guardian of Titan, a boss for a side-scrolling game: a knight, not a soldier, TWICE as tall as the attached knight, broad and imposing. Ritual retro-futurist armor of tarnished copper and brass, darkened by the orange haze, with pipes and valves along the back. A tall sealed great helm with a vertical grille instead of a visor, venting thick orange fog that trails around his shoulders and legs. A long heavy mantle of dark rust-red cloth. He wields a long industrial halberd: an axe blade on one side and a hook for methane wells on the other. On his breastplate, a worn emblem of Saturn with its rings.
 
-    luna_idle.png        in piedi, prima che cominci
-    luna_fire_1/2.png    fase 1, armatura arroventata, fuoco dalle giunture
-    luna_ice_1/2.png     fase 2, brina che le cresce addosso, respiro gelato
-    luna_wind_1/2.png    fase 3, capelli e mantello orizzontali, aria visibile
-    luna_light_1/2.png   fase 4, tutta la luce rubata che le esce dalle crepe
-    luna_hurt.png        colpita
-    luna_ko.png          a terra
-
-`luna_light` e' l'immagine piu' importante del gioco: e' l'unica volta in cui il
-giocatore vede dove e' finita la luce delle persone incontrate per dodici mondi.
-Generarla per ultima, quando lo stile delle altre e' assestato.
-
-## Nemici — GIA' FATTI tranne i fantasmi
-
-    zombie_walk1/2.png      zombie putrefatto, braccia tese, due fasi del passo
-    skeleton_walk1/2.png    scheletro con spada arrugginita
-    crow_1/2.png            corvo NERO, occhi scuri, ali in alto / ali in basso
-    ghost_1/2.png           DA FARE: fantasma bianco-azzurro semitrasparente,
-                            lenzuolo strappato, occhi neri vuoti,
-                            braccia tese / braccia alzate
-
-I corvi neri sono alleati: non attaccano, si radunano e si alzano in massa prima che
-compaia il Guardiano. Non devono sembrare minacciosi.
-
-## Oggetti — GIA' FATTI
-
-    lance.png    lancia medievale orizzontale, punta a destra, 1024x256
-    door.png     portale di pietra di una cripta, socchiuso, luce verde dentro, 512x1024
-    tomb1/2.png  lapidi antiche muschiose, 512x512
-    cross.png    croce di pietra storta, 512x512
-    tree.png     albero morto contorto, 1024x2048
-
-## Tile del terreno — GIA' FATTI (512x512, senza trasparenza, bordi ripetibili)
-
-    ground_grass.png   erba scura e terra in sezione, cimitero notturno
-    ground_dirt.png    solo terra scura con radici e ossa
-    slab.png           lastra di pietra tombale grigia vista di lato (piattaforma)
-    stone_wall.png     muro di pietra di cripta, muschio
-    ladder.png         scala a pioli di legno vecchio, trasparente ai lati
-    spikes.png         punte di ferro dal basso, trasparente sopra
-
-## Fondali 1920x1080
-
-    sky_01.png       cielo notturno, luna piena enorme, castello gotico su rupe, pipistrelli
-    hills_01.png     colline nebbiose con lapidi e alberi morti in silhouette, cielo TRASPARENTE
-    crypt_bg_01.png  interno di cripta: colonne, teschi, torce verdi
-    arena_bg_01.png  radura del cimitero con lapidi e nebbia, luna: il duello
-
-Per i mondi successivi: `sky_02.png` e seguenti. Se mancano si riusa il precedente.
-Ogni satellite ha un cielo suo — su Titano il cielo non si vede affatto (foschia
-arancione), su Nix e Caronte si vede Plutone enorme, su Io si vede Giove, su Umbriel
-il buio quasi totale.
+Full body, side view facing LEFT, standing in guard with the halberd held diagonally, calm and menacing. Transparent PNG background with real alpha, 1024x1024, no ground, no shadow, no text, no frame.
+```
