@@ -26,7 +26,11 @@ SKY_PAN = 360        # di quanto scorre il cielo dall'inizio alla fine del livel
 ZOOM = 1.5
 VW, VH = int(W / ZOOM), int(H / ZOOM)
 LUCE_MAX, LUCE_UNIT, LUCE_PER_PRISONER = 100, 25, 5
-LAKE_LEVEL = 22      # il metano sta un po' sotto il bordo del terreno
+LAKE_LEVEL = 22
+OXYGEN_MAX = 100
+OXYGEN_DRAIN = OXYGEN_MAX / (100 * 60)     # circa cento secondi di riserva all'aperto
+OXYGEN_REFILL = 1.2
+CHILL_FRAMES = 50      # il metano sta un po' sotto il bordo del terreno
 BURST_FRAMES = 70    # durata del volo di Bianca durante la raffica
 TITAN_N = 6          # il terreno di Titano copre 6x6 tessere
 ROWS = 17
@@ -220,7 +224,7 @@ class Level:
         self.markers = []
         for r in range(ROWS):
             for c in range(self.cols):
-                if g[r][c] in "kvgEqu":
+                if g[r][c] in "Equoc":
                     self.markers.append((g[r][c], c, r))
         self.exit = next(((c, r) for ch, c, r in self.markers if ch == "E"), (self.cols - 4, GROUND - 1))
 
@@ -300,6 +304,8 @@ class Player(Entity):
         self.attack = None
         self.swing = 0
         self.recover = 0
+        self.oxygen = OXYGEN_MAX
+        self.chill = 0
         self.climbing = False
         self.last_down = -999
         self.last_fwd = -999
@@ -337,6 +343,9 @@ class Player(Entity):
         down = keys[pygame.K_DOWN] or keys[pygame.K_s]
         jump = keys[pygame.K_SPACE] or up
         speed_limit = SPRINT_MAX if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] else RUN_MAX
+        if self.chill:
+            self.chill -= 1
+            speed_limit *= 0.45
         if not self.on_ground:
             speed_limit = max(speed_limit, abs(self.vx))
         r = self.rect
@@ -924,11 +933,15 @@ class Game:
         self.bianca = Bianca(p)
         # La Luce e i prigionieri liberati restano anche dopo una vita persa
         p.albedo = self.luce
-        self.geysers, self.spenti = [], []
+        self.geysers, self.spenti, self.stations, self.vents = [], [], [], []
         self.skels, self.crows, self.balls = [], [], []
         for ch, c, r in lv.markers:
             if ch == "q":
                 self.geysers.append(titan.Geyser((c + .5) * TILE, (r + 1) * TILE))
+            elif ch == "o":
+                self.stations.append(titan.OxygenStation((c + .5) * TILE, (r + 1) * TILE))
+            elif ch == "c":
+                self.vents.append(titan.GasVent((c + .5) * TILE, (r + 1) * TILE))
             elif ch == "u":
                 spento = titan.Spento((c + .5) * TILE, (r + 1) * TILE)
                 if (self.ci, self.part, int(spento.x)) in self.freed:
@@ -1140,6 +1153,22 @@ class Game:
                 p.albedo = min(LUCE_MAX, p.albedo + LUCE_PER_PRISONER)
                 self.freed.add((self.ci, self.part, int(spento.x)))
                 self.jb.fx("prisoner")
+        # Ossigeno: scende all'aperto, risale vicino alle stazioni della colonia
+        breathing = any(st.near(p) for st in self.stations) or self.part == "arena"
+        if breathing:
+            if p.oxygen < OXYGEN_MAX and self.frame % 30 == 0:
+                self.jb.fx("air")
+            p.oxygen = min(OXYGEN_MAX, p.oxygen + OXYGEN_REFILL)
+        else:
+            p.oxygen = max(0, p.oxygen - OXYGEN_DRAIN)
+            if p.oxygen == 0 and self.frame % 45 == 0:
+                p.hp = max(0, p.hp - 8)             # senz'aria la vita cala piano
+                self.jb.fx("hurt")
+                if p.hp == 0:
+                    self.die(); return
+        for vent in self.vents:
+            if vent.update(p):
+                p.chill = CHILL_FRAMES              # il gas gela: si rallenta per un momento
         if self.state != "play":
             return
         # uscita
@@ -1398,6 +1427,9 @@ class Game:
             fill = max(0, min(1, (p.albedo - i * LUCE_UNIT) / LUCE_UNIT))
             glow = (255, 214, 120) if fill >= 1 else (186, 150, 92)
             self.pill(x0 + i * 92, y0 + 28, 80, 10, fill, glow)
+        # ossigeno: sottile, azzurro, diventa rosso quando sta finendo
+        o2 = p.oxygen / OXYGEN_MAX
+        self.pill(x0, y0 + 50, 360, 6, o2, (120, 200, 220) if o2 > 0.25 else (220, 90, 70))
         for i in range(self.lives):
             pygame.draw.circle(s, (238, 226, 204), (x0 + 380 + i * 22, y0 + 7), 6)
         sc = f"{self.score}"
@@ -1543,6 +1575,10 @@ class Game:
             spento.draw(s, cam, self.gfx.spento_sleeping, self.gfx.spento_awake)
         for geyser in self.geysers:
             geyser.draw(s, cam)
+        for st in self.stations:
+            st.draw(s, cam, st.near(self.player))
+        for vent in self.vents:
+            vent.draw(s, cam)
         if self.cable:
             self.cable.draw(s, cam)
         if self.bianca:

@@ -2,7 +2,8 @@
 
 Legenda:
   # crosta   D roccia   H scala di servizio   S parete invisibile dell'arena
-  E portello d'uscita   q geyser   u prigioniero   . vuoto (o lago di metano)
+  E portello d'uscita   q geyser   u prigioniero   o stazione d'ossigeno
+  c sfiato di gas criogenico   . vuoto (o lago di metano)
 """
 ROWS = 17
 GROUND = 14
@@ -83,6 +84,10 @@ def gen_titan_surface():
         g[GROUND-1][col] = "q"
     for col in (6, 13, 20, 53, 59, 71, 104, 111, 122, 152, 157, 167, 174, 206, 213):
         g[GROUND-1][col] = "u"
+    for col in (3, 64, 115, 163):           # stazioni d'ossigeno fra un'ondata e l'altra
+        g[GROUND-1][col] = "o"
+    for col in (184, 198):                  # gas criogenico nell'ultima ondata
+        g[GROUND-1][col] = "c"
     return g
 
 
@@ -131,6 +136,10 @@ def gen_titan_pass():
     g[GROUND - 1][50] = "q"
     for c, h in ((30, 0), (40, 7), (90, 0), (100, 4), (116, 0)):
         g[GROUND - 1 - h][c] = "u"
+    for c in (5, 47, 88, 119):
+        g[GROUND - 1][c] = "o"
+    for c in (20, 54, 114):
+        g[GROUND - 1][c] = "c"
     g[GROUND - 1][cols - 4] = "E"
     return g
 

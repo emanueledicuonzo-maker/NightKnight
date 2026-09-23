@@ -222,6 +222,9 @@ def sfx(name):
     elif name == "luce":          # raffica di Bianca
         n = L(1.1); t = np.arange(n) / SR
         w = (_tone(300, 1500, n) * 0.25 + _tone(600, 3000, n) * 0.12) * np.exp(-t * 2.5) + _whoosh(n, 18, 0.5) * 0.4
+    elif name == "air":           # stazione d'ossigeno: soffio d'aria
+        n = L(0.35); t = np.arange(n) / SR
+        w = _lowpass(_noise(n, 20), 0.55) * np.sin(np.pi * t / (n / SR)) * 0.18
     elif name == "albedo":        # vecchio nome della raffica
         return sfx("luce")
     elif name == "pickup":

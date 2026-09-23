@@ -120,6 +120,30 @@ class TraversalTests(unittest.TestCase):
         self.assertGreater(p.recover, 0)
         self.assertFalse(p.start_attack("throw"))     # scoperto per un attimo
 
+    def test_oxygen_drains_outdoors_and_refills_at_stations(self):
+        g = self.game
+        p = g.player
+        station = g.stations[1]
+        p.x = station.x + 900
+        p.oxygen = 50
+        for _ in range(60):
+            g.update()
+        self.assertLess(p.oxygen, 50)
+        p.x = station.x - p.w / 2
+        for _ in range(60):
+            g.update()
+        self.assertEqual(p.oxygen, goblin.OXYGEN_MAX)
+
+    def test_cryogenic_gas_slows_down(self):
+        g = self.game
+        p = g.player
+        vent = g.vents[0]
+        vent.started, vent.age = True, vent.REST + 40
+        p.x, p.y = vent.x - p.w / 2, vent.floor - p.h
+        self.assertTrue(vent.update(p))
+        g.update()
+        self.assertGreater(p.chill, 0)
+
     def test_creatures_sound_like_flesh_and_skeletons_like_bone(self):
         g = self.game
         with patch.object(g.jb, "fx") as fx:
