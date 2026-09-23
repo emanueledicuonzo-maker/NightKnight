@@ -47,6 +47,7 @@ STONE_FRAMES = 30       # due sassi al secondo
 # Danno in colpi: la spada vale 2, il sasso sempre la meta'.
 SWORD_HIT, STONE_HIT = 2, 1
 SPIN_REACH = 130
+SPIN_MIN_SPEED = 1.0
 SPIN_FRAMES = 42
 SPIN_RECOVERY = 26      # all'atterraggio dopo il calcio girato si resta scoperti
 SPRINT_MAX = 10.0
@@ -1355,7 +1356,7 @@ class Game:
                     self.state = "title"
                     self.menu_index = 0
                 else:
-                    self.new_game(self.ci)
+                    self.new_game()
             return
         if self.state in ("card", "victory"):
             if k == pygame.K_RETURN:
@@ -1390,8 +1391,9 @@ class Game:
                 self.balls.append(Stone(p))
                 self.jb.fx("throw")
         elif k == pygame.K_c:
-            # dopo la rincorsa, in salto, il calcio diventa il calcio volante girato
-            spin = not p.on_ground and abs(p.vx) > RUN_MAX + 0.5
+            # in salto, muovendosi, il calcio diventa il calcio volante girato;
+            # da un salto da fermo resta il calcio volante semplice
+            spin = not p.on_ground and abs(p.vx) > SPIN_MIN_SPEED
             if p.start_attack("spin" if spin else "kick"):
                 self.jb.fx("sword" if spin else "swing")
         elif k == pygame.K_v:

@@ -98,15 +98,15 @@ class TraversalTests(unittest.TestCase):
             g.update()
         self.assertLess(skeleton.hp, hp)
 
-    def test_spinning_kick_needs_a_run_up_hits_all_around_and_leaves_you_open(self):
+    def test_spinning_kick_in_motion_hits_all_around_and_leaves_you_open(self):
         g = self.game
         p = g.player
         p.on_ground = False
-        p.vx = goblin.RUN_MAX                     # senza rincorsa: calcio volante semplice
+        p.vx = 0                                  # salto da fermo: calcio volante semplice
         g.key(pygame.K_c)
         self.assertEqual(p.attack[0], "kick")
         p.attack = None
-        p.vx = goblin.SPRINT_MAX                  # dopo la rincorsa: calcio girato
+        p.vx = goblin.RUN_MAX                     # salto in movimento: calcio girato
         g.key(pygame.K_c)
         self.assertEqual(p.attack[0], "spin")
         p.attack = ("spin", 10)
@@ -143,6 +143,20 @@ class TraversalTests(unittest.TestCase):
         self.assertTrue(vent.update(p))
         g.update()
         self.assertGreater(p.chill, 0)
+
+    def test_new_game_frees_no_prisoner(self):
+        g = self.game
+        first = min(g.spenti, key=lambda s: s.x)
+        g.player.x = first.x - g.player.w / 2
+        g.update()
+        self.assertTrue(first.liberated)
+        g.lives = 1
+        g.lose_life()                             # game over, poi "riprova"
+        g.state = "gameover"
+        g.key(pygame.K_RETURN)
+        self.assertEqual(g.part, "surface")
+        self.assertFalse(any(s.liberated for s in g.spenti))
+        self.assertEqual(g.player.albedo, 0)
 
     def test_creatures_sound_like_flesh_and_skeletons_like_bone(self):
         g = self.game

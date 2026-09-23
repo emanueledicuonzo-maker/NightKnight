@@ -190,7 +190,7 @@ Volanti e terrestri sono solo creature del satellite, mai scheletri.
 | Corvi necrofagi | Sciami veloci che puntano NightKnight, spingono e interrompono i colpi |
 | Pipistrelli del vuoto | Escono da crepe e attaccano in picchiata |
 | Arpie di ferraglia | Lanciano rottami dall'alto |
-| Meduse atmosferiche | Fluttuano lente e rilasciano scariche |
+| Meduse atmosferiche | Fluttuano lente; se ti toccano **ti si appiccicano**: ti rallentano e ti tolgono un po' di vita alla volta finché non te le levi di dosso (un colpo, o la raffica di Bianca) |
 | Droni becchino | Seguono il giocatore e sparano impulsi deboli |
 | Falene ossee | Volo erratico, oscurano per un momento la visuale |
 | Angeli corrosi | Volanti più grossi, con attacco verticale lento |
@@ -283,6 +283,36 @@ atterra nell'arena.
 L'antagonista e il tredicesimo scontro. Non ha un Guardiano perché è lei. Alta
 **tre volte** NightKnight, una volta e mezza un Guardiano (i Guardiani sono alti
 il doppio di NightKnight).
+
+## Azione, abilità e pianificazione
+
+Un satellite dura **circa dieci minuti** e deve chiedere tre cose insieme:
+riflessi nei combattimenti, abilità nel muoversi sul terreno, e **pianificazione**
+delle risorse. Il satellite stesso è l'avversario principale: gravità, atmosfera
+e meteo devono pesare sul gioco più di qualunque nemico. È ciò che distingue
+NightKnight.
+
+- **Ossigeno e sforzo.** L'ossigeno scende più in fretta quando si combatte, si
+  corre o si salta: chi combatte a lungo resta senz'aria e deve fermarsi a una
+  stazione. Scegliere dove combattere e quando ricaricare fa parte del gioco.
+- **Fatica.** Dopo uno sforzo lungo NightKnight ha il fiato corto: si sente il
+  respiro, rallenta, salta meno. Fermarsi un momento lo fa riprendere.
+- **Meteo del satellite.** Tempeste che spingono e tolgono visibilità; **pioggia
+  acida** che consuma la tuta se si resta allo scoperto (ripararsi sotto rocce,
+  tettoie, nei tunnel); nebbia che nasconde i fossi.
+- **Terreno più vario.** Tunnel di pietra da risalire, cavità, passaggi stretti,
+  oltre a pareti, cumuli, laghi e cavi.
+- **Insidie più belle da vedere.** Geyser disegnati e animati, non solo
+  particelle; ogni fenomeno deve essere uno spettacolo prima che un ostacolo.
+- **Gravità e atmosfera.** Su ogni satellite cambiano salto, caduta, inerzia,
+  velocità dei proiettili e comportamento dei nemici, in modo che si senta.
+
+### Riferimenti di qualità
+
+*Hollow Knight: Silksong*, *Shinobi: Art of Vengeance*, *Ninja Gaiden: Ragebound*,
+*Prince of Persia: The Lost Crown*. Da loro prendiamo spunto per la sensazione dei
+comandi e dei colpi (pause d'impatto, contraccolpi, scatti, combo), e per la
+**parallasse a molti piani** che fa sembrare la scena quasi in 3D.
 
 ## Musica
 

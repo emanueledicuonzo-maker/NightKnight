@@ -4,7 +4,8 @@ Gioco 2D per Linux in Python e Pygame: NightKnight attraversa 12 satelliti-colon
 Ogni livello e' un unico percorso di circa dieci minuti: le ondate, poi una
 traversata piu' difficile, poi il duello contro il Guardiano. Prima della partita si sceglie una delle 12 armi; gravita', atmosfera,
 fauna e insidie cambiano da satellite a satellite.
-Storia completa in `STORY.md`.
+Storia e regole in `STORY.md`; stato del lavoro e prossimi passi in `HANDOFF.md`
+(in inglese); prompt delle immagini in `assets/PROMPT.md`.
 
 ## Avvio
 
@@ -56,9 +57,15 @@ volanti sullo schermo e toglie al Guardiano il 5% della vita per unita' (fino al
 20%). Luce e prigionieri liberati restano anche dopo una vita persa.
 
 Il cavo si prende al volo toccandone l'impugnatura in salto; le frecce danno
-slancio, Spazio lascia la presa. Dopo la rincorsa (Maiusc), in salto, `C` e' il
-calcio volante girato: colpisce tutto intorno, ma all'atterraggio si resta
-scoperti per un attimo.
+slancio, Spazio lascia la presa. In salto, muovendosi, `C` e' il calcio volante
+girato (da fermo resta il calcio volante semplice): colpisce tutto intorno, ma
+all'atterraggio si resta scoperti per un attimo.
+
+**Prossimo lavoro** (dettagli in `HANDOFF.md`): portare Titano a dieci minuti
+con piu' azione e pianificazione (ossigeno che cala combattendo, fatica, pioggia
+acida e tempeste, tunnel di pietra, geyser disegnati, meduse che si attaccano),
+gravita' e meteo che pesano di piu', parallasse a piu' piani e una sensazione dei
+colpi da gioco d'azione moderno.
 
 ## Progressi
 
