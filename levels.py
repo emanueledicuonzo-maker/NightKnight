@@ -145,26 +145,39 @@ def gen_surface(c):
     return g
 
 
+# Le quattro ondate di Titano. Ogni arena e' larga uno schermo (30 tessere):
+# quando NightKnight ci entra si chiudono le porte stagne finche' l'ondata non
+# e' finita. Titano usa scheletri normali e volanti; la sua fauna: corvi,
+# meduse, minatori, lucertole criogeniche e vermi di silicio.
+TITAN_ARENAS = [22, 72, 124, 176]
+TITAN_WAVES = [
+    dict(name="PRIMO CONTATTO", roster=[("skeleton", 3), ("miner", 1)]),
+    dict(name="LO SCIAME", roster=[("skeleton", 10), ("lizard", 3), ("miner", 2)]),
+    dict(name="DAL CIELO E DAL SUOLO", roster=[("skeleton_fly", 6), ("worm", 3)]),
+    dict(name="LA NUBE", roster=[("crow", 20), ("jelly", 6), ("skeleton_fly", 4)], alive=12),
+]
+WAVE_WIDTH = 30
+
+
 def gen_titan_surface():
-    """Tre incontri leggibili, con rive sicure fra getti e laghi."""
-    g = _grid(110)
-    for col in range(110):
+    """Esplorazione e quattro arene: fra un'ondata e l'altra laghi di metano,
+    geyser e prigionieri; le rive restano libere per la rincorsa."""
+    cols = 216
+    g = _grid(cols)
+    for col in range(cols):
         g[GROUND][col] = "#"
         g[GROUND+1][col] = g[GROUND+2][col] = "D"
-    for start, end in ((29, 31), (60, 62), (92, 95)):
+    lakes = ((16, 18), (55, 57), (66, 69), (107, 109), (118, 121), (159, 161), (169, 172), (208, 210))
+    for start, end in lakes:
         for col in range(start, end):
             for row in range(GROUND, ROWS):
                 g[row][col] = "."
-    # q = geyser; u = Spento. Rive libere per prendere rincorsa.
-    for col in (18, 51, 81):
+    # q = geyser (due dentro l'arena dello sciame); u = prigioniero
+    for col in (10, 61, 82, 94, 113, 165, 212):
         g[GROUND-1][col] = "q"
-    for col in (9, 35, 66, 101):
+    for col in (6, 13, 20, 53, 59, 71, 104, 111, 122, 152, 157, 167, 174, 206, 213):
         g[GROUND-1][col] = "u"
-    for col in (41, 86, 99):
-        g[GROUND-1][col] = "k"
-    for col in (5, 13, 38, 46, 69, 74, 104):
-        g[GROUND-1][col] = "t" if col % 2 else "+"
-    g[GROUND-1][106] = "E"
+    g[GROUND-1][cols - 2] = "E"
     return g
 
 

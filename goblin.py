@@ -15,6 +15,7 @@ import music
 import pixelart as px
 import progress
 import titan
+import waves
 
 W, H = 1920, 1080
 FPS = 60
@@ -145,6 +146,17 @@ class Gfx:
             self.crow = [assets.load(f"crow_{i + 1}", 16 * PS, 8 * PS, assets.pix(px.CROW[i], scale=PS)) for i in range(2)]
         # Bianca resta pulcino nei primi quattro cimiteri: due pose di volo.
         self.bianca = [assets.load(f"bianca_chick_{i + 1}", 150, 105, by_height=True) for i in range(2)]
+        # Nemici nuovi: due fotogrammi per specie, stessa scala per entrambi.
+        self.foes = {}
+        for table in (WALKERS, FLYERS):
+            for kind, spec in table.items():
+                names = [spec["frames"].format(i) for i in (1, 2)]
+                if all(assets.has(n) for n in names):
+                    self.foes[kind] = assets.frames(names, spec.get("h", 10 * PS))
+                elif kind == "skeleton":
+                    self.foes[kind] = self.skeleton
+                elif kind == "crow":
+                    self.foes[kind] = self.crow
         self.ghost = [assets.load(f"ghost_{i + 1}", 16 * PS, 16 * PS, assets.pix(px.GHOST[i], scale=PS), by_height=True) for i in range(2)]
         self.titan_hills_near = assets.load("hills_02", W, H, exact=True) if assets.has("hills_02") else None
         self.boss_cache = {}
@@ -728,6 +740,132 @@ class Bianca:
                           int(self.y) - img.get_height() // 2 + bob))
 
 
+# Specie dei nemici nuovi. I camminatori ereditano dallo scheletro (colpo
+# ravvicinato, pestone, danni), i volanti dal corvo (volo e picchiata).
+# h: altezza dello sprite; box: larghezza e altezza della sagoma colpibile.
+WALKERS = {
+    "skeleton":    dict(frames="skeleton_walk{}", h=PH, box=(70, 176), hp=20, speed=2.6, dmg=30, reach=70, pts=300),
+    "skeleton_2x": dict(frames="skeleton_2x_{}", h=PH * 2, box=(120, 352), hp=90, speed=1.8, dmg=40, reach=150, pts=1500),
+    "skeleton_3x": dict(frames="skeleton_3x_{}", h=PH * 3, box=(170, 528), hp=220, speed=1.3, dmg=55, reach=220, pts=4000),
+    "miner":       dict(frames="miner_mutant_{}", h=PH, box=(80, 176), hp=35, speed=2.0, dmg=35, reach=95, pts=500),
+    "lizard":      dict(frames="lizard_cryo_{}", h=80, box=(170, 70), hp=18, speed=1.4, dmg=25, reach=60, pts=400, lunge=True),
+    "worm":        dict(frames="worm_silicon_{}", h=230, box=(100, 200), hp=30, speed=0, dmg=30, reach=120, pts=600),
+}
+FLYERS = {
+    "crow":         dict(frames="crow_{}", hp=5, dmg=0),
+    "skeleton_fly": dict(frames="skeleton_fly_{}", h=PH, box=(80, 150), hp=14, dmg=25, pts=500),
+    "jelly":        dict(frames="jelly_atmo_{}", h=150, box=(110, 120), hp=8, dmg=20, pts=350, drift=True),
+}
+
+
+class Walker(Skeleton):
+    """Nemico di terra di una specie di WALKERS, piazzato in pixel."""
+
+    def __init__(self, x, kind):
+        spec = WALKERS[kind]
+        self.w, self.h = spec["box"]
+        super().__init__(0, 0)
+        self.x, self.y = float(x), float(GROUND * TILE - self.h)
+        self.kind, self.spec = kind, spec
+        self.hp, self.dmg = spec["hp"], spec["dmg"]
+        self.lunge_t = 0
+
+    def attack_box(self):
+        if 0 < self.hit_t <= 12:
+            r, reach = self.rect, self.spec["reach"]
+            return pygame.Rect(r.right if self.facing > 0 else r.left - reach, r.top + r.h // 4, reach, r.h // 2)
+        return None
+
+    def update(self, lv, player):
+        spec = self.spec
+        if spec["speed"] == 0:                 # il verme resta dove emerge
+            self.t += 1
+            dist = player.x - self.x
+            self.facing = 1 if dist > 0 else -1
+            if self.hit_t:
+                self.hit_t -= 1
+            elif abs(dist) < spec["reach"] + 60:
+                self.hit_t = 30
+            return
+        if spec.get("lunge") and not self.hit_t:
+            dist = player.x - self.x
+            if self.lunge_t:
+                self.lunge_t -= 1
+            elif abs(dist) < 320 and self.t % 90 == 0:
+                self.lunge_t = 28
+        speed = 7.0 if self.lunge_t else spec["speed"]
+        self.t += 1
+        if self.frozen:
+            self.frozen -= 1
+            return
+        if self.hit_t:
+            self.hit_t -= 1
+            self.vx = 0
+            self.move(lv)
+            return
+        dist = player.x - self.x
+        self.facing = 1 if dist > 0 else -1
+        if abs(dist) < spec["reach"] + 30 and abs(player.rect.bottom - self.rect.bottom) < 100:
+            self.hit_t = 24
+        r = self.rect
+        ahead = r.right + 2 if self.facing > 0 else r.left - 3
+        self.vx = speed * self.facing if lv.solid(ahead, r.bottom + 2) else 0
+        self.move(lv)
+
+    def draw(self, s, gfx, cam):
+        frames = gfx.foes[self.kind]
+        attacking = 0 < self.hit_t <= 18 or self.lunge_t
+        img = frames[1] if (attacking or (self.spec["speed"] and (self.t // 10) % 2)) else frames[0]
+        if self.facing < 0:
+            img = assets.flip(img)
+        self.draw_img(s, img, cam)
+        if self.frozen:
+            pygame.draw.rect(s, (150, 220, 255), (int(self.x) - cam, self.y, self.w, self.h), 4)
+
+
+class Flyer(Crow):
+    """Volante di una specie di FLYERS, piazzato in pixel. Il corvo spinge e
+    basta; scheletri volanti e meduse fanno male."""
+
+    def __init__(self, x, y, kind):
+        spec = FLYERS[kind]
+        if "box" in spec:
+            self.w, self.h = spec["box"]
+        super().__init__(0, 0)
+        self.x, self.y = float(x), float(y)
+        self.home = (self.x, self.y)
+        self.kind, self.spec = kind, spec
+        self.hp = spec["hp"]
+        self.dmg = spec["dmg"]
+        self.harmless = spec["dmg"] == 0
+        self.state = "dive"
+        self.cawed = kind == "crow"
+
+    def update(self, lv, player):
+        if self.spec.get("drift"):
+            # la medusa galleggia nell'aria densa e scende piano verso di te
+            self.t += 1
+            if self.frozen:
+                self.frozen -= 1
+                return
+            self.facing = 1 if player.x > self.x else -1
+            self.x += 1.2 * self.facing
+            self.y += ((player.y - 80) - self.y) * 0.01 + math.sin(self.t / 25) * 1.2
+            return
+        super().update(lv, player)
+        if self.state == "away" and self.t > 60:
+            # chi arriva con un'ondata non torna a casa: rientra da dove e' uscito
+            self.state, self.t = "dive", 0
+            self.facing = 1 if player.x > self.x else -1
+
+    def draw(self, s, gfx, cam):
+        frames = gfx.foes[self.kind]
+        img = frames[(self.t // (12 if self.spec.get("drift") else 5)) % 2]
+        if self.facing < 0:
+            img = assets.flip(img)
+        self.draw_img(s, img, cam)
+
+
 class Ghost(Entity):
     w, h = 80, 110
     ox, oy = 24, 18
@@ -927,6 +1065,9 @@ class Game:
         self.effects = []
         self.intro = 0
         self.trials = athletics.Trials() if self.part == "trials" else None
+        self.waves = None
+        if self.part == "surface" and self.ci == 0:
+            self.waves = waves.WaveDirector(levels.TITAN_ARENAS, levels.TITAN_WAVES, Walker, Flyer, seed=self.ci)
         if self.part == "arena":
             self.start_round()
 
@@ -1005,13 +1146,14 @@ class Game:
         multiplier = weapon["damage"] if weapon["affinity"] == self.cfg["affinity"] else 0.35
         e.hp -= max(1, int(dmg * multiplier))
         self.player.albedo = min(100, self.player.albedo + 6)
-        self.jb.fx("flesh_hit" if isinstance(e, Zombie) else "hit")
+        bony = isinstance(e, Skeleton) and getattr(e, "kind", "skeleton").startswith("skeleton")
+        self.jb.fx("hit" if bony or isinstance(e, Ghost) else "flesh_hit")
         if power == "ice":
             e.frozen = 90
         if e.hp <= 0:
             e.alive = False
             self.score += pts
-            if isinstance(e, Skeleton):
+            if bony:
                 self.jb.fx("bones")
 
     # ---- aggiornamento
@@ -1068,6 +1210,11 @@ class Game:
         self.effects = [e for e in self.effects if e.alive]
         target = p.rect.centerx - W // 2
         self.cam = int(max(0, min(target, self.lv.w - W)))
+        lock = self.waves.lock() if self.waves else None
+        if lock:
+            # porte stagne chiuse: si resta nell'arena finche' l'ondata non e' finita
+            p.x = max(lock[0] + 30, min(p.x, lock[1] - 30 - p.w))
+            self.cam = lock[0]
         if p.y > H + 50:
             self.die(); return
         r = p.rect
@@ -1103,6 +1250,16 @@ class Game:
                 self.jb.fx("door")
                 self.next_part()
                 return
+        if self.waves:
+            event = self.waves.update(p, self.skels, self.crows)
+            if event:
+                kind, wave = event
+                self.jb.fx("door")
+                if kind == "start":
+                    self.msg = (wave.name, 120, (239, 201, 143))
+                else:
+                    self.msg = ("VIA LIBERA", 90, (170, 220, 170))
+                    self.score += 1000 * wave.total // 10
         # zombie
         if self.part == "surface" and self.ci != 0:
             self.spawn_t -= 1
@@ -1129,7 +1286,7 @@ class Game:
             b.update(self.lv, self.cam)
         # lancio della lancia / hadouken / albedo
         # colpi del giocatore sui nemici
-        enemies = [(z, 100) for z in self.zombies if z.rise >= 20] + [(k, 300) for k in self.skels] + [(c, 150) for c in self.crows] + [(gh, 400) for gh in self.ghosts if gh.visible()]
+        enemies = [(z, 100) for z in self.zombies if z.rise >= 20] + [(k, getattr(k, "spec", {}).get("pts", 300)) for k in self.skels] + [(c, getattr(c, "spec", {}).get("pts", 150)) for c in self.crows] + [(gh, 400) for gh in self.ghosts if gh.visible()]
         for e, pts in enemies:
             if not e.alive:
                 continue
@@ -1142,7 +1299,7 @@ class Game:
             if not e.alive:
                 continue
             if p.hurtbox().colliderect(er):
-                if isinstance(e, Crow):
+                if isinstance(e, Crow) and getattr(e, "harmless", True):
                     # il corvo disturba: spinge, fa sbagliare il colpo, ma non toglie vita
                     if not p.invuln:
                         p.vx = 3 * e.facing
@@ -1154,10 +1311,10 @@ class Game:
                     p.vy = -14
                     self.jb.fx("stomp")
                 elif not getattr(e, "frozen", 0):
-                    self.hurt_player(25, e.x)
+                    self.hurt_player(getattr(e, "dmg", 25) or 25, e.x)
             sb = e.attack_box() if isinstance(e, Skeleton) else None
             if sb and sb.colliderect(p.hurtbox()):
-                self.hurt_player(30, e.x)
+                self.hurt_player(getattr(e, "dmg", 30), e.x)
             if self.state != "play":
                 return
         for b in self.balls:
@@ -1495,6 +1652,8 @@ class Game:
         cam = self.cam
         for spento in self.spenti:
             spento.draw(s, cam, self.gfx.spento_sleeping, self.gfx.spento_awake)
+        if getattr(self, "waves", None):
+            self.waves.draw_doors(s, cam, 420)
         for geyser in self.geysers:
             geyser.draw(s, cam)
         if self.trials:
