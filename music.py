@@ -157,7 +157,7 @@ def sfx(name):
         n = int(0.3 * SR); t = np.arange(n) / SR
         f = np.where(t < 0.1, 660, np.where(t < 0.2, 880, 1320))
         w = np.sign(np.sin(2 * np.pi * f * t)) * 0.25 * _env(n, 0.005, 0.02, 0.8, 0.1)
-    elif name == "cosmo":
+    elif name == "albedo":
         n = int(0.8 * SR); t = np.arange(n) / SR
         w = (np.sin(2 * np.pi * (200 + 1500 * t) * t) + 0.5 * np.sign(np.sin(2 * np.pi * (100 + 700 * t) * t))) * np.exp(-t * 2) * 0.35
     elif name == "ko":

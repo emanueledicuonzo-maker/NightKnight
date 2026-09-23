@@ -142,7 +142,7 @@ class Trials:
         if p.on_ground and self.takeoff is not None:
             distance = abs(p.x - self.takeoff)
             self.best_jump = max(self.best_jump, distance)
-            if self.takeoff < 12*TILE and p.rect.right > 18*TILE:
+            if self.takeoff < 12*TILE and p.rect.right > 14*TILE:
                 self.done.add(0)
             self.takeoff = None
         if self.rope_used and p.on_ground and p.x >= 40*TILE:
@@ -196,3 +196,5 @@ class Trials:
             color = (113, 208, 159) if i in self.done else (173, 181, 186)
             px.draw_text(screen, name, 40 + i*285, 202, color, 3)
         px.draw_text(screen, f"{self.elapsed / 60:.1f} s   {len(self.done)} / 5", 1570, 202, (224, 209, 162), 4)
+        if 0 not in self.done:
+            px.draw_text(screen, "MAIUSC + DESTRA: RINCORSA", 40, 246, (224, 209, 162), 3)

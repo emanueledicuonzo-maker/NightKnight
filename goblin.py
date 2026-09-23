@@ -13,6 +13,7 @@ import levels
 import music
 import pixelart as px
 import progress
+import titan
 
 W, H = 1920, 1080
 FPS = 60
@@ -86,6 +87,21 @@ class Gfx:
             "H": assets.load("ladder", TILE, TILE, assets.pix(px.LADDER, scale=4), exact=True),
             "^": assets.load("spikes", TILE, TILE, assets.pix(px.SPIKES, scale=4), exact=True),
         }
+        # Titano filtra tutta la luce verso l'ambra: crosta e sottosuolo sono
+        # separati, cosi' la stratigrafia non si ripete come un pavimento.
+        titan_crust = assets.load("titan_ground_grass", TILE, TILE, exact=True)
+        titan_crust.fill((255, 170, 90, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        titan_subsoil = pygame.Surface((TILE, TILE), pygame.SRCALPHA)
+        for y in range(TILE):
+            shade = max(12, 48 - y // 2)
+            pygame.draw.line(titan_subsoil, (shade, max(8, shade // 2), 18), (0, y), (TILE, y))
+        for y in (13, 35, 53):
+            pygame.draw.line(titan_subsoil, (109, 61, 24), (0, y), (TILE, y), 2)
+        self.titan_tiles = {"#": titan_crust, "D": titan_subsoil}
+        self.titan_lake = pygame.Surface((TILE, H - GROUND * TILE), pygame.SRCALPHA)
+        self.titan_lake.fill((23, 12, 13, 255))
+        for y in range(18, self.titan_lake.get_height(), 24):
+            pygame.draw.line(self.titan_lake, (143, 66, 24, 155), (5, y), (TILE - 5, y), 2)
         self.deco = {
             "t": assets.load("tomb1", TILE, TILE, assets.pix(px.TOMB, scale=4)),
             "+": assets.load("cross", TILE, TILE, assets.pix(px.CROSS, scale=4)),
@@ -108,9 +124,17 @@ class Gfx:
             self.sheets[armor] = d
         self.bones = px.sprite(px.BONES, scale=PS)
         self.zombie = [assets.load(f"zombie_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], scale=PS), by_height=True) for i in range(2)]
+        # Sagome provvisorie ottenute dagli asset esistenti, senza nuove immagini.
+        self.spento_sleeping = self.zombie[0].copy()
+        self.spento_sleeping.fill((70, 62, 52, 255), special_flags=pygame.BLEND_RGBA_MULT)
+        self.spento_awake = self.zombie[0].copy()
+        self.spento_awake.fill((90, 63, 25, 0), special_flags=pygame.BLEND_RGB_ADD)
         self.skeleton = [assets.load(f"skeleton_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], px.SKELETON_MAP, PS), by_height=True) for i in range(2)]
         self.crow = [assets.load(f"crow_{i + 1}", 16 * PS, 8 * PS, assets.pix(px.CROW[i], scale=PS)) for i in range(2)]
+        # Bianca resta pulcino nei primi quattro cimiteri: due pose di volo.
+        self.bianca = [assets.load(f"bianca_chick_{i + 1}", 150, 105, by_height=True) for i in range(2)]
         self.ghost = [assets.load(f"ghost_{i + 1}", 16 * PS, 16 * PS, assets.pix(px.GHOST[i], scale=PS), by_height=True) for i in range(2)]
+        self.titan_hills_near = assets.load("hills_02", W, H, exact=True) if assets.has("hills_02") else None
         self.boss_cache = {}
         self.bg_cache = {}
 
@@ -176,7 +200,7 @@ class Level:
         self.markers = []
         for r in range(ROWS):
             for c in range(self.cols):
-                if g[r][c] in "kvgE":
+                if g[r][c] in "kvgEqu":
                     self.markers.append((g[r][c], c, r))
         self.exit = next(((c, r) for ch, c, r in self.markers if ch == "E"), (self.cols - 4, GROUND - 1))
 
@@ -226,7 +250,7 @@ class Entity:
                     self.vx = 0
                     break
         if gravity:
-            self.vy = min(self.vy + GRAVITY, MAX_FALL)
+            self.vy = min(self.vy + GRAVITY * getattr(self, "gravity_scale", 1.0), MAX_FALL)
         self.y += self.vy
         r = self.rect
         self.on_ground = False
@@ -250,7 +274,7 @@ class Player(Entity):
         super().__init__(x, y)
         self.armor = True
         self.hp = PLAYER_HP
-        self.cosmo = 0
+        self.albedo = 0
         self.invuln = 0
         self.anim = 0.0
         self.run_t = 0.0
@@ -263,6 +287,8 @@ class Player(Entity):
         self.jump_buffer = 0
         self.jumped = False
         self.mounted = False
+        self.weapon = levels.weapon_cfg(0)
+        self.gravity_scale = 1.0
 
     def hurtbox(self):
         return self.rect.inflate(-10, -6)
@@ -282,7 +308,7 @@ class Player(Entity):
             if self.power == "bounce":
                 return pygame.Rect(r.left - reach, r.top + 50, r.w + reach * 2, 50), dmg
             return pygame.Rect(r.right if self.facing > 0 else r.left - reach, r.top + 50, reach, 50), dmg
-        if name == "cosmo" and 4 <= f <= 38 and f % 5 == 0:
+        if name == "albedo" and 4 <= f <= 38 and f % 5 == 0:
             return pygame.Rect(r.right if self.facing > 0 else r.left - 170, r.top + 30, 170, 130), 12
         return None, 0
 
@@ -335,7 +361,7 @@ class Player(Entity):
                     self.invuln -= 1
                 return
         grounded_attack = self.attack and self.on_ground
-        if self.attack and self.attack[0] == "cosmo":
+        if self.attack and self.attack[0] == "albedo":
             self.vx = 4 * self.facing
         elif not grounded_attack:
             if right and not left:
@@ -366,7 +392,7 @@ class Player(Entity):
         if self.attack:
             name, f = self.attack
             f += 1
-            limit = {"punch": 14, "kick": 18, "throw": 22 if self.power == "double" else 14, "cosmo": 40}[name]
+            limit = {"punch": 14, "kick": 18, "throw": 22 if self.power == "double" else 14, "albedo": 40}[name]
             self.attack = None if f >= limit else (name, f)
         if self.invuln:
             self.invuln -= 1
@@ -397,7 +423,7 @@ class Player(Entity):
             return "climb"
         if self.attack:
             name = self.attack[0]
-            if name == "cosmo":
+            if name == "albedo":
                 return "hado"
             if not self.on_ground:
                 return "air" + name
@@ -416,11 +442,11 @@ class Player(Entity):
             return None
         if self.attack:
             name, f = self.attack
-            base = {"punch": "punch", "kick": "kick", "throw": "throw", "cosmo": "punch"}[name]
+            base = {"punch": "punch", "kick": "kick", "throw": "throw", "albedo": "punch"}[name]
             if base not in sheets:
                 return None
             fr = sheets[base][side]
-            if name == "cosmo":
+            if name == "albedo":
                 return fr[(f // 2) % len(fr)]
             limit = {"punch": 14, "kick": 18, "throw": 22 if self.power == "double" else 14}[name]
             return fr[min(len(fr) - 1, f * len(fr) // limit)]
@@ -440,7 +466,7 @@ class Player(Entity):
         return None
 
     def draw(self, s, gfx, cam):
-        if self.invuln and (self.invuln // 3) % 2 and not (self.attack and self.attack[0] == "cosmo"):
+        if self.invuln and (self.invuln // 3) % 2 and not (self.attack and self.attack[0] == "albedo"):
             return
         if self.mounted:
             img = gfx.player[self.armor]["jump"][0 if self.facing > 0 else 1]
@@ -450,7 +476,7 @@ class Player(Entity):
         img = self.sheet_frame(gfx)
         if img is not None:
             self.draw_img(s, img, cam)
-            if self.attack and self.attack[0] == "cosmo":
+            if self.attack and self.attack[0] == "albedo":
                 t = self.attack[1]
                 pygame.draw.circle(s, (255, 220, 100), (self.rect.centerx - cam, self.rect.centery), 60 + t * 6, 6)
             return
@@ -476,7 +502,7 @@ class Player(Entity):
             s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height() + dy))
             return
         self.draw_img(s, img, cam)
-        if self.attack and self.attack[0] == "cosmo":
+        if self.attack and self.attack[0] == "albedo":
             t = self.attack[1]
             rad = 60 + t * 6
             pygame.draw.circle(s, (255, 220, 100), (self.rect.centerx - cam, self.rect.centery), rad, 6)
@@ -620,6 +646,33 @@ class Crow(Entity):
         self.draw_img(s, img, cam)
 
 
+class Bianca:
+    """Compagna di NightKnight: osserva e segue, senza combattere all'inizio."""
+    def __init__(self, player):
+        self.x = player.x - 150
+        self.y = player.y - 110
+        self.facing = 1
+        self.t = 0
+
+    def update(self, player):
+        self.t += 1
+        # Resta poco dietro e sopra al protagonista; il ritardo rende il volo vivo.
+        offset = -155 if player.facing > 0 else 155
+        tx, ty = player.rect.centerx + offset, player.y - 105
+        self.x += (tx - self.x) * 0.045
+        self.y += (ty - self.y) * 0.055
+        if abs(player.vx) > 0.5:
+            self.facing = player.facing
+
+    def draw(self, screen, gfx, cam):
+        img = gfx.bianca[(self.t // 8) % 2]
+        if self.facing < 0:
+            img = assets.flip(img)
+        bob = int(math.sin(self.t / 11) * 7)
+        screen.blit(img, (int(self.x) - img.get_width() // 2 - cam,
+                          int(self.y) - img.get_height() // 2 + bob))
+
+
 class Ghost(Entity):
     w, h = 80, 110
     ox, oy = 24, 18
@@ -681,7 +734,7 @@ class Game:
         pygame.init()
         flags = 0 if windowed else pygame.FULLSCREEN | pygame.SCALED
         self.screen = pygame.display.set_mode((W, H), flags)
-        pygame.display.set_caption("Goblin")
+        pygame.display.set_caption("NightKnight")
         self.clock = pygame.time.Clock()
         self.gfx = Gfx()
         self.jb = music.Jukebox()
@@ -698,6 +751,7 @@ class Game:
         self.ci = 0
         self.cfg = levels.cfg(0)
         self.powers = []
+        self.weapon_i = 0
         self.player = Player(0, 0)
         self.msg = None
         self.effects = []
@@ -757,9 +811,12 @@ class Game:
             elif action == "CONTINUA":
                 self.continue_game()
             elif action == "NUOVA PARTITA":
-                self.new_game()
+                self.state = "weapon_select"
+                self.weapon_i = 0
             elif action == "PROVE ATLETICHE":
-                self.new_game(part="trials")
+                self.state = "weapon_select"
+                self.weapon_i = 0
+                self.weapon_part = "trials"
             elif action == "ESCI":
                 self.running = False
 
@@ -769,6 +826,7 @@ class Game:
             self.powers = []
         self.lives = 3
         self.ci = ci
+        self.weapon_part = part
         self.start_part(part)
 
     def start_part(self, part):
@@ -790,13 +848,22 @@ class Game:
         self.player = p = Player(2 * TILE, floor * TILE - Entity.h)
         p.on_ground = True
         p.power = self.powers[-1] if self.powers else None
+        p.weapon = levels.weapon_cfg(self.weapon_i)
+        p.gravity_scale = self.cfg["gravity_scale"]
+        self.bianca = Bianca(p) if self.ci < 4 else None
+        self.geysers, self.spenti = [], []
+        self.geyser_hint = False
         self.zombies, self.skels, self.crows, self.ghosts, self.balls = [], [], [], [], []
         for ch, c, r in lv.markers:
-            if ch == "k":
+            if ch == "q":
+                self.geysers.append(titan.Geyser((c + .5) * TILE, (r + 1) * TILE))
+            elif ch == "u":
+                self.spenti.append(titan.Spento((c + .5) * TILE, (r + 1) * TILE))
+            elif ch == "k":
                 self.skels.append(Skeleton(c, r))
             elif ch == "v":
                 self.crows.append(Crow(c, r))
-            elif ch == "g":
+            elif ch == "g" and assets.has("ghost_1"):
                 self.ghosts.append(Ghost(c, r))
         self.spawn_t = 60
         self.cam = 0
@@ -812,6 +879,8 @@ class Game:
         self.player = Player(3 * TILE, GROUND * TILE - Entity.h)
         self.player.on_ground = True
         self.player.power = self.powers[-1] if self.powers else None
+        self.player.weapon = levels.weapon_cfg(self.weapon_i)
+        self.player.gravity_scale = self.cfg["gravity_scale"]
         self.effects = []
         self.boss = knights.GoldKnight(W - 5 * TILE, knights.knight_cfg(self.ci), self.gfx)
         self.balls = []
@@ -852,7 +921,7 @@ class Game:
     # ---- danni
     def hurt_player(self, dmg, from_x):
         p = self.player
-        if (p.invuln or self.state != "play" or (p.attack and p.attack[0] == "cosmo")
+        if (p.invuln or self.state != "play" or (p.attack and p.attack[0] == "albedo")
                 or (self.boss and self.boss.hp <= 0)):
             return
         p.invuln = 80
@@ -862,13 +931,12 @@ class Game:
         p.climbing = False
         p.coyote = p.jump_buffer = 0
         self.jb.fx("hurt")
-        if p.armor:
-            p.armor = False
-            self.effects.append(Effect(p.x, p.y - 30, "ARMATURA!", (255, 120, 120)))
-        else:
-            p.hp = max(0, p.hp - dmg)
-            if p.hp == 0:
-                self.die()
+        # Gli sprite dell'armatura danneggiata arriveranno piu' avanti: fino ad
+        # allora NightKnight resta sempre corazzato, senza passare al costume nude.
+        p.hp = max(0, p.hp - dmg)
+        self.effects.append(Effect(p.x, p.y - 30, "ARMATURA COLPITA", (255, 170, 120)))
+        if p.hp == 0:
+            self.die()
 
     def die(self):
         self.state, self.state_t = "dead", 0
@@ -877,8 +945,12 @@ class Game:
     def hit_enemy(self, e, dmg, power=None, pts=100):
         if not e.alive:
             return
-        e.hp -= dmg
-        self.player.cosmo = min(100, self.player.cosmo + 6)
+        # Le specie si sono evolute per la loro atmosfera: l'arma affine le
+        # ferisce davvero, le altre incidono appena la corazza o l'ectoplasma.
+        weapon = self.player.weapon
+        multiplier = weapon["damage"] if weapon["affinity"] == self.cfg["affinity"] else 0.35
+        e.hp -= max(1, int(dmg * multiplier))
+        self.player.albedo = min(100, self.player.albedo + 6)
         self.jb.fx("flesh_hit" if isinstance(e, Zombie) else "hit")
         if power == "ice":
             e.frozen = 90
@@ -931,6 +1003,8 @@ class Game:
             self.trials.update_player(p, keys, self.lv)
         else:
             p.update(keys, self.lv)
+        if self.bianca:
+            self.bianca.update(p)
         if p.jumped:
             self.jb.fx("jump")
         for e in self.effects:
@@ -941,6 +1015,19 @@ class Game:
         if p.y > H + 50:
             self.die(); return
         r = p.rect
+        for geyser in self.geysers:
+            if abs(p.rect.centerx - geyser.x) < 550 and not self.geyser_hint:
+                self.msg = ("ATTENDI IL GETTO", 180, (239, 201, 143))
+                self.geyser_hint = True
+            if geyser.update(p):
+                self.hurt_player(25, geyser.x)
+            if self.state != "play":
+                return
+        for spento in self.spenti:
+            if spento.update(p):
+                p.albedo = min(100, p.albedo + 20)
+                self.jb.fx("pickup")
+                self.effects.append(Effect(spento.x, spento.floor - 190, "LUCE LIBERATA", (255, 201, 120)))
         # punte
         if any(self.lv.tile_at(x, r.bottom - 6) == "^" or
                (p.on_ground and self.lv.tile_at(x, r.bottom + 2) == "^")
@@ -959,7 +1046,7 @@ class Game:
                 self.next_part()
                 return
         # zombie
-        if self.part == "surface":
+        if self.part == "surface" and self.ci != 0:
             self.spawn_t -= 1
             if self.spawn_t <= 0 and len(self.zombies) < 4 + self.ci // 3:
                 self.spawn_t = self.cfg["zombie_every"]
@@ -979,7 +1066,7 @@ class Game:
             gh.update(self.lv, p)
         for b in self.balls:
             b.update(self.lv, self.cam)
-        # lancio della lancia / hadouken / cosmo
+        # lancio della lancia / hadouken / albedo
         # colpi del giocatore sui nemici
         enemies = [(z, 100) for z in self.zombies if z.rise >= 20] + [(k, 300) for k in self.skels] + [(c, 150) for c in self.crows] + [(gh, 400) for gh in self.ghosts if gh.visible()]
         for e, pts in enemies:
@@ -989,7 +1076,7 @@ class Game:
             er = e.rect
             if abox and abox.colliderect(er):
                 self.hit_enemy(e, adm * 2, p.power if p.attack[0] == "throw" else None, pts)
-                if not (p.attack and p.attack[0] == "cosmo"):
+                if not (p.attack and p.attack[0] == "albedo"):
                     continue
             if not e.alive:
                 continue
@@ -1000,7 +1087,7 @@ class Game:
                         p.vx = 3 * e.facing
                         p.attack = None
                         p.invuln = 20
-                        p.cosmo = max(0, p.cosmo - 2)
+                        p.albedo = max(0, p.albedo - 2)
                 elif p.vy > 0 and r.bottom - er.top < 40 and not isinstance(e, Ghost):
                     self.hit_enemy(e, 10, pts=pts)
                     p.vy = -14
@@ -1022,7 +1109,7 @@ class Game:
                 if self.boss and b.alive and b.rect.colliderect(self.boss.rect):
                     if self.boss.hit(b.dmg):
                         self.score += 50
-                        p.cosmo = min(100, p.cosmo + 8)
+                        p.albedo = min(100, p.albedo + 8)
                         self.jb.fx("hit")
                     b.alive = False
             if b.owner == "boss" and b.alive and b.rect.colliderect(p.hurtbox()):
@@ -1053,12 +1140,12 @@ class Game:
                 br = bs.rect
                 abox, adm = p.attack_box()
                 if abox and abox.colliderect(br) and bs.hit(adm, p.power if p.attack[0] == "throw" else None):
-                    self.score += 50; p.cosmo = min(100, p.cosmo + 8); self.jb.fx("hit")
+                    self.score += 50; p.albedo = min(100, p.albedo + 8); self.jb.fx("hit")
                 if not bs.hidden and p.hurtbox().colliderect(br):
                     if p.vy > 0 and r.bottom - br.top < 50:
                         p.vy = -14
                         if bs.hit(8):
-                            self.score += 50; p.cosmo = min(100, p.cosmo + 6)
+                            self.score += 50; p.albedo = min(100, p.albedo + 6)
                     else:
                         push = 1 if p.x < bs.x else -1
                         p.x -= push * 5
@@ -1112,6 +1199,16 @@ class Game:
         if self.state == "title":
             self.menu_key(k)
             return
+        if self.state == "weapon_select":
+            if k in (pygame.K_LEFT, pygame.K_a, pygame.K_UP, pygame.K_w):
+                self.weapon_i = (self.weapon_i - 1) % len(levels.WEAPONS)
+            elif k in (pygame.K_RIGHT, pygame.K_d, pygame.K_DOWN, pygame.K_s):
+                self.weapon_i = (self.weapon_i + 1) % len(levels.WEAPONS)
+            elif k == pygame.K_RETURN:
+                self.new_game(part=getattr(self, "weapon_part", "surface"))
+            elif k == pygame.K_ESCAPE:
+                self.state = "title"
+            return
         if self.state in ("gameover", "end"):
             if k == pygame.K_RETURN:
                 if self.state == "end":
@@ -1157,10 +1254,10 @@ class Game:
         elif k == pygame.K_c:
             p.start_attack("kick")
         elif k == pygame.K_v:
-            if p.cosmo >= 100 and p.start_attack("cosmo"):
-                p.cosmo = 0
+            if p.albedo >= 100 and p.start_attack("albedo"):
+                p.albedo = 0
                 p.invuln = 45
-                self.jb.fx("cosmo")
+                self.jb.fx("albedo")
 
     # ---- disegno
     def bar(self, x, y, w, frac, color, right=False):
@@ -1177,18 +1274,22 @@ class Game:
     def draw_hud(self):
         s, p = self.screen, self.player
         s.blit(self.hud_shade, (0, 0))
-        px.draw_text(s, "ARTHUR", 40, 22, (229, 229, 220), scale=5)
+        px.draw_text(s, "NIGHTKNIGHT", 40, 22, (229, 229, 220), scale=5)
         px.draw_text(s, f"{self.lives} VITE", 350, 28, (181, 190, 194), scale=3)
         self.bar(40, 66, 400, p.hp / PLAYER_HP, (64, 153, 116) if p.hp > 30 else (183, 65, 67))
         px.draw_text(s, f"{p.hp} / {PLAYER_HP}", 460, 60, (213, 220, 219), scale=3)
-        px.draw_text(s, "COSMO", 40, 94, (202, 178, 119), scale=3)
-        self.bar(130, 98, 310, p.cosmo / 100, (186, 155, 82))
-        if p.cosmo >= 100:
+        px.draw_text(s, "ALBEDO", 40, 94, (202, 178, 119), scale=3)
+        self.bar(130, 98, 310, p.albedo / 100, (186, 155, 82))
+        if p.albedo >= 100:
             px.draw_text(s, "PRONTO", 460, 92, (224, 198, 129), scale=3)
         arm = "ARMATURA" if p.armor else "SENZA ARMATURA"
         px.draw_text(s, arm, 40, 126, (168, 185, 196) if p.armor else (221, 126, 119), scale=3)
         if p.power:
             px.draw_text(s, levels.ARMOR_NAMES[p.power], 40, 152, (202, 178, 119), scale=3)
+        weapon = getattr(p, "weapon", None)
+        if weapon:
+            label = weapon["name"].upper()
+            px.draw_text(s, label, 40, 178, (190, 210, 225), scale=3)
         title = f"CIMITERO {ROMAN[self.ci]} - {self.cfg['name']}"
         px.draw_text(s, title, W // 2 - px.text_width(title, 5) // 2, 24, scale=5)
         sub = {"surface": "SOPRA", "crypt": "SOTTOTERRA", "trials": "LE PROVE", "arena": "IL DUELLO"}[self.part]
@@ -1216,12 +1317,25 @@ class Game:
             for x in range(off, W, sky.get_width()):
                 s.blit(sky, (x, 0))
             hills = self.gfx.background("hills", self.cfg["num"])
-            hw = hills.get_width()
-            off = -(int(cam * 0.3) % hw)
-            y = H - hills.get_height() - 40 if hw > W else 0
-            s.blit(hills, (off, y))
-            if off + hw < W:
-                s.blit(hills, (off + hw, y))
+            if self.ci == 0 and self.gfx.titan_hills_near:
+                # Titano ha due piani: quello lontano scompare nella foschia,
+                # quello vicino rende leggibili lapidi e rocce in movimento.
+                distant = hills.copy()
+                distant.set_alpha(55)
+                off = -(int(cam * 0.16) % distant.get_width())
+                for x in range(off, W, distant.get_width()):
+                    s.blit(distant, (x, 0))
+                near = self.gfx.titan_hills_near
+                off = -(int(cam * 0.42) % near.get_width())
+                for x in range(off, W, near.get_width()):
+                    s.blit(near, (x, 0))
+            else:
+                hw = hills.get_width()
+                off = -(int(cam * 0.3) % hw)
+                y = H - hills.get_height() - 40 if hw > W else 0
+                s.blit(hills, (off, y))
+                if off + hw < W:
+                    s.blit(hills, (off + hw, y))
         elif self.part == "crypt":
             s.blit(self.gfx.background("crypt_bg", self.cfg["num"]), (0, 0))
         else:
@@ -1235,16 +1349,24 @@ class Game:
                     pygame.draw.line(self.pit_shade, (8, 6, 14, a), (0, yy), (TILE, yy))
             for c in range(c0, min(lv.cols, c0 + W // TILE + 3)):
                 if lv.g[GROUND][c] == ".":
-                    s.blit(self.pit_shade, (c * TILE - cam, GROUND * TILE))
+                    pit = self.gfx.titan_lake if self.ci == 0 else self.pit_shade
+                    s.blit(pit, (c * TILE - cam, GROUND * TILE))
+            if self.ci == 0:
+                haze = pygame.Surface((W, 105), pygame.SRCALPHA)
+                for yy in range(haze.get_height()):
+                    alpha = max(0, 68 - yy // 2)
+                    pygame.draw.line(haze, (184, 91, 31, alpha), (0, yy), (W, yy))
+                s.blit(haze, (0, GROUND * TILE - 75))
         for c in range(c0, min(lv.cols, c0 + W // TILE + 3)):
             x = c * TILE - cam
             for r in range(ROWS):
                 ch = lv.g[r][c]
-                if ch == "." or ch in "kvg":
+                if ch == "." or ch in "kvgqu":
                     continue
                 y = r * TILE
                 if ch in self.gfx.tiles:
-                    s.blit(self.gfx.tiles[ch], (x, y))
+                    tile = self.gfx.titan_tiles.get(ch) if self.ci == 0 else None
+                    s.blit(tile or self.gfx.tiles[ch], (x, y))
                 elif ch == "Y":
                     s.blit(self.gfx.deco["Y"], (x - TILE // 2, y - TILE * 2))
                 elif ch == "E":
@@ -1274,17 +1396,35 @@ class Game:
         s = self.screen
         if self.state == "title":
             s.blit(self.gfx.background("sky", 1), (0, 0))
-            self.draw_center("GOBLIN", 230, (222, 201, 150), 24)
+            self.draw_center("NIGHTKNIGHT", 230, (222, 201, 150), 16)
             self.draw_center("12 CIMITERI", 420, (200, 200, 220), 8)
             self.draw_center("SAME COURAGE, NEW NIGHTMARES", 500, (150, 160, 190), 4)
             self.draw_center(f"RECORD {self.hi:08d}", 560, (200, 200, 220), 4)
             self.draw_menu(610)
             self.draw_center("FRECCE MUOVI  SPAZIO SALTA  Z AFFONDO DI LANCIA  X PUGNO  C CALCIO", 900, (150, 160, 190), 4)
-            self.draw_center("V COSMO: RAFFICA DI PUGNI     SU/GIU SULLE SCALE", 940, (150, 160, 190), 4)
+            self.draw_center("V ALBEDO: RAFFICA DI PUGNI     SU/GIU SULLE SCALE", 940, (150, 160, 190), 4)
             img = self.gfx.player[True]["idle"][0]
             hero = pygame.transform.smoothscale(img, (img.get_width() * 2, img.get_height() * 2))
             s.blit(hero, (260 - hero.get_width() // 2, 880 - hero.get_height()))
             self.draw_save_status()
+            pygame.display.flip()
+            return
+        if self.state == "weapon_select":
+            s.blit(self.gfx.background("sky", 1), (0, 0))
+            weapon = levels.weapon_cfg(self.weapon_i)
+            titan = levels.cfg(0)
+            self.draw_center("SCEGLI LA TUA ARMA", 175, (250, 210, 60), 10)
+            self.draw_center(f"{self.weapon_i + 1:02d} / 12", 315, (190, 200, 220), 5)
+            self.draw_center(weapon["name"].upper(), 400, (225, 235, 245), 9)
+            self.draw_center(weapon["description"].upper(), 505, (180, 195, 215), 4)
+            self.draw_center("PRIMO APPRODO: TITANO", 620, titan["color"], 5)
+            self.draw_center(f"GRAVITA {titan['gravity'].upper()}  |  ARIA {titan['air'].upper()}", 680, (210, 200, 185), 3)
+            self.draw_center(f"CLIMA: {titan['climate'].upper()}", 720, (210, 200, 185), 3)
+            self.draw_center(f"FAUNA: {titan['enemies'][0].upper()} E {titan['enemies'][1].upper()}", 760, (210, 200, 185), 3)
+            good = weapon["affinity"] == titan["affinity"]
+            verdict = "ARMA ADATTA A TITANO" if good else "NON ADATTA: I NEMICI RESISTERANNO"
+            self.draw_center(verdict, 800, (120, 235, 170) if good else (245, 125, 105), 4)
+            self.draw_center("FRECCE SCEGLI   INVIO PARTE   ESC INDIETRO", 920, (150, 160, 190), 4)
             pygame.display.flip()
             return
         if self.state == "end":
@@ -1297,8 +1437,14 @@ class Game:
             return
         self.draw_world()
         cam = self.cam
+        for spento in self.spenti:
+            spento.draw(s, cam, self.gfx.spento_sleeping, self.gfx.spento_awake)
+        for geyser in self.geysers:
+            geyser.draw(s, cam)
         if self.trials:
             self.trials.draw(s, self.gfx, self.player, cam)
+        if self.bianca:
+            self.bianca.draw(s, self.gfx, cam)
         for z in self.zombies:
             z.draw(s, self.gfx, cam)
         for k in self.skels:
@@ -1326,6 +1472,9 @@ class Game:
             sub = {"surface": "SOPRA", "crypt": "SOTTOTERRA", "trials": "LE PROVE", "arena": "IL DUELLO"}[self.part]
             self.draw_center(sub, 560, (200, 200, 220), 8)
             self.draw_center(f"GUARDIANO: {self.cfg['boss'].upper()}", 680, self.cfg["color"], 5)
+            self.draw_center(f"GRAVITA {self.cfg['gravity'].upper()}  |  ARIA {self.cfg['air'].upper()}", 755, (210, 210, 220), 3)
+            self.draw_center(f"CLIMA: {self.cfg['climate'].upper()}", 790, (210, 210, 220), 3)
+            self.draw_center(f"FAUNA: {self.cfg['enemies'][0].upper()} / {self.cfg['enemies'][1].upper()}", 825, (210, 210, 220), 3)
         elif self.state == "armor":
             ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 190)); s.blit(ov, (0, 0))
             self.draw_center("VITTORIA", 260, (250, 210, 60), 14)

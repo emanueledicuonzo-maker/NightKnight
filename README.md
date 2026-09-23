@@ -1,7 +1,10 @@
 # NightKnight
 
-Gioco 2D per Linux in Python e Pygame: 12 satelliti, ciascuno con superficie,
-cripta, prove atletiche e duello al meglio dei tre round contro un Guardiano.
+Gioco 2D per Linux in Python e Pygame: NightKnight attraversa 12 satelliti-colonia,
+ognuno con superficie, prove atletiche e duello contro un Guardiano. Ogni livello
+dura circa dieci minuti: cinque di superficie, due o tre di prove e due o tre di
+duello. Prima della partita si sceglie una delle 12 armi; gravita', atmosfera,
+fauna e insidie cambiano da satellite a satellite.
 Storia completa in `STORY.md`.
 
 ## Avvio
@@ -24,7 +27,7 @@ Per ricrearlo: `python3 -m venv .venv`, poi `.venv/bin/pip install -r requiremen
 | Z | Affondo di lancia |
 | X | Pugno |
 | C | Calcio |
-| V | Albedo, quando la barra e' piena |
+| V | Bianca: raffica di luce, consumando 25 Luce per un'unita' |
 | Maiusc + movimento | Rincorsa: aumenta velocita' e lunghezza del salto |
 | F | Lancio del giavellotto |
 | G | Lancio del pugnale |
@@ -36,7 +39,35 @@ Per ricrearlo: `python3 -m venv .venv`, poi `.venv/bin/pip install -r requiremen
 La perdita del focus mette automaticamente in pausa la partita.
 Dal menu di pausa si puo' tornare al titolo o uscire.
 
-## Prove Atletiche
+## Struttura dei livelli
+
+Ogni satellite ha tre parti: cinque minuti di superficie con ondate e insidie,
+due o tre minuti di prove ambientali e due o tre minuti di duello contro il
+Guardiano. La superficie usa due nemici volanti, tre terrestri e quattro insidie
+scelti dai pool descritti in `STORY.md`.
+
+Bianca segue NightKnight e non muore. Ogni prigioniero illuminato dà 5 Luce;
+premendo `V`, una raffica costa 25 Luce, colpisce tutti i volanti presenti e il
+Guardiano. Ogni unità infligge il 5% della vita massima del Guardiano, fino al 20%
+con una barra piena.
+
+Le prove riusano il terreno del satellite: massi, laghi, liane, cavi, ponti,
+piattaforme, gravita' e ostacoli. I nuovi fondali, nemici e pericoli sono ancora
+asset da creare; `STORY.md` è la specifica di riferimento.
+
+<!-- Sezione storica dell'implementazione precedente, conservata temporaneamente.
+
+Da **Nuova partita**, la superficie di Titano contiene tre geyser, quattro
+Spenti e tre scheletri. I geyser iniziano ad attivarsi quando ci si avvicina:
+3 secondi di riposo, 1,5 secondi di sfiato innocuo, 1,5 secondi di eruzione.
+Il getto infligge 25 danni; nella pausa si puo' attraversare a passo normale.
+I laghi si saltano e le rive prima del salto sono libere dai getti.
+
+Passare vicino a uno Spento lo illumina e aggiunge 20 punti di Albedo, una sola
+volta per tentativo. Questi Spenti usano temporaneamente lo sprite zombi
+ricolorato. Alla ripartenza della sezione si azzerano sia le liberazioni sia
+l'Albedo: crescita persistente di Bianca e nuovi salvataggi arriveranno dopo.
+I geyser di acqua/ammoniaca sono una reinterpretazione fantascientifica.
 
 Dal titolo, **Prove atletiche** avvia una nuova partita direttamente sul percorso
 delle prove e sostituisce il checkpoint precedente. Nella campagna il percorso
@@ -57,22 +88,25 @@ prove. Perdere una vita ricomincia la sezione, comprese le prove.
 
 Le corde usano [Pymunk](https://www.pymunk.org/en/latest/pymunk.constraints.html).
 
+-->
+
 ## Progressi
 
 `savegame.json` conserva il record e un checkpoint locale all'inizio di ogni
-sezione. **Continua riparte dall'inizio della sezione**, con vite, punteggio e
-poteri del checkpoint; posizione e round in corso non vengono salvati.
+sezione. **Continua riparte dall'inizio della sezione**, con vite, punteggio,
+arma e Luce del checkpoint; posizione e round in corso non vengono salvati.
 Una vita persa aggiorna il checkpoint. Game over e completamento cancellano
 il checkpoint, conservando il record. Nuova partita sostituisce il checkpoint.
-La vittoria sul guardiano salva subito l'accesso al cimitero successivo, anche
-se si esce durante la schermata dell'armatura conquistata.
+La vittoria sul Guardiano salva subito l'accesso al satellite successivo, anche
+se si esce durante la schermata della ricompensa.
 Se il file non e' scrivibile viene mostrato un avviso; si puo' comunque giocare.
 
 ## Asset
 
 I PNG in `assets/` vengono caricati automaticamente, con pixel art di riserva
-per quelli mancanti. I fogli di Arthur usano 4 colonne e 2 righe. Cielo e colline
-scorrono a velocita' diverse; i fondali mancanti riusano quello del cimitero precedente.
+per quelli mancanti. Gli asset conservati sono scheletri, corvi e prigionieri
+illuminati; i nuovi disegni di NightKnight, Bianca, Guardiani, satelliti e fauna
+mutante sono descritti in `STORY.md`.
 Le specifiche grafiche sono in `assets/PROMPT.md`.
 
 ## Giocabilita'

@@ -23,6 +23,48 @@ CEMETERIES = [
     ("Umbriel", "Guardiano di Umbriel", (50, 50, 60), "bounce"),
     ("Oberon", "Oberon, il Re", (240, 190, 60), "big"),
 ]
+
+# Ogni luna ha una fisica e una biosfera proprie.  Gli archetipi restano
+# compatibili con gli sprite disponibili: sono la specie, non il disegno,
+# a cambiare da una luna all'altra.
+SATELLITES = [
+    dict(gravity="bassa", gravity_scale=.84, air="densa, azoto e metano", climate="nebbia criogenica", enemies=("scheletri galleggianti", "corvi del metano"), affinity="cryo"),
+    dict(gravity="minima", gravity_scale=.55, air="quasi assente", climate="notte senza alba", enemies=("spettri d'ombra", "ossa vaganti"), affinity="lumen"),
+    dict(gravity="leggera", gravity_scale=.72, air="zolfo e cenere", climate="eruzioni continue", enemies=("avvoltoi di zolfo", "cadaveri carbonizzati"), affinity="thermal"),
+    dict(gravity="bassa", gravity_scale=.68, air="tenue, ossigeno nei crepacci", climate="crosta di ghiaccio", enemies=("meduse di brina", "scheletri subglaciali"), affinity="thermal"),
+    dict(gravity="molto bassa", gravity_scale=.48, air="sottile e fredda", climate="anelli di polvere", enemies=("corvi degli anelli", "fantasmi di polvere"), affinity="lumen"),
+    dict(gravity="bassa", gravity_scale=.60, air="azoto rarefatto", climate="buio plutoniano", enemies=("scheletri del gelo nero", "spettri di confine"), affinity="thermal"),
+    dict(gravity="media", gravity_scale=.90, air="ossigeno tenue", climate="tempeste magnetiche", enemies=("arpie magnetiche", "guardiani ossei"), affinity="lumen"),
+    dict(gravity="quasi nulla", gravity_scale=.42, air="inesistente", climate="rocce marziane", enemies=("sciacalli del vuoto", "ossa a razzo"), affinity="kinetic"),
+    dict(gravity="molto bassa", gravity_scale=.50, air="metano gelido", climate="oceano sotto il ghiaccio", enemies=("meduse abissali", "scheletri di corallo"), affinity="thermal"),
+    dict(gravity="bassa", gravity_scale=.65, air="tenue e corrosiva", climate="scogliere spezzate", enemies=("corvi delle fratture", "spettri verdastri"), affinity="kinetic"),
+    dict(gravity="bassa", gravity_scale=.58, air="anidride carbonica gelata", climate="eclissi perenne", enemies=("pipistrelli d'eclissi", "ossa d'ombra"), affinity="lumen"),
+    dict(gravity="bassa", gravity_scale=.70, air="ossigeno e polvere d'oro", climate="foreste notturne", enemies=("grifoni reali", "fantasmi della corte"), affinity="kinetic"),
+]
+
+# La scelta e' deliberatamente senza conferma: una volta entrati nella campagna
+# si porta la stessa arma fino alla fine. L'affinita' giusta evita le resistenze
+# della fauna locale, le altre restano utilizzabili ma rendono gli scontri duri.
+WEAPONS = [
+    ("lancia criogenica", "cryo", 1.35, "Congela le creature del metano."),
+    ("lama solare", "lumen", 1.30, "Brucia le presenze d'ombra."),
+    ("martello termico", "thermal", 1.45, "Spezza ghiaccio, zolfo e corazze."),
+    ("giavellotto cinetico", "kinetic", 1.25, "Per bersagli rapidi e a gravita minima."),
+    ("spada al plasma", "thermal", 1.15, "Calore costante a corto raggio."),
+    ("arco fotonico", "lumen", 1.20, "Luce concentrata contro gli spettri."),
+    ("falce orbitale", "kinetic", 1.20, "Ampia, ma lenta."),
+    ("mazza magnetica", "kinetic", 1.35, "Devasta ossa e metallo."),
+    ("frusta di cometa", "cryo", 1.10, "Tiene lontani i predatori volanti."),
+    ("pugnale a fusione", "thermal", 1.25, "Piccolo e feroce nel gelo."),
+    ("scettro aurorale", "lumen", 1.15, "Respinge le anime invisibili."),
+    ("ascia gravitazionale", "kinetic", 1.40, "Un colpo pesante nel vuoto."),
+]
+
+
+def weapon_cfg(i):
+    name, affinity, damage, description = WEAPONS[i]
+    return {"index": i, "name": name, "affinity": affinity, "damage": damage,
+            "description": description}
 ARMOR_NAMES = {
     "pierce": "lancia lunga", "double": "doppio affondo", "fire": "lancia di fuoco",
     "ice": "lancia di ghiaccio", "bounce": "lancia a due punte", "big": "lancia gigante",
@@ -34,11 +76,14 @@ def cfg(i):
     name, _, color, power = CEMETERIES[i]
     boss = knights.KNIGHTS[i][0]
     color = knights.KNIGHTS[i][3]
+    satellite = SATELLITES[i]
     return {
         "index": i, "num": i + 1, "name": name, "boss": boss, "color": color, "power": power,
         "boss_hp": 100 + 25 * i, "boss_speed": 2.2 + 0.25 * i, "boss_dmg": 12 + 2 * i,
         "zombie_every": max(50, 130 - 7 * i), "zombie_speed": 1.4 + 0.12 * i,
         "crows": 1 + i // 2, "skeletons": 1 + i // 3, "ghosts": 1 + i // 2,
+        "gravity": satellite["gravity"], "gravity_scale": satellite["gravity_scale"], "air": satellite["air"], "climate": satellite["climate"],
+        "enemies": satellite["enemies"], "affinity": satellite["affinity"],
     }
 
 
@@ -47,6 +92,8 @@ def _grid(cols):
 
 
 def gen_surface(c):
+    if c["index"] == 0:
+        return gen_titan_surface()
     rnd = random.Random(100 + c["index"])
     cols = 110 + 8 * c["index"]
     g = _grid(cols)
@@ -59,7 +106,9 @@ def gen_surface(c):
             g[GROUND + 2][cc] = "D"
         x += seg
         if x < cols - 12:
-            gap = rnd.randrange(2, 4)
+            # Titano apre con un solo tile: insegna a saltare senza trasformare
+            # i primi dieci secondi in una punizione.
+            gap = 1 if c["index"] == 0 and x <= 26 else rnd.randrange(2, 4)
             x += gap
     for cc in range(cols - 12, cols):        # zona finale piena
         g[GROUND][cc] = "#"; g[GROUND + 1][cc] = "D"; g[GROUND + 2][cc] = "D"
@@ -78,15 +127,44 @@ def gen_surface(c):
                 g[GROUND - 1][cc] = "+"
             elif v < 0.18:
                 g[GROUND - 1][cc] = "Y"
-    for _ in range(c["crows"] * 3):
+    # La composizione della fauna cambia davvero tra lune: quelle atmosferiche
+    # popolano il cielo, quelle del vuoto privilegiano ossa e spettri.
+    affinity = c["affinity"]
+    crow_count = c["crows"] * (4 if affinity in ("kinetic", "lumen") else 2)
+    skeleton_count = c["skeletons"] + (2 if affinity == "kinetic" else 0)
+    ghost_count = c["ghosts"] + (2 if affinity == "lumen" else 0)
+    for _ in range(crow_count):
         g[rnd.randrange(3, 7)][rnd.randrange(15, cols - 15)] = "v"
-    for _ in range(c["skeletons"]):
+    for _ in range(skeleton_count):
         cc = rnd.randrange(30, cols - 20)
         if g[GROUND][cc] == "#" and g[GROUND - 1][cc] == ".":
             g[GROUND - 1][cc] = "k"
-    for _ in range(c["ghosts"]):
+    for _ in range(ghost_count):
         g[rnd.randrange(6, 11)][rnd.randrange(20, cols - 15)] = "g"
     g[GROUND - 1][cols - 4] = "E"
+    return g
+
+
+def gen_titan_surface():
+    """Tre incontri leggibili, con rive sicure fra getti e laghi."""
+    g = _grid(110)
+    for col in range(110):
+        g[GROUND][col] = "#"
+        g[GROUND+1][col] = g[GROUND+2][col] = "D"
+    for start, end in ((29, 31), (60, 62), (92, 95)):
+        for col in range(start, end):
+            for row in range(GROUND, ROWS):
+                g[row][col] = "."
+    # q = geyser; u = Spento. Rive libere per prendere rincorsa.
+    for col in (18, 51, 81):
+        g[GROUND-1][col] = "q"
+    for col in (9, 35, 66, 101):
+        g[GROUND-1][col] = "u"
+    for col in (41, 86, 99):
+        g[GROUND-1][col] = "k"
+    for col in (5, 13, 38, 46, 69, 74, 104):
+        g[GROUND-1][col] = "t" if col % 2 else "+"
+    g[GROUND-1][106] = "E"
     return g
 
 
@@ -152,7 +230,9 @@ def gen_trials(c):
     for cc in range(112):
         for r in range(GROUND, ROWS):
             g[r][cc] = "#" if r == GROUND else "D"
-    for start, end in ((12, 18), (32, 40)):
+    # Primo esercizio: due tile, abbastanza largo da far capire il salto ma
+    # superabile anche senza conoscere ancora la rincorsa.
+    for start, end in ((12, 14), (32, 40)):
         for cc in range(start, end):
             for r in range(GROUND, ROWS):
                 g[r][cc] = "."

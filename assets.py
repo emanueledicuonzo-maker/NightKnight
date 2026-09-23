@@ -129,7 +129,10 @@ def sheet(name, h, cols=4, rows=2):
         scaled = pygame.transform.smoothscale(crop, (fw, fh))
         # tela comune: larghezza del fotogramma, altezza h, piedi in basso alla stessa quota
         canvas = pygame.Surface((fw, h), pygame.SRCALPHA)
-        canvas.blit(scaled, (0, h - fh))
+        # Alcuni fogli includono margine trasparente sotto ai piedi: allineiamo
+        # il bordo effettivamente visibile, non quello del rettangolo ritagliato.
+        ink = scaled.get_bounding_rect()
+        canvas.blit(scaled, (0, h - ink.bottom))
         frames.append(canvas)
     _cache[key] = frames
     return frames
