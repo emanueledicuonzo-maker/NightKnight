@@ -1,9 +1,8 @@
 # NightKnight
 
-Gioco 2D per Linux in Python e Pygame: NightKnight attraversa 12 satelliti-colonia,
-ognuno con superficie, prove atletiche e duello contro un Guardiano. Ogni livello
-dura circa dieci minuti: cinque di superficie, due o tre di prove e due o tre di
-duello. Prima della partita si sceglie una delle 12 armi; gravita', atmosfera,
+Gioco 2D per Linux in Python e Pygame: NightKnight attraversa 12 satelliti-colonia.
+Ogni livello e' un unico percorso di circa dieci minuti: le ondate, poi una
+traversata piu' difficile, poi il duello contro il Guardiano. Prima della partita si sceglie una delle 12 armi; gravita', atmosfera,
 fauna e insidie cambiano da satellite a satellite.
 Storia completa in `STORY.md`.
 
@@ -29,9 +28,7 @@ Per ricrearlo: `python3 -m venv .venv`, poi `.venv/bin/pip install -r requiremen
 | C | Calcio; in salto, calcio volante |
 | V | Bianca: raffica di Luce (tutte le unita' da 25 disponibili) |
 | Maiusc + movimento | Rincorsa: aumenta velocita' e lunghezza del salto |
-| F | Lancio del giavellotto |
-| G | Lancio del pugnale |
-| E | Afferra / lascia la corda, sali / scendi da cavallo |
+| E | Afferra / lascia il cavo |
 | Esc o P | Pausa / ripresa |
 | M | Attiva / silenzia la musica, lasciando gli effetti |
 | Su / Giu e Invio | Selezione nei menu |
@@ -42,22 +39,26 @@ Dal menu di pausa si puo' tornare al titolo o uscire.
 ## Struttura dei livelli
 
 Ogni satellite e' un'unica ambientazione in tre parti: 4/5 minuti di superficie
-con ondate e insidie, 2/3 minuti di prove con pochissimi nemici, 2/3 minuti di
+con ondate e insidie, 2/3 minuti di traversata con pochissimi nemici, 2/3 minuti di
 duello contro il Guardiano, aiutato solo da pochi volanti. Regole, nemici e
 tabelle dei satelliti sono in `STORY.md`.
 
-Oggi e' giocabile **Titano**: quattro arene chiuse da porte stagne (le ondate),
-geyser e laghi di metano fra un'arena e l'altra, quindici prigionieri, le prove
-atletiche con tre nemici e il Guardiano, alto il doppio di NightKnight, con
-alabarda e gancio. Gli altri undici satelliti usano ancora il vecchio impianto.
+Oggi e' giocabile **solo Titano**, dall'inizio alla fine: un unico percorso con
+quattro ondate (non bloccano mai, si puo' scappare), laghi di metano, geyser, gas
+criogenico, stazioni d'ossigeno e quindici prigionieri; poi la traversata fra
+rocce, pareti con le scale di servizio, pilastri e il cavo sopra il lago grande;
+infine il duello a un round col Guardiano, alto il doppio di NightKnight, con
+alabarda e gancio. Gli altri undici satelliti arriveranno.
 
 **Bianca** segue NightKnight e non muore. Ogni prigioniero liberato da' 5 Luce;
 con `V` Bianca attraversa il cielo e scarica tutte le unita' da 25: abbatte i
 volanti sullo schermo e toglie al Guardiano il 5% della vita per unita' (fino al
 20%). Luce e prigionieri liberati restano anche dopo una vita persa.
 
-Nelle prove: rincorsa con Maiusc, E per afferrare la liana o salire a cavallo,
-F e G per giavellotto e pugnali sui bersagli. La porta si apre dopo le cinque prove.
+Il cavo si prende al volo toccandone l'impugnatura in salto; le frecce danno
+slancio, Spazio lascia la presa. Dopo la rincorsa (Maiusc), in salto, `C` e' il
+calcio volante girato: colpisce tutto intorno, ma all'atterraggio si resta
+scoperti per un attimo.
 
 ## Progressi
 
@@ -66,8 +67,7 @@ sezione. **Continua riparte dall'inizio della sezione**, con vite, punteggio,
 arma e Luce del checkpoint; posizione e round in corso non vengono salvati.
 Una vita persa aggiorna il checkpoint. Game over e completamento cancellano
 il checkpoint, conservando il record. Nuova partita sostituisce il checkpoint.
-La vittoria sul Guardiano salva subito l'accesso al satellite successivo, anche
-se si esce durante la schermata della ricompensa.
+Arrivati alla traversata, una vita persa fa ripartire da li'.
 Se il file non e' scrivibile viene mostrato un avviso; si puo' comunque giocare.
 
 ## Asset

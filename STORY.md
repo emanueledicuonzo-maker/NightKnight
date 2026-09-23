@@ -68,15 +68,19 @@ barra. Non si combattono e non si fermano: si liberano passando.
 Ogni satellite dura circa dieci minuti, in tre parti:
 
 1. **Superficie — 4/5 minuti.** Atmosfera, insidie, prigionieri e ondate.
-2. **Prove — 2/3 minuti.** Ostacoli e difficoltà del satellite: salti sui
+2. **Traversata — 2/3 minuti.** Ostacoli e difficoltà del satellite: salti sui
    massi, corsa, liane, cavi, laghi, piattaforme, gravità e aria del posto.
-   **Pochi nemici, davvero pochi**: le prove servono a spezzare il ritmo e a far
-   sentire il luogo, non a combattere.
-3. **Guardiano — 2/3 minuti.** Duello contro il cavaliere che governa il
-   satellite, con arma, stile e potere del suo mondo. Lo aiutano **solo pochi
-   nemici volanti**, niente di terra.
+   **Pochi nemici, davvero pochi**: la traversata serve a spezzare il ritmo e a
+   far sentire il luogo, non a combattere. Non sono prove atletiche.
+3. **Guardiano — 2/3 minuti.** Duello a **un solo round** contro il cavaliere
+   che governa il satellite, con arma, stile e potere del suo mondo. Lo aiutano
+   **solo pochi nemici volanti**, niente di terra.
 
-Ogni satellite è **un'unica ambientazione continua**: superficie, prove e
+Le tre parti sono **un unico percorso continuo**: la seconda segue la prima
+nella stessa mappa, senza stacchi, e non si puo' iniziare dalla seconda. Le
+ondate non bloccano mai il passaggio: si puo' sempre avanzare o scappare.
+
+Ogni satellite è **un'unica ambientazione continua**: superficie, traversata e
 Guardiano si svolgono nello stesso luogo, con tre quadri visivi (ingresso nel
 satellite, zona abitata o industriale abbandonata, soglia del Guardiano).
 
@@ -106,6 +110,10 @@ Una sequenza di assedi che cresce, non un posto pieno di nemici casuali:
 4. 30–40 volanti tutti insieme, mentre le insidie del satellite sono attive.
 
 Le ondate usano i due tipi di scheletro del satellite e la sua fauna, mescolati.
+La vita dei nemici si conta in colpi: scheletro 1, cavaliere-scheletro 2× 2,
+3× 3, minatore 2, tutti gli altri 1. Il calcio girato vale due colpi, il sasso
+mezzo; con l'arma non affine alla fauna del satellite il fendente vale mezzo colpo.
+
 Gli scheletri normali sono fragili: il pericolo nasce dal numero, dall'aria che
 finisce e dal terreno. I 2× e 3× sono gli avversari su cui si imparano tempi,
 distanza e arma.
@@ -235,9 +243,9 @@ Volanti e terrestri sono solo creature del satellite, mai scheletri.
 | 11 | Umbriel | Pugnale dell'eclissi | normali + 2× | pipistrelli del vuoto; angeli corrosi | custodi senza volto; ragni da condotto; copie difettose | nube ossea; sirene psichiche; ossigeno scarso; gas criogenico |
 | 12 | Oberon | Spada orbitale | 2× + 3× | angeli corrosi; droni becchino | custodi senza volto; golem di rottami; cani da cava | porte stagne; piastre magnetiche; pioggia di detriti; sirene psichiche |
 
-### Scenari e prove
+### Scenari e traversata
 
-| Satellite | Sfondo e terreno | Lungo la strada | Prova |
+| Satellite | Sfondo e terreno | Lungo la strada | Traversata |
 | --- | --- | --- | --- |
 | Titano | Nebbia arancione opaca, Saturno appena visibile; terra scura e ghiaccio di metano | Torri d'estrazione piegate, tubi che perdono, rover sepolti, relitti di tute | Salti su massi di ghiaccio, corsa sulle rive, lago di metano attraversato con un cavo industriale |
 | Nix | Buio quasi totale, stelle immobili, rocce nere e neve grigia | Ripetitori spenti, ossari nelle miniere, antenne spezzate, porte senza corrente | Salti tra crateri, piattaforme che cedono, cavi sospesi |
@@ -299,10 +307,8 @@ fatto.
 
 Tutto è ridisegnato in cartoon. Già fatti: NightKnight (posa e sette
 animazioni), Bianca, i prigionieri illuminati, cielo, fondali e terreno di
-Titano. Delle immagini vecchie restano solo le meccaniche delle prove (scale,
-porte, punte, cavallo, lancia) finché non vengono ridisegnate; tutto il resto è
-in `assets/inutili/`.
-Prompt e stato di ogni immagine: `assets/PROMPT.md`.
+Titano, i nemici di Titano e il suo Guardiano. Delle immagini del vecchio
+prototipo non resta nulla: sono tutte in `assets/inutili/`.
 
 ## Ancora da decidere
 
