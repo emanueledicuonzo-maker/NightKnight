@@ -154,7 +154,7 @@ def gen_surface(c):
 TITAN_ARENAS = [22, 72, 124, 176]
 TITAN_WAVES = [
     dict(name="PRIMO CONTATTO", roster=[("skeleton", 3), ("miner", 1)]),
-    dict(name="LO SCIAME", roster=[("skeleton", 10), ("lizard", 3), ("miner", 2)]),
+    dict(name="LO SCIAME", roster=[("skeleton", 12), ("lizard", 3), ("miner", 2)], alive=17, every=6),
     dict(name="DAL CIELO E DAL SUOLO", roster=[("skeleton_fly", 6), ("worm", 3)]),
     dict(name="LA NUBE", roster=[("crow", 20), ("jelly", 6), ("skeleton_fly", 4)], alive=12),
 ]

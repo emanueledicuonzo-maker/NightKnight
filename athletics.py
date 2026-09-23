@@ -28,7 +28,7 @@ class Rope:
     def draw(self, screen, cam):
         a = (int(self.anchor.x) - cam, int(self.anchor.y))
         b = (int(self.body.position.x) - cam, int(self.body.position.y))
-        left, right = 31*TILE-cam, 41*TILE-cam
+        left, right = a[0] - 5*TILE, a[0] + 5*TILE      # portale del cavo, sopra le rive
         for x in (left, right):
             pygame.draw.line(screen, (36, 32, 28), (x, FLOOR), (x, a[1]-12), 18)
             pygame.draw.line(screen, (108, 95, 73), (x-3, FLOOR), (x-3, a[1]-12), 4)
@@ -36,13 +36,16 @@ class Rope:
         pygame.draw.line(screen, (108, 95, 73), (left-12, a[1]-5), (right+12, a[1]-5), 4)
         pygame.draw.line(screen, (32, 39, 28), a, b, 9)
         pygame.draw.line(screen, (124, 130, 88), a, b, 4)
-        pygame.draw.circle(screen, (164, 148, 105), b, 9, 3)
+        # impugnatura ben visibile: e' li' che ci si aggrappa saltando
+        pygame.draw.circle(screen, (24, 18, 14), b, 17)
+        pygame.draw.circle(screen, (236, 190, 96), b, 13, 5)
 
 
 class Cable:
     def __init__(self, x):
         self.rope = Rope(x)
         self.attached = False
+        self.regrab = 0
 
     def interact(self, p, lv):
         if self.attached:
@@ -58,6 +61,7 @@ class Cable:
 
     def release(self, p):
         self.attached = False
+        self.regrab = 30          # appena lasciato, non riprenderlo subito
         p.vx = max(-12, min(12, self.rope.body.velocity.x / 60))
         p.vy = max(-22, min(-8, self.rope.body.velocity.y / 60 - 8))
         p.on_ground = False
@@ -66,6 +70,12 @@ class Cable:
     def update_player(self, p, keys, lv):
         steering = int(keys[pygame.K_RIGHT] or keys[pygame.K_d]) - int(keys[pygame.K_LEFT] or keys[pygame.K_a])
         self.rope.update(steering if self.attached else 0)
+        self.regrab = max(0, self.regrab - 1)
+        if not self.attached and not p.on_ground and not self.regrab:
+            # in salto, toccare il capo del cavo basta per aggrapparsi
+            hand = pymunk.Vec2d(p.rect.centerx, p.y + 45)
+            if hand.get_distance(self.rope.body.position) < 110:
+                self.interact(p, lv)
         if self.attached:
             p.x = self.rope.body.position.x - p.w / 2
             p.y = self.rope.body.position.y - 45

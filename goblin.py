@@ -26,6 +26,7 @@ SKY_PAN = 360        # di quanto scorre il cielo dall'inizio alla fine del livel
 ZOOM = 1.5
 VW, VH = int(W / ZOOM), int(H / ZOOM)
 LUCE_MAX, LUCE_UNIT, LUCE_PER_PRISONER = 100, 25, 5
+LAKE_LEVEL = 22      # il metano sta un po' sotto il bordo del terreno
 BURST_FRAMES = 70    # durata del volo di Bianca durante la raffica
 TITAN_N = 6          # il terreno di Titano copre 6x6 tessere
 ROWS = 17
@@ -104,10 +105,44 @@ class Gfx:
             top = img.get_height() // 30          # striscia scura sopra la superficie
             img = img.subsurface((0, top, img.get_width(), img.get_height() - top))
             self.titan_ground = pygame.transform.smoothscale(img, (TILE * TITAN_N, TILE * TITAN_N))
-        self.titan_lake = pygame.Surface((TILE, H - GROUND * TILE), pygame.SRCALPHA)
-        self.titan_lake.fill((23, 12, 13, 255))
-        for y in range(18, self.titan_lake.get_height(), 24):
-            pygame.draw.line(self.titan_lake, (143, 66, 24, 155), (5, y), (TILE - 5, y), 2)
+        # Lago di metano: liquido scuro, un po' sotto il bordo, che riflette il cielo.
+        depth = H - GROUND * TILE
+        self.titan_lake = pygame.Surface((TILE, depth), pygame.SRCALPHA)
+        for y in range(LAKE_LEVEL, depth):
+            k = (y - LAKE_LEVEL) / (depth - LAKE_LEVEL)
+            top, low = (132, 70, 34), (12, 7, 8)
+            color = tuple(int(a + (b - a) * min(1, k * 2.2)) for a, b in zip(top, low))
+            pygame.draw.line(self.titan_lake, color + (255,), (0, y), (TILE, y))
+        # Vignettatura: bordi dello schermo appena piu' scuri
+        self.vignette = pygame.Surface((W, H), pygame.SRCALPHA)
+        for i in range(60):
+            a = int(90 * (1 - i / 60) ** 2)
+            pygame.draw.rect(self.vignette, (10, 4, 2, a), (i * 6, i * 4, W - i * 12, H - i * 8), 6)
+        # Ombra sui fianchi delle rocce
+        self.rock_shade = pygame.Surface((18, TILE), pygame.SRCALPHA)
+        for x in range(18):
+            pygame.draw.line(self.rock_shade, (30, 14, 8, 120 - x * 6), (x, 0), (x, TILE))
+        self.rock_shade_r = pygame.transform.flip(self.rock_shade, True, False)
+        # Scala di servizio in acciaio, con i contorni del cartoon
+        self.titan_ladder = pygame.Surface((TILE, TILE), pygame.SRCALPHA)
+        for x in (12, TILE - 18):
+            pygame.draw.rect(self.titan_ladder, (22, 18, 16), (x - 2, 0, 10, TILE))
+            pygame.draw.rect(self.titan_ladder, (104, 100, 96), (x, 0, 6, TILE))
+        for y in range(8, TILE, 16):
+            pygame.draw.rect(self.titan_ladder, (22, 18, 16), (12, y - 2, TILE - 24, 8))
+            pygame.draw.rect(self.titan_ladder, (140, 132, 122), (14, y, TILE - 28, 4))
+        # Portello stagno dell'uscita
+        self.airlock = pygame.Surface((TILE * 2, TILE * 3), pygame.SRCALPHA)
+        a = self.airlock
+        pygame.draw.rect(a, (20, 16, 14), a.get_rect(), border_radius=18)
+        pygame.draw.rect(a, (92, 86, 80), a.get_rect().inflate(-10, -10), border_radius=14)
+        pygame.draw.rect(a, (46, 42, 40), a.get_rect().inflate(-34, -34), border_radius=10)
+        for y in range(30, TILE * 3 - 30, 26):
+            pygame.draw.polygon(a, (226, 176, 48), [(17, y), (27, y + 10), (27, y + 20), (17, y + 10)])
+            pygame.draw.polygon(a, (226, 176, 48), [(TILE * 2 - 17, y), (TILE * 2 - 27, y + 10), (TILE * 2 - 27, y + 20), (TILE * 2 - 17, y + 10)])
+        pygame.draw.circle(a, (20, 16, 14), (TILE, TILE + 20), 22)
+        pygame.draw.circle(a, (150, 140, 128), (TILE, TILE + 20), 17, 5)
+        pygame.draw.circle(a, (110, 220, 140), (TILE, 32), 8)
         self.deco = {
             "t": assets.load("tomb1", TILE, TILE, assets.pix(px.TOMB, scale=4)),
             "+": assets.load("cross", TILE, TILE, assets.pix(px.CROSS, scale=4)),
@@ -191,6 +226,8 @@ class Gfx:
         return self.bg_cache["title"]
 
     def titan_tile(self, ch, c, r):
+        if ch == "H":
+            return self.titan_ladder
         if self.titan_ground is None or ch not in "#D":
             return None
         row = 0 if ch == "#" else 1 + r % (TITAN_N - 1)
@@ -203,6 +240,23 @@ class Gfx:
             sky = self.background("sky", num)
             k = (W + pan) / sky.get_width()
             self.bg_cache[key] = pygame.transform.smoothscale(sky, (W + pan, int(sky.get_height() * k)))
+        return self.bg_cache[key]
+
+    def sized(self, img, k):
+        if k == 1.0:
+            return img
+        key = ("sized", id(img), k)
+        if key not in self.bg_cache:
+            self.bg_cache[key] = pygame.transform.smoothscale(img, (int(img.get_width() * k), int(img.get_height() * k)))
+        return self.bg_cache[key]
+
+    def white(self, img):
+        """Sagoma bianca per il lampo del colpo."""
+        key = ("white", id(img))
+        if key not in self.bg_cache:
+            w = img.copy()
+            w.fill((255, 255, 255), special_flags=pygame.BLEND_RGB_MAX)
+            self.bg_cache[key] = w
         return self.bg_cache[key]
 
     def mirrored(self, img):
@@ -820,6 +874,10 @@ class Walker(Skeleton):
         self.kind, self.spec = kind, spec
         self.hp, self.dmg = spec["hp"], spec["dmg"]
         self.lunge_t = 0
+        # nessuno uguale all'altro: taglia e passo cambiano un poco
+        self.scale = random.choice((0.92, 0.97, 1.0, 1.04, 1.08))
+        self.pace = random.uniform(0.85, 1.15)
+        self.flash = 0
 
     def attack_box(self):
         if 0 < self.hit_t <= 12:
@@ -829,6 +887,9 @@ class Walker(Skeleton):
 
     def update(self, lv, player):
         spec = self.spec
+        if self.y > H + 200:              # finito in un lago di metano
+            self.alive = False
+            return
         if spec["speed"] == 0:                 # il verme resta dove emerge
             self.t += 1
             dist = player.x - self.x
@@ -844,7 +905,7 @@ class Walker(Skeleton):
                 self.lunge_t -= 1
             elif abs(dist) < 320 and self.t % 90 == 0:
                 self.lunge_t = 28
-        speed = 7.0 if self.lunge_t else spec["speed"]
+        speed = 7.0 if self.lunge_t else spec["speed"] * self.pace
         self.t += 1
         if self.frozen:
             self.frozen -= 1
@@ -867,8 +928,12 @@ class Walker(Skeleton):
         frames = gfx.foes[self.kind]
         attacking = 0 < self.hit_t <= 18 or self.lunge_t
         img = frames[1] if (attacking or (self.spec["speed"] and (self.t // 10) % 2)) else frames[0]
+        img = gfx.sized(img, self.scale)
         if self.facing < 0:
             img = assets.flip(img)
+        if self.flash:
+            self.flash -= 1
+            img = gfx.white(img)
         self.draw_img(s, img, cam)
         if self.frozen:
             pygame.draw.rect(s, (150, 220, 255), (int(self.x) - cam, self.y, self.w, self.h), 4)
@@ -914,6 +979,9 @@ class Flyer(Crow):
         img = frames[(self.t // (12 if self.spec.get("drift") else 5)) % 2]
         if self.facing < 0:
             img = assets.flip(img)
+        if getattr(self, "flash", 0):
+            self.flash -= 1
+            img = gfx.white(img)
         self.draw_img(s, img, cam)
 
 
@@ -976,9 +1044,13 @@ class Effect:
 class Game:
     def __init__(self, windowed=False, save_path=progress.DEFAULT_PATH):
         pygame.init()
-        flags = 0 if windowed else pygame.FULLSCREEN | pygame.SCALED
+        # SCALED ingrandisce la risoluzione logica allo schermo: su un 4K anche la
+        # finestra occupa lo schermo invece di un quarto. Senza video (test) niente scala.
+        headless = os.environ.get("SDL_VIDEODRIVER") == "dummy"
+        flags = 0 if headless else (pygame.SCALED | pygame.RESIZABLE if windowed else pygame.FULLSCREEN | pygame.SCALED)
         self.screen = pygame.display.set_mode((W, H), flags)
         self.luce, self.freed = 0, set()      # Luce di Bianca e prigionieri gia' liberati
+        self.sparks, self.shake = [], 0       # scintille dei colpi e scossa dello schermo
         self.reached_pass = False             # su Titano: arrivati alla traversata
         pygame.display.set_caption("NightKnight")
         self.clock = pygame.time.Clock()
@@ -1194,6 +1266,12 @@ class Game:
             self.start_part("surface")
 
     # ---- danni
+    def burst_sparks(self, x, y, n, color=(255, 214, 150)):
+        for _ in range(n):
+            a = random.uniform(0, math.tau)
+            v = random.uniform(2, 9)
+            self.sparks.append([x, y, math.cos(a) * v, math.sin(a) * v - 2, random.randint(14, 28), color])
+
     def hurt_player(self, dmg, from_x):
         p = self.player
         if (p.invuln or self.state != "play" or (p.attack and p.attack[0] == "albedo")
@@ -1208,6 +1286,8 @@ class Game:
         self.jb.fx("hurt")
         # NightKnight non perde mai l'armatura: un colpo toglie solo vita.
         p.hp = max(0, p.hp - dmg)
+        self.shake = 14
+        self.burst_sparks(p.rect.centerx, p.rect.centery, 14, (255, 140, 100))
         if p.hp == 0:
             self.die()
 
@@ -1245,6 +1325,9 @@ class Game:
         # ferisce davvero, le altre incidono appena la corazza o l'ectoplasma.
         weapon = self.player.weapon
         multiplier = weapon["damage"] if weapon["affinity"] == self.cfg["affinity"] else 0.35
+        e.flash = 6
+        if hasattr(e, "rect"):
+            self.burst_sparks(e.rect.centerx, e.rect.centery, 10)
         e.hp -= max(1, int(dmg * multiplier))
         bony = isinstance(e, Skeleton) and getattr(e, "kind", "skeleton").startswith("skeleton")
         self.jb.fx("hit" if bony or isinstance(e, Ghost) else "flesh_hit")
@@ -1253,6 +1336,9 @@ class Game:
         if e.hp <= 0:
             e.alive = False
             self.score += pts
+            if hasattr(e, "rect"):
+                self.shake = max(self.shake, 6 if e.rect.h > 300 else 3)
+                self.burst_sparks(e.rect.centerx, e.rect.centery, 22)
             if bony:
                 self.jb.fx("bones")
 
@@ -1309,6 +1395,10 @@ class Game:
         for e in self.effects:
             e.update()
         self.effects = [e for e in self.effects if e.alive]
+        for sp in self.sparks:
+            sp[0] += sp[2]; sp[1] += sp[3]; sp[3] += 0.4; sp[4] -= 1
+        self.sparks = [sp for sp in self.sparks if sp[4] > 0]
+        self.shake = max(0, self.shake - 1)
         target = p.rect.centerx - VW // 2
         self.cam = int(max(0, min(target, self.lv.w - VW)))
         lock = self.waves.lock() if self.waves else None
@@ -1431,6 +1521,7 @@ class Game:
                 if self.boss and b.alive and b.rect.colliderect(self.boss.rect):
                     if self.boss.hit(b.dmg):
                         self.score += 50
+                        self.shake = max(self.shake, 5)
                         self.jb.fx("boss_hit")
                     b.alive = False
             if b.owner == "boss" and b.alive and b.rect.colliderect(p.hurtbox()):
@@ -1461,7 +1552,7 @@ class Game:
                 br = bs.rect
                 abox, adm = p.attack_box()
                 if abox and abox.colliderect(br) and bs.hit(adm, p.power if p.attack[0] == "throw" else None):
-                    self.score += 50; self.jb.fx("boss_hit")
+                    self.score += 50; self.shake = max(self.shake, 5); self.jb.fx("boss_hit")
                 if not bs.hidden and p.hurtbox().colliderect(br):
                     if p.vy > 0 and r.bottom - br.top < 50:
                         p.vy = -14
@@ -1583,37 +1674,50 @@ class Game:
             highlight = tuple(min(255, int(v * 1.2 + 15)) for v in color)
             pygame.draw.line(s, highlight, (left, y + 2), (left + fw - 1, y + 2))
 
+    def pill(self, x, y, w, h, frac, color, back=(18, 14, 12, 150)):
+        """Barra sottile e arrotondata, con un filo di luce sul riempimento."""
+        s = self.screen
+        bg = pygame.Surface((w + 4, h + 4), pygame.SRCALPHA)
+        pygame.draw.rect(bg, back, bg.get_rect(), border_radius=(h + 4) // 2)
+        s.blit(bg, (x - 2, y - 2))
+        fw = int(w * max(0, min(1, frac)))
+        if fw > h // 2:
+            pygame.draw.rect(s, color, (x, y, fw, h), border_radius=h // 2)
+            hi = tuple(min(255, v + 45) for v in color)
+            pygame.draw.line(s, hi, (x + h // 2, y + 2), (x + fw - h // 2, y + 2), 2)
+
     def draw_hud(self):
+        """HUD essenziale: vita e Luce in alto a sinistra, punti piccoli a destra;
+        la vita del Guardiano in basso, solo durante il duello."""
         s, p = self.screen, self.player
-        s.blit(self.hud_shade, (0, 0))
-        px.draw_text(s, "NIGHTKNIGHT", 40, 22, (229, 229, 220), scale=5)
-        px.draw_text(s, f"{self.lives} VITE", 350, 28, (181, 190, 194), scale=3)
-        self.bar(40, 66, 400, p.hp / PLAYER_HP, (64, 153, 116) if p.hp > 30 else (183, 65, 67))
-        px.draw_text(s, f"{p.hp} / {PLAYER_HP}", 460, 60, (213, 220, 219), scale=3)
-        px.draw_text(s, "LUCE", 40, 94, (202, 178, 119), scale=3)
-        self.bar(130, 98, 310, p.albedo / 100, (186, 155, 82))
-        if p.albedo >= LUCE_UNIT:
-            px.draw_text(s, f"V x{p.albedo // LUCE_UNIT}", 460, 92, (224, 198, 129), scale=3)
-        weapon = getattr(p, "weapon", None)
-        if weapon:
-            label = weapon["name"].upper()
-            px.draw_text(s, label, 40, 178, (190, 210, 225), scale=3)
-        title = f"SATELLITE {ROMAN[self.ci]} - {self.cfg['name']}"
-        px.draw_text(s, title, W // 2 - px.text_width(title, 5) // 2, 24, scale=5)
-        sub = {"surface": "SUPERFICIE", "crypt": "SOTTO LA CROSTA", "trials": "LA TRAVERSATA", "arena": "IL DUELLO"}[self.part]
-        px.draw_text(s, sub, W // 2 - px.text_width(sub, 4) // 2, 60, (200, 200, 220), scale=4)
-        sc = f"PUNTI {self.score:08d}"
-        px.draw_text(s, sc, W - 40 - px.text_width(sc, 5), 24, (222, 201, 150), scale=5)
+        if not hasattr(self, "hud_icon"):
+            self.hud_icon = assets.load("emblema", 64, 64, by_height=True) if assets.has("emblema") else None
+        x0, y0 = 48, 40
+        if self.hud_icon:
+            s.blit(self.hud_icon, (x0, y0 - 6))
+            x0 += self.hud_icon.get_width() + 18
+        hurt = p.hp <= 30
+        self.pill(x0, y0, 360, 14, p.hp / PLAYER_HP, (205, 92, 72) if hurt else (238, 226, 204))
+        # Luce: quattro tacche, una per unita' di raffica di Bianca
+        for i in range(LUCE_MAX // LUCE_UNIT):
+            fill = max(0, min(1, (p.albedo - i * LUCE_UNIT) / LUCE_UNIT))
+            glow = (255, 214, 120) if fill >= 1 else (186, 150, 92)
+            self.pill(x0 + i * 92, y0 + 28, 80, 10, fill, glow)
+        for i in range(self.lives):
+            pygame.draw.circle(s, (238, 226, 204), (x0 + 380 + i * 22, y0 + 7), 6)
+        sc = f"{self.score}"
+        px.draw_text(s, sc, W - 48 - px.text_width(sc, 4), y0 - 6, (238, 226, 204), scale=4)
         if self.boss:
             name = self.cfg["boss"].upper()
-            px.draw_text(s, name, W - 40 - px.text_width(name, 4), 130, scale=4)
-            self.bar(W - 440, 66, 400, self.boss.hp / self.boss.max_hp, (172, 66, 77), right=True)
+            bx, by, bw = W // 2 - 420, H - 70, 840
+            px.draw_text(s, name, W // 2 - px.text_width(name, 3) // 2, by - 34, (238, 226, 204), scale=3)
+            self.pill(bx, by, bw, 12, self.boss.hp / self.boss.max_hp, (196, 84, 60))
             for i in range(2):
-                pygame.draw.circle(s, (222, 201, 150) if i < self.rounds[0] else (65, 70, 76), (580 + i * 28, 73), 7)
-                pygame.draw.circle(s, (172, 66, 77) if i < self.rounds[1] else (65, 70, 76), (W - 580 - i * 28, 73), 7)
+                pygame.draw.circle(s, (238, 226, 204) if i < self.rounds[0] else (60, 50, 44), (bx - 30 - i * 22, by + 6), 6)
+                pygame.draw.circle(s, (196, 84, 60) if i < self.rounds[1] else (60, 50, 44), (bx + bw + 30 + i * 22, by + 6), 6)
         if self.msg:
             t, n, col = self.msg
-            px.draw_text(s, t, W // 2 - px.text_width(t, 14) // 2, 380, col, scale=14)
+            px.draw_text(s, t, W // 2 - px.text_width(t, 12) // 2, 380, col, scale=12)
 
     def draw_world(self):
         s, cam, lv = self.screen, self.cam, self.lv
@@ -1659,6 +1763,14 @@ class Game:
                 if lv.g[GROUND][c] == ".":
                     pit = self.gfx.titan_lake if self.ci == 0 else self.pit_shade
                     s.blit(pit, (c * TILE - cam, GROUND * TILE))
+                    if self.ci == 0:
+                        # riflessi che scorrono piano sulla superficie del metano
+                        y = GROUND * TILE + LAKE_LEVEL
+                        for i in range(3):
+                            ph = (self.frame * (0.6 + i * 0.25) + c * 37 + i * 90) % 140
+                            if ph < TILE:
+                                pygame.draw.line(s, (236, 168, 96), (c * TILE - cam + ph, y + 3 + i * 7),
+                                                 (c * TILE - cam + min(TILE, ph + 22 - i * 6), y + 3 + i * 7), 2)
             if self.ci == 0:
                 haze = pygame.Surface((W, 105), pygame.SRCALPHA)
                 for yy in range(haze.get_height()):
@@ -1676,14 +1788,40 @@ class Game:
                 if ch in self.gfx.tiles:
                     tile = self.gfx.titan_tile(ch, c, r) if self.ci == 0 else None
                     s.blit(tile or self.gfx.tiles[ch], (x, y))
+                    if self.ci == 0 and ch in "#D":
+                        self.rock_edges(s, lv, c, r, x, y)
                 elif ch == "Y" and "Y" in self.gfx.deco:
                     s.blit(self.gfx.deco["Y"], (x - TILE // 2, y - TILE * 2))
                 elif ch == "E":
-                    s.blit(self.gfx.deco["E"], (x, y - TILE))
+                    s.blit(self.gfx.airlock, (x - TILE // 2, y + TILE - self.gfx.airlock.get_height()))
                 elif ch == "t" and "t2" in self.gfx.deco and c % 2:
                     s.blit(self.gfx.deco["t2"], (x, y))
                 elif ch in self.gfx.deco:
                     s.blit(self.gfx.deco[ch], (x, y))
+
+    def draw_drizzle(self, s):
+        """Pioviggine di metano: gocce lente e pesanti, in diagonale, davanti a tutto."""
+        if not hasattr(self, "drops"):
+            rnd = random.Random(7)
+            self.drops = [(rnd.randrange(W), rnd.randrange(H), rnd.uniform(3, 6)) for _ in range(140)]
+        t = self.frame
+        for x0, y0, v in self.drops:
+            y = (y0 + t * v) % H
+            x = (x0 - t * v * 0.35 - self.cam * 0.6) % W
+            pygame.draw.line(s, (255, 208, 160), (x, y), (x - 4, y + 16), 1)
+
+    def rock_edges(self, s, lv, c, r, x, y):
+        """Contorno e ombra dove la roccia incontra l'aria: le pareti hanno un
+        volume invece di sembrare blocchi di texture."""
+        air = lambda cc, rr: lv.at(cc, rr) not in SOLID
+        if air(c - 1, r):
+            s.blit(self.gfx.rock_shade, (x, y))
+            pygame.draw.line(s, (24, 14, 10), (x, y), (x, y + TILE), 4)
+        if air(c + 1, r):
+            s.blit(self.gfx.rock_shade_r, (x + TILE - self.gfx.rock_shade_r.get_width(), y))
+            pygame.draw.line(s, (24, 14, 10), (x + TILE - 2, y), (x + TILE - 2, y + TILE), 4)
+        if air(c, r - 1) and r < GROUND:
+            pygame.draw.line(s, (24, 14, 10), (x, y), (x + TILE, y), 4)
 
     def draw_center(self, text, y, color=(245, 245, 245), scale=8):
         px.draw_text(self.screen, text, W // 2 - px.text_width(text, scale) // 2, y, color, scale)
@@ -1774,10 +1912,16 @@ class Game:
             p.draw(s, self.gfx, cam)
         for e in self.effects:
             px.draw_text(s, e.text, int(e.x) - cam, int(e.y), e.color, 4)
+        for x, y, vx, vy, life, color in self.sparks:
+            pygame.draw.line(s, color, (int(x) - cam, int(y)), (int(x - vx * 1.5) - cam, int(y - vy * 1.5)), 3)
         # la vista del mondo si ingrandisce sopra cielo e fondali
         self.screen = s = screen
         view = self.world_surf.subsurface((0, VIEW_Y, VW, VH))
-        s.blit(pygame.transform.smoothscale(view, (W, H)), (0, 0))
+        jolt = (random.randint(-self.shake, self.shake), random.randint(-self.shake, self.shake)) if self.shake else (0, 0)
+        s.blit(pygame.transform.smoothscale(view, (W, H)), jolt)
+        if self.ci == 0 and self.part in ("surface", "arena"):
+            self.draw_drizzle(s)
+        s.blit(self.gfx.vignette, (0, 0))
         self.draw_hud()
         if self.state == "card":
             ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 170)); s.blit(ov, (0, 0))
