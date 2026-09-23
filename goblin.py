@@ -661,6 +661,7 @@ class Crow(Entity):
         if self.state == "wait":
             if abs(dx) < 800:
                 self.state = "dive"
+                self.cawed = True
                 self.facing = 1 if dx > 0 else -1
                 self.t = 0
         elif self.state == "dive":
@@ -877,7 +878,7 @@ class Game:
         self.spawn()
         self.state = "card"
         self.card_t = 150
-        self.jb.play({"surface": "surface", "crypt": "crypt", "trials": "surface", "arena": "arena"}[part])
+        self.jb.play({"surface": "surface", "crypt": "crypt", "trials": "trials", "arena": "arena"}[part])
         self.save_progress(checkpoint=True)
 
     def spawn(self):
@@ -925,6 +926,7 @@ class Game:
         self.intro = 150
         self.round_no = self.rounds[0] + self.rounds[1] + 1
         self.msg = (f"ROUND {self.round_no}", 90, (250, 210, 60))
+        self.jb.fx("round")
         self.ko_wait = 0
 
     def next_part(self):
@@ -976,7 +978,7 @@ class Game:
 
     def die(self):
         self.state, self.state_t = "dead", 0
-        self.jb.fx("ko")
+        self.jb.fx("death")
 
     def hit_enemy(self, e, dmg, power=None, pts=100):
         if not e.alive:
@@ -993,6 +995,8 @@ class Game:
         if e.hp <= 0:
             e.alive = False
             self.score += pts
+            if isinstance(e, Skeleton):
+                self.jb.fx("bones")
 
     # ---- aggiornamento
     def update(self):
@@ -1057,12 +1061,14 @@ class Game:
                 self.geyser_hint = True
             if geyser.update(p):
                 self.hurt_player(25, geyser.x)
+            if geyser.phase != geyser.previous_phase and abs(geyser.x - p.x) < W:
+                self.jb.fx({"warning": "geyser_warn", "eruption": "geyser"}.get(geyser.phase, "none"))
             if self.state != "play":
                 return
         for spento in self.spenti:
             if spento.update(p):
                 p.albedo = min(100, p.albedo + 20)
-                self.jb.fx("pickup")
+                self.jb.fx("prisoner")
                 self.effects.append(Effect(spento.x, spento.floor - 190, "LUCE LIBERATA", (255, 201, 120)))
         # punte
         if any(self.lv.tile_at(x, r.bottom - 6) == "^" or
@@ -1078,7 +1084,7 @@ class Game:
             if self.trials and not self.trials.complete:
                 self.msg = (f"PROVE {len(self.trials.done)} / 5", 60, (222, 201, 150))
             else:
-                self.jb.fx("pickup")
+                self.jb.fx("door")
                 self.next_part()
                 return
         # zombie
@@ -1098,6 +1104,9 @@ class Game:
             k.update(self.lv, p)
         for cr in self.crows:
             cr.update(self.lv, p)
+            if getattr(cr, "cawed", False):
+                cr.cawed = False
+                self.jb.fx("caw")
         for gh in self.ghosts:
             gh.update(self.lv, p)
         for b in self.balls:
@@ -1127,7 +1136,7 @@ class Game:
                 elif p.vy > 0 and r.bottom - er.top < 40 and not isinstance(e, Ghost):
                     self.hit_enemy(e, 10, pts=pts)
                     p.vy = -14
-                    self.jb.fx("jump")
+                    self.jb.fx("stomp")
                 elif not getattr(e, "frozen", 0):
                     self.hurt_player(25, e.x)
             sb = e.attack_box() if isinstance(e, Skeleton) else None
@@ -1146,7 +1155,7 @@ class Game:
                     if self.boss.hit(b.dmg):
                         self.score += 50
                         p.albedo = min(100, p.albedo + 8)
-                        self.jb.fx("hit")
+                        self.jb.fx("boss_hit")
                     b.alive = False
             if b.owner == "boss" and b.alive and b.rect.colliderect(p.hurtbox()):
                 b.alive = False
@@ -1176,7 +1185,7 @@ class Game:
                 br = bs.rect
                 abox, adm = p.attack_box()
                 if abox and abox.colliderect(br) and bs.hit(adm, p.power if p.attack[0] == "throw" else None):
-                    self.score += 50; p.albedo = min(100, p.albedo + 8); self.jb.fx("hit")
+                    self.score += 50; p.albedo = min(100, p.albedo + 8); self.jb.fx("boss_hit")
                 if not bs.hidden and p.hurtbox().colliderect(br):
                     if p.vy > 0 and r.bottom - br.top < 50:
                         p.vy = -14
@@ -1197,7 +1206,7 @@ class Game:
             points = self.trials.check_targets(self.balls)
             if points:
                 self.score += points
-                self.jb.fx("hit")
+                self.jb.fx("target")
         self.balls = [b for b in self.balls if b.alive]
 
     def lose_life(self):
@@ -1284,16 +1293,19 @@ class Game:
                 if p.do_jump():
                     self.jb.fx("jump")
         elif k == pygame.K_z:
-            p.start_attack("throw")
+            if p.start_attack("throw"):
+                self.jb.fx("sword")
         elif k == pygame.K_x:
-            p.start_attack("punch")
+            if p.start_attack("punch"):
+                self.jb.fx("throw")
         elif k == pygame.K_c:
-            p.start_attack("kick")
+            if p.start_attack("kick"):
+                self.jb.fx("swing")
         elif k == pygame.K_v:
             if p.albedo >= 100 and p.start_attack("albedo"):
                 p.albedo = 0
                 p.invuln = 45
-                self.jb.fx("albedo")
+                self.jb.fx("luce")
 
     # ---- disegno
     def bar(self, x, y, w, frac, color, right=False):

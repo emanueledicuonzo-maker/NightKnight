@@ -1,4 +1,4 @@
-"""Colonna sonora ambient dark fantasy ed effetti sintetizzati localmente."""
+"""Musica (solo basso e percussioni leggere) ed effetti, sintetizzati localmente."""
 import numpy as np
 import pygame
 
@@ -32,142 +32,215 @@ def _midi(n):
     return 440.0 * 2 ** ((n - 69) / 12)
 
 
-def _drum(kind, n):
+def _lowpass(x, k):
+    """Filtro passa-basso a un polo: k piccolo = suono piu' scuro."""
+    y = np.empty_like(x)
+    acc = 0.0
+    for i, v in enumerate(x):
+        acc += k * (v - acc)
+        y[i] = acc
+    return y
+
+
+def _noise(n, seed):
+    return np.random.default_rng(seed).uniform(-1, 1, n)
+
+
+def _bass_note(freq, n, grit):
+    """Basso elettrico sintetico: fondamentale piena, un po' di sega filtrata e saturazione."""
     t = np.arange(n) / SR
-    if kind == "kick":
-        return np.sin(2 * np.pi * (120 * np.exp(-t * 30) + 40) * t) * np.exp(-t * 18)
-    if kind == "snare":
-        rng = np.random.default_rng(1)
-        return (rng.uniform(-1, 1, n) * 0.7 + 0.3 * np.sin(2 * np.pi * 180 * t)) * np.exp(-t * 25)
-    rng = np.random.default_rng(2)
-    return rng.uniform(-1, 1, n) * np.exp(-t * 90) * 0.5
+    body = np.sin(2 * np.pi * freq * t) + 0.45 * np.sin(2 * np.pi * freq * 2 * t)
+    saw = _lowpass(2 * ((freq * t) % 1) - 1, 0.08)
+    wave = np.tanh((body + grit * saw) * 1.6)
+    pluck = 1 - np.exp(-t * 400)
+    return wave * pluck * np.exp(-t * 1.6)
 
 
-def _render(bpm, bars, chords, bass_riff, lead_bars, key=40, drums=True, lead_kind="square"):
-    """chords: lista di semitoni per barra (12-bar). bass_riff: 8 semitoni (shuffle). lead_bars: lista di frasi,
-    ogni frase = lista di (step, semitono relativo alla tonica, durata in step); 12 step per barra (4 beat x 3)."""
-    step = 60 / bpm / 3
-    n_bar = int(12 * step * SR)
-    total = n_bar * bars
-    out = np.zeros(total)
-
-    def add(pos, wave):
-        end = min(total, pos + len(wave))
-        out[pos:end] += wave[:end - pos]
-
-    for b in range(bars):
-        root = key + chords[b % len(chords)]
-        base = b * n_bar
-        # basso boogie
-        for i, semi in enumerate(bass_riff):
-            pos = base + int((i * 1.5) * step * SR)
-            n = int(1.2 * step * SR)
-            f = _midi(root + semi - 12)
-            wave = 0.8 * _osc(f, n, "sine") + 0.2 * _osc(f, n, "tri")
-            add(pos, wave * _env(n, 0.01, 0.08, 0.6, 0.06) * 0.6)
-        # solo il basso (niente melodia, niente batteria)
-    out = np.tanh(out * 1.1) * 0.7
-    stereo = np.stack([out, out], axis=1)
-    return pygame.sndarray.make_sound((stereo * 32000).astype(np.int16))
+def _perc(kind, n):
+    t = np.arange(n) / SR
+    if kind == "kick":       # cassa morbida, piu' tonfo che colpo
+        return np.sin(2 * np.pi * (46 * t + 2.2 * (1 - np.exp(-t * 20)))) * np.exp(-t * 11) * (1 - np.exp(-t * 300))
+    if kind == "rim":        # colpo di bordo secco, al posto del rullante
+        return (np.sin(2 * np.pi * 830 * t) * 0.5 + _lowpass(_noise(n, 5), 0.5) * 0.6) * np.exp(-t * 60)
+    if kind == "brush":      # spazzola sul rullante
+        return _lowpass(_noise(n, 6), 0.35) * np.exp(-t * 14) * (1 - np.exp(-t * 80))
+    # "hat": charleston chiuso, appena accennato
+    hp = _noise(n, 7) - _lowpass(_noise(n, 7), 0.3)
+    return hp * np.exp(-t * 90)
 
 
-TWELVE = [0, 0, 0, 0, 5, 5, 0, 0, 7, 5, 0, 7]
-BOOGIE = [0, 0, 7, 7, 9, 9, 10, 10]
-PENTA_A = [(0, 12, 2), (3, 10, 2), (6, 7, 1), (7, 5, 1), (9, 7, 2)]
-PENTA_B = [(0, 7, 1), (1, 10, 1), (3, 12, 2), (6, 15, 1), (7, 12, 1), (9, 10, 3)]
-PENTA_C = [(0, 12, 1), (2, 12, 1), (3, 15, 2), (6, 12, 1), (7, 10, 1), (9, 7, 1), (10, 3, 2)]
-REST = [(0, None, 0)]
-TURN = [(0, 0, 1), (3, 3, 1), (6, 4, 1), (9, 5, 3)]
+# Tracce: solo basso e percussioni leggere. Un riff di due battute in re minore
+# (semitoni dalla tonica, durata in ottavi); in esplorazione il basso e' suonato
+# al contrario, quando arriva il Guardiano torna dritto.
+TRACKS = {
+    #            bpm  tonica  riff                                                 percussioni           al contrario
+    "surface":  (78,  38, [(0, 3), (0, 1), (3, 2), (5, 2), (7, 3), (5, 1), (3, 2), (-2, 2)], "sparse", True),
+    "crypt":    (66,  38, [(0, 4), (1, 2), (0, 2), (-2, 4), (-4, 4)],                          "sparse", True),
+    "trials":   (92,  38, [(0, 2), (0, 1), (12, 1), (0, 2), (3, 2), (5, 2), (3, 2), (0, 4)],   "steady", False),
+    "arena":    (104, 38, [(0, 1), (0, 1), (0, 1), (12, 1), (0, 2), (3, 2), (5, 1), (6, 1), (5, 1), (3, 1), (0, 4)], "drive", False),
+    "victory":  (70,  38, [(0, 4), (7, 4), (3, 4), (0, 4)],                                    "none", True),
+}
 
 
 def track(name):
     if name in _cache:
         return _cache[name]
-    bpm, root = {"surface": (72, 38), "crypt": (56, 33), "arena": (96, 38),
-                 "victory": (76, 50)}.get(name, (72, 38))
-    beat = 60 / bpm
-    total = int(32 * beat * SR)
-    out = np.zeros((total, 2), dtype=np.float64)
+    bpm, root, riff, groove, backwards = TRACKS.get(name, TRACKS["surface"])
+    eighth = 60 / bpm / 2
+    bars = 8                                   # il riff dura due battute: si ripete 4 volte
+    total = int(bars * 8 * eighth * SR)
+    out = np.zeros((total, 2))
 
     def add(start, wave, gain, pan=0.0):
         # Le code attraversano il punto di loop senza un taglio improvviso.
         pos = int(start * SR) % total
-        stereo = wave[:, None] * gain * np.array([1 - pan * 0.45, 1 + pan * 0.45])
+        stereo = wave[:, None] * gain * np.array([1 - pan * 0.4, 1 + pan * 0.4])
         n = min(len(wave), total - pos)
-        out[pos:pos+n] += stereo[:n]
+        out[pos:pos + n] += stereo[:n]
         if n < len(wave):
-            out[:len(wave)-n] += stereo[n:]
+            out[:len(wave) - n] += stereo[n:]
 
-    chords = [(0, 3, 7), (-5, 0, 3), (-2, 2, 5), (-7, -2, 2)]
-    if name == "victory":
-        chords = [(0, 4, 7), (5, 9, 12), (7, 11, 14), (0, 4, 7)]
-    for bar in range(8):
-        chord = chords[bar % 4]
-        n = int(beat * 5 * SR)
-        t = np.arange(n) / SR
-        envelope = np.sin(np.pi * np.arange(n) / n) ** 2
-        for j, semitone in enumerate(chord):
-            freq = _midi(root + semitone)
-            wave = (np.sin(2*np.pi*freq*t) + 0.35*np.sin(2*np.pi*freq*2.002*t)
-                    + 0.14*np.sin(2*np.pi*freq*3*t)) * envelope
-            add(bar * 4 * beat, wave, 0.075, (j - 1) * 0.65)
-        for step in (0, 2.5):
-            n = int(beat * 3 * SR)
-            t = np.arange(n) / SR
-            freq = _midi(root + chord[(bar + int(step)) % 3] + 24)
-            wave = (np.sin(2*np.pi*freq*t) + 0.22*np.sin(2*np.pi*freq*2.76*t))
-            wave *= (1 - np.exp(-t * 35)) * np.exp(-t * 2.2)
-            add((bar * 4 + step) * beat, wave, 0.055, (-1 if bar % 2 else 1) * 0.6)
-            add((bar * 4 + step + 0.75) * beat, wave, 0.018, 0.0)
-        if name == "arena":
-            for step in (0, 1.5, 2, 3.5):
-                n = int(0.6 * SR)
-                t = np.arange(n) / SR
-                drum = np.sin(2*np.pi*(48*t + 1.4*(1-np.exp(-t*16)))) * np.exp(-t*9)
-                drum *= 1 - np.exp(-t*150)
-                add((bar * 4 + step) * beat, drum, 0.13)
-    snd = pygame.sndarray.make_sound((np.tanh(out) * 24000).astype(np.int16))
+    riff_len = sum(d for _, d in riff)
+    for rep in range(bars * 8 // riff_len):
+        pos = rep * riff_len
+        for i, (semi, dur) in enumerate(riff):
+            n = int(dur * eighth * SR * 0.95)
+            # ogni quarta ripetizione il riff scende di una quarta, come un giro
+            shift = -5 if rep % 4 == 3 else 0
+            note = _bass_note(_midi(root + semi + shift), n, 0.5 if groove == "drive" else 0.3)
+            if backwards:
+                note = note[::-1] * (1 - np.exp(-np.arange(n) / SR * 200))[::-1]
+            add(pos * eighth, note, 0.42)
+            pos += dur
+
+    beats = bars * 4
+    for b in range(beats):
+        at = b * 2 * eighth
+        if groove == "none":
+            continue
+        if groove == "sparse":
+            if b % 4 == 0:
+                add(at, _perc("kick", int(0.5 * SR)), 0.30)
+            if b % 4 == 3:
+                add(at, _perc("rim", int(0.2 * SR)), 0.06, 0.3)
+            add(at + eighth, _perc("hat", int(0.08 * SR)), 0.035, -0.4)
+        else:
+            if b % 2 == 0 or groove == "drive":
+                add(at, _perc("kick", int(0.5 * SR)), 0.34 if b % 2 == 0 else 0.2)
+            if b % 2 == 1:
+                add(at, _perc("brush" if groove == "steady" else "rim", int(0.3 * SR)), 0.10 if groove == "steady" else 0.08)
+            for h in (0, 1):
+                add(at + h * eighth, _perc("hat", int(0.06 * SR)), 0.04 if h else 0.025, -0.4)
+    snd = pygame.sndarray.make_sound((np.tanh(out * 1.2) * 22000).astype(np.int16))
     _cache[name] = snd
     return snd
 
 
+def _tone(f0, f1, n, kind="sine"):
+    """Nota che scivola da f0 a f1."""
+    t = np.arange(n) / SR
+    phase = 2 * np.pi * np.cumsum(np.linspace(f0, f1, n)) / SR
+    if kind == "square":
+        return np.sign(np.sin(phase))
+    return np.sin(phase)
+
+
+def _whoosh(n, seed, bright):
+    t = np.arange(n) / SR
+    env = np.sin(np.pi * np.minimum(1, t / (n / SR))) ** 2
+    return _lowpass(_noise(n, seed), bright) * env
+
+
 def sfx(name):
-    if name in _cache:
-        return _cache[name]
-    t = None
-    if name == "jump":
-        n = int(0.15 * SR); t = np.arange(n) / SR
-        w = np.sign(np.sin(2 * np.pi * (300 + 900 * t) * t)) * np.exp(-t * 12) * 0.3
-    elif name == "throw":
-        n = int(0.12 * SR); t = np.arange(n) / SR
-        w = np.random.default_rng(3).uniform(-1, 1, n) * np.exp(-t * 40) * 0.35
-    elif name == "flesh_hit":
-        n = int(0.18 * SR); t = np.arange(n) / SR
-        noise = np.random.default_rng(12).uniform(-1, 1, n)
-        noise = np.convolve(noise, np.ones(18) / 18, mode="same")
-        w = (0.7*np.sin(2*np.pi*(70*t + 0.4*(1-np.exp(-t*30))))*np.exp(-t*32)
-             + 0.55*noise*np.exp(-t*24)) * (1-np.exp(-t*400)) * 0.65
-    elif name == "hit":
-        n = int(0.15 * SR); t = np.arange(n) / SR
-        w = (np.sign(np.sin(2 * np.pi * 110 * t)) + np.random.default_rng(4).uniform(-1, 1, n)) * np.exp(-t * 25) * 0.3
-    elif name == "hurt":
-        n = int(0.35 * SR); t = np.arange(n) / SR
-        w = np.sign(np.sin(2 * np.pi * (500 - 400 * t) * t)) * np.exp(-t * 6) * 0.3
+    key = "fx:" + name
+    if key in _cache:
+        return _cache[key]
+    L = lambda sec: int(sec * SR)
+    if name == "jump":            # spinta: soffio corto verso l'alto
+        n = L(0.18); t = np.arange(n) / SR
+        w = _whoosh(n, 1, 0.25) * 0.5 + _tone(90, 160, n) * np.exp(-t * 30) * 0.3
+    elif name == "stomp":         # atterrare sulla testa di un nemico
+        n = L(0.2); t = np.arange(n) / SR
+        w = _tone(160, 50, n) * np.exp(-t * 25) * 0.7 + _lowpass(_noise(n, 2), 0.4) * np.exp(-t * 40) * 0.4
+    elif name == "sword":         # fendente: sibilo metallico
+        n = L(0.22); t = np.arange(n) / SR
+        w = _whoosh(n, 3, 0.6) * 0.45 + _tone(1800, 900, n) * np.exp(-t * 18) * 0.08
+    elif name == "swing":         # calcio: spostamento d'aria pieno
+        n = L(0.2)
+        w = _whoosh(n, 4, 0.15) * 0.6
+    elif name == "throw":         # sasso lanciato
+        n = L(0.14)
+        w = _whoosh(n, 5, 0.45) * 0.45
+    elif name == "hit":           # colpo su ossa e metallo
+        n = L(0.16); t = np.arange(n) / SR
+        w = (_tone(420, 300, n) * 0.4 + _tone(1270, 1180, n) * 0.2) * np.exp(-t * 30) + _noise(n, 8) * np.exp(-t * 60) * 0.35
+    elif name == "flesh_hit":     # colpo su una creatura
+        n = L(0.18); t = np.arange(n) / SR
+        w = _tone(110, 60, n) * np.exp(-t * 28) * 0.7 + _lowpass(_noise(n, 12), 0.2) * np.exp(-t * 24) * 0.55
+    elif name == "bones":         # scheletro che crolla: ossa che cadono
+        n = L(0.5); t = np.arange(n) / SR
+        w = np.zeros(n)
+        rng = np.random.default_rng(9)
+        for k in range(7):
+            at = int(rng.uniform(0, 0.35) * SR); m = L(0.06)
+            f = rng.uniform(700, 1400)
+            click = np.sin(2 * np.pi * f * np.arange(m) / SR) * np.exp(-np.arange(m) / SR * 80)
+            w[at:at + m] += click[:n - at] * 0.35
+    elif name == "hurt":          # NightKnight colpito: clangore sull'armatura
+        n = L(0.35); t = np.arange(n) / SR
+        w = (_tone(230, 200, n) * 0.5 + _tone(612, 590, n) * 0.3 + _tone(1480, 1450, n) * 0.15) * np.exp(-t * 12) \
+            + _noise(n, 10) * np.exp(-t * 50) * 0.3
+    elif name == "boss_hit":      # colpo sul Guardiano: armatura pesante
+        n = L(0.45); t = np.arange(n) / SR
+        w = (_tone(140, 120, n) * 0.6 + _tone(395, 380, n) * 0.35 + _tone(955, 940, n) * 0.18) * np.exp(-t * 8) \
+            + _noise(n, 11) * np.exp(-t * 40) * 0.3
+    elif name == "prisoner":      # prigioniero liberato: luce che sale
+        n = L(0.9); t = np.arange(n) / SR
+        w = np.zeros(n)
+        for k, f in enumerate((587, 880, 1175, 1760)):
+            at = L(0.09 * k); m = n - at; tt = np.arange(m) / SR
+            w[at:] += np.sin(2 * np.pi * f * tt) * np.exp(-tt * 4) * (1 - np.exp(-tt * 200)) * 0.18
+    elif name == "door":          # uscita: portello stagno che si apre
+        n = L(0.9); t = np.arange(n) / SR
+        w = _lowpass(_noise(n, 13), 0.5) * np.exp(-t * 3) * 0.35 + _tone(70, 55, n) * np.exp(-t * 6) * 0.4
+    elif name == "target":        # bersaglio delle prove
+        n = L(0.4); t = np.arange(n) / SR
+        w = (np.sin(2 * np.pi * 1318 * t) + 0.5 * np.sin(2 * np.pi * 1976 * t)) * np.exp(-t * 9) * 0.25
+    elif name == "geyser_warn":   # sfiato prima del getto
+        n = L(1.2); t = np.arange(n) / SR
+        w = _lowpass(_noise(n, 14), 0.6) * np.minimum(1, t * 2) * np.exp(-t * 1.5) * 0.25
+    elif name == "geyser":        # eruzione
+        n = L(1.5); t = np.arange(n) / SR
+        w = (_lowpass(_noise(n, 15), 0.25) * 0.8 + _tone(55, 40, n) * 0.5) * (1 - np.exp(-t * 30)) * np.exp(-t * 1.8) * 0.6
+    elif name == "caw":           # corvo in picchiata
+        n = L(0.25); t = np.arange(n) / SR
+        w = np.tanh(_tone(900, 600, n, "square") * 0.6 * (1 + np.sin(2 * np.pi * 30 * t))) * np.exp(-t * 10) * 0.18
+    elif name == "hook":          # gancio del Guardiano: catena che corre
+        n = L(0.6); t = np.arange(n) / SR
+        chain = (np.sin(2 * np.pi * 45 * t) > 0.7).astype(float) * _noise(n, 16)
+        w = _lowpass(chain, 0.7) * np.exp(-t * 3) * 0.4 + _whoosh(n, 17, 0.3) * 0.3
+    elif name == "luce":          # raffica di Bianca
+        n = L(1.1); t = np.arange(n) / SR
+        w = (_tone(300, 1500, n) * 0.25 + _tone(600, 3000, n) * 0.12) * np.exp(-t * 2.5) + _whoosh(n, 18, 0.5) * 0.4
+    elif name == "albedo":        # vecchio nome della raffica
+        return sfx("luce")
     elif name == "pickup":
-        n = int(0.3 * SR); t = np.arange(n) / SR
-        f = np.where(t < 0.1, 660, np.where(t < 0.2, 880, 1320))
-        w = np.sign(np.sin(2 * np.pi * f * t)) * 0.25 * _env(n, 0.005, 0.02, 0.8, 0.1)
-    elif name == "albedo":
-        n = int(0.8 * SR); t = np.arange(n) / SR
-        w = (np.sin(2 * np.pi * (200 + 1500 * t) * t) + 0.5 * np.sign(np.sin(2 * np.pi * (100 + 700 * t) * t))) * np.exp(-t * 2) * 0.35
-    elif name == "ko":
-        n = int(1.2 * SR); t = np.arange(n) / SR
-        w = np.sign(np.sin(2 * np.pi * (220 * np.exp(-t * 2)) * t)) * np.exp(-t * 2.5) * 0.4
+        return sfx("prisoner")
+    elif name == "round":         # inizio round: colpo di cassa profondo
+        n = L(1.4); t = np.arange(n) / SR
+        w = _tone(80, 38, n) * np.exp(-t * 3.5) * 0.8
+    elif name == "ko":            # K.O.: rintocco basso che si spegne
+        n = L(2.0); t = np.arange(n) / SR
+        w = (_tone(73, 70, n) * 0.6 + _tone(110, 108, n) * 0.3 + _tone(220, 218, n) * 0.12) * np.exp(-t * 1.6)
+    elif name == "death":         # NightKnight cade
+        n = L(1.4); t = np.arange(n) / SR
+        w = _tone(196, 49, n) * np.exp(-t * 2) * 0.5 + _lowpass(_noise(n, 19), 0.2) * np.exp(-t * 4) * 0.3
     else:
-        n = int(0.1 * SR); w = np.zeros(n)
+        n = L(0.1); w = np.zeros(n)
+    w = np.tanh(w * 1.2)
     stereo = np.stack([w, w], axis=1)
-    snd = pygame.sndarray.make_sound((np.clip(stereo, -1, 1) * 32000).astype(np.int16))
-    _cache[name] = snd
+    snd = pygame.sndarray.make_sound((np.clip(stereo, -1, 1) * 30000).astype(np.int16))
+    _cache[key] = snd
     return snd
 
 
