@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Goblin - 12 cimiteri. Sopra, sottoterra, duello col Cavaliere. Linux 1920x1080."""
 import math
+import os
 import argparse
 import random
 
@@ -18,6 +19,7 @@ import titan
 W, H = 1920, 1080
 FPS = 60
 TILE = 64
+TITAN_N = 6          # il terreno di Titano copre 6x6 tessere
 ROWS = 17
 GROUND = levels.GROUND
 GRAVITY = 0.75
@@ -84,17 +86,15 @@ class Gfx:
             "H": assets.load("ladder", TILE, TILE, assets.pix(px.LADDER, scale=4), exact=True),
             "^": assets.load("spikes", TILE, TILE, assets.pix(px.SPIKES, scale=4), exact=True),
         }
-        # Titano filtra tutta la luce verso l'ambra: crosta e sottosuolo sono
-        # separati, cosi' la stratigrafia non si ripete come un pavimento.
-        titan_crust = assets.load("titan_ground_grass", TILE, TILE, exact=True)
-        titan_crust.fill((255, 170, 90, 255), special_flags=pygame.BLEND_RGBA_MULT)
-        titan_subsoil = pygame.Surface((TILE, TILE), pygame.SRCALPHA)
-        for y in range(TILE):
-            shade = max(12, 48 - y // 2)
-            pygame.draw.line(titan_subsoil, (shade, max(8, shade // 2), 18), (0, y), (TILE, y))
-        for y in (13, 35, 53):
-            pygame.draw.line(titan_subsoil, (109, 61, 24), (0, y), (TILE, y), 2)
-        self.titan_tiles = {"#": titan_crust, "D": titan_subsoil}
+        # Terreno di Titano: l'immagine e' un'unica sezione di suolo alla Huygens.
+        # Si scala a TITAN_N x TITAN_N tessere, cosi' i ciottoli restano leggibili:
+        # la riga in alto e' la crosta calpestabile, le altre il sottosuolo.
+        self.titan_ground = None
+        if assets.has("titan_ground_grass"):
+            img = pygame.image.load(os.path.join(assets.DIR, "titan_ground_grass.png")).convert()
+            top = img.get_height() // 30          # striscia scura sopra la superficie
+            img = img.subsurface((0, top, img.get_width(), img.get_height() - top))
+            self.titan_ground = pygame.transform.smoothscale(img, (TILE * TITAN_N, TILE * TITAN_N))
         self.titan_lake = pygame.Surface((TILE, H - GROUND * TILE), pygame.SRCALPHA)
         self.titan_lake.fill((23, 12, 13, 255))
         for y in range(18, self.titan_lake.get_height(), 24):
@@ -109,6 +109,11 @@ class Gfx:
         }
         if assets.has("tomb2"):
             self.deco["t2"] = assets.load("tomb2", TILE, TILE)
+        # Lapidi, croci e alberi erano l'arredo da cimitero fantasy: senza il loro
+        # disegno non si mostrano, invece di ripiegare sui pixel di riserva.
+        for ch, name in (("t", "tomb1"), ("+", "cross"), ("Y", "tree")):
+            if not assets.has(name):
+                del self.deco[ch]
         self.player = player_images()
         self.sheets = {}
         # posa -> (file, colonne, righe): i fogli cartoon hanno griglie diverse
@@ -140,6 +145,12 @@ class Gfx:
         if num not in self.boss_cache:
             self.boss_cache[num] = knights.knight_images(self, num, color)
         return self.boss_cache[num]
+
+    def titan_tile(self, ch, c, r):
+        if self.titan_ground is None or ch not in "#D":
+            return None
+        row = 0 if ch == "#" else 1 + r % (TITAN_N - 1)
+        return self.titan_ground.subsurface(((c % TITAN_N) * TILE, row * TILE, TILE, TILE))
 
     def background(self, kind, num):
         key = (kind, num)
@@ -1316,7 +1327,7 @@ class Game:
                 # Titano ha due piani: quello lontano scompare nella foschia,
                 # quello vicino rende leggibili lapidi e rocce in movimento.
                 distant = hills.copy()
-                distant.set_alpha(55)
+                distant.set_alpha(235)
                 off = -(int(cam * 0.16) % distant.get_width())
                 for x in range(off, W, distant.get_width()):
                     s.blit(distant, (x, 0))
@@ -1360,9 +1371,9 @@ class Game:
                     continue
                 y = r * TILE
                 if ch in self.gfx.tiles:
-                    tile = self.gfx.titan_tiles.get(ch) if self.ci == 0 else None
+                    tile = self.gfx.titan_tile(ch, c, r) if self.ci == 0 else None
                     s.blit(tile or self.gfx.tiles[ch], (x, y))
-                elif ch == "Y":
+                elif ch == "Y" and "Y" in self.gfx.deco:
                     s.blit(self.gfx.deco["Y"], (x - TILE // 2, y - TILE * 2))
                 elif ch == "E":
                     s.blit(self.gfx.deco["E"], (x, y - TILE))
