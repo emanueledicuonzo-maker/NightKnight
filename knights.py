@@ -1,5 +1,6 @@
 """I 12 Cavalieri d'Oro: arma, mosse di kung fu e intelligenza del duello."""
 import math
+import os
 import random
 
 import pygame
@@ -398,10 +399,23 @@ def knight_images(gfx, num, color):
     pix = {"idle": ("idle", "idle"), "walk1": ("idle", "run1"), "walk2": ("idle", "run2"), "jump": ("jump", "jump"),
            "punch": ("punch", "idle"), "kick": ("idle", "kick"), "attack": ("throw", "idle"), "special": ("hado", "idle"),
            "hurt": ("idle", "idle")}
+    # Le pose oltre all'idle vengono da una sola strip: stessa scala per tutte,
+    # presa sulla figura tipica, cosi' il KO resta sdraiato e il salto sporge in alto.
+    raw = {}
+    if real_any:
+        for name in ("walk", "jump", "punch", "kick", "attack", "special", "hurt", "ko"):
+            if assets.has(f"boss{num:02d}_{name}"):
+                raw[name] = pygame.image.load(os.path.join(assets.DIR, f"boss{num:02d}_{name}.png")).convert_alpha()
+    heights = sorted(i.get_height() for i in raw.values())
+    k = bh / heights[len(heights) // 2] if heights else 1
     for pose, chain in fallback_real.items():
         img = None
         if real_any:
             for name in chain:
+                if name in raw:
+                    r = raw[name]
+                    img = pygame.transform.smoothscale(r, (max(1, int(r.get_width() * k)), max(1, int(r.get_height() * k))))
+                    break
                 if assets.has(f"boss{num:02d}_{name}"):
                     img = assets.load(f"boss{num:02d}_{name}", bw, bh, by_height=True)
                     break

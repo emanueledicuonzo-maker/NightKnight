@@ -67,12 +67,14 @@ barra. Non si combattono e non si fermano: si liberano passando.
 
 Ogni satellite dura circa dieci minuti, in tre parti:
 
-1. **Superficie — circa 5 minuti.** Atmosfera, insidie, prigionieri e ondate.
-2. **Prove — 2/3 minuti.** Salti sui massi, corsa, liane, cavi, laghi e
-   piattaforme, costruiti con gli elementi già visti nello scenario. Poco
-   combattimento: servono a spezzare il ritmo e a far sentire il luogo.
+1. **Superficie — 4/5 minuti.** Atmosfera, insidie, prigionieri e ondate.
+2. **Prove — 2/3 minuti.** Ostacoli e difficoltà del satellite: salti sui
+   massi, corsa, liane, cavi, laghi, piattaforme, gravità e aria del posto.
+   **Pochi nemici, davvero pochi**: le prove servono a spezzare il ritmo e a far
+   sentire il luogo, non a combattere.
 3. **Guardiano — 2/3 minuti.** Duello contro il cavaliere che governa il
-   satellite, con arma, stile e potere del suo mondo.
+   satellite, con arma, stile e potere del suo mondo. Lo aiutano **solo pochi
+   nemici volanti**, niente di terra.
 
 Ogni satellite è **un'unica ambientazione continua**: superficie, prove e
 Guardiano si svolgono nello stesso luogo, con tre quadri visivi (ingresso nel

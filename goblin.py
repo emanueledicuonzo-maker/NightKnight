@@ -1345,11 +1345,12 @@ class Game:
 
     def draw_world(self):
         s, cam, lv = self.screen, self.cam, self.lv
-        if self.part in ("surface", "trials"):
+        # Un'unica ambientazione: anche il duello si combatte sotto lo stesso cielo.
+        if self.part in ("surface", "trials", "arena"):
             # Il cielo non si ripete: e' appena piu' largo dello schermo e scorre
             # pochissimo, cosi' Saturno resta uno solo.
             sky = self.gfx.wide_sky(self.cfg["num"], SKY_PAN)
-            off = -min(SKY_PAN, int(cam * SKY_PAN / max(1, lv.cols * TILE - W)))
+            off = -min(SKY_PAN, int(cam * SKY_PAN / max(1, lv.cols * TILE - W, W)))
             s.blit(sky, (off, H - sky.get_height()))
             hills = self.gfx.background("hills", self.cfg["num"])
             if self.ci == 0 and self.gfx.titan_hills_near:
