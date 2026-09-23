@@ -10,7 +10,8 @@ Storia, personaggi e tabelle dei satelliti: `../STORY.md`.
 - **Riferimento:** allegare sempre `knight_idle.png`, per lo stile e per la scala.
 - **Sfondo:** PNG con trasparenza vera (canale alpha), niente scacchiera disegnata,
   niente terreno, niente ombra a terra, niente testo.
-- **Direzione:** NightKnight e Bianca guardano a DESTRA, i nemici a SINISTRA.
+- **Direzione:** NightKnight e Bianca guardano a DESTRA, i nemici a SINISTRA
+  (al momento dell'inserimento Claude li gira tutti a destra, come vuole il gioco).
 - **Download:** le immagini finiscono in `~/Scaricati`; il nome del file lo dà
   Claude quando le inserisce.
 
@@ -35,6 +36,8 @@ STYLE: match the attached character's dark 2D cartoon style exactly: bold clean 
 | `bianca_chick_1/2.png` | Bianca, ali in alto / in basso |
 | `prigioniero_spento.png`, `prigioniero_acceso.png` | colono nella capsula |
 | `sky_01.png`, `hills_01.png`, `hills_02.png`, `titan_ground_grass.png` | Titano |
+| `skeleton_walk1/2`, `skeleton_fly_1/2`, `skeleton_2x_1/2`, `skeleton_3x_1/2` | scheletri |
+| `crow_1/2`, `lizard_cryo_1/2`, `worm_silicon_1/2` | corvo, lucertola, verme |
 
 Le strip del cavaliere si possono generare con qualunque numero di fotogrammi:
 il gioco separa le figure seguendo le sagome. Nelle nuove strip aggiungere:

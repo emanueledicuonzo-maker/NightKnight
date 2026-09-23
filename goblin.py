@@ -19,6 +19,7 @@ import titan
 W, H = 1920, 1080
 FPS = 60
 TILE = 64
+SKY_PAN = 360        # di quanto scorre il cielo dall'inizio alla fine del livello
 TITAN_N = 6          # il terreno di Titano copre 6x6 tessere
 ROWS = 17
 GROUND = levels.GROUND
@@ -138,7 +139,10 @@ class Gfx:
             self.spento_awake = self.zombie[0].copy()
             self.spento_awake.fill((90, 63, 25, 0), special_flags=pygame.BLEND_RGB_ADD)
         self.skeleton = [assets.load(f"skeleton_walk{i + 1}", PW, PH, assets.pix(px.ZOMBIE[i], px.SKELETON_MAP, PS), by_height=True) for i in range(2)]
-        self.crow = [assets.load(f"crow_{i + 1}", 16 * PS, 8 * PS, assets.pix(px.CROW[i], scale=PS)) for i in range(2)]
+        if assets.has("crow_1") and assets.has("crow_2"):
+            self.crow = assets.frames(["crow_1", "crow_2"], 10 * PS)
+        else:
+            self.crow = [assets.load(f"crow_{i + 1}", 16 * PS, 8 * PS, assets.pix(px.CROW[i], scale=PS)) for i in range(2)]
         # Bianca resta pulcino nei primi quattro cimiteri: due pose di volo.
         self.bianca = [assets.load(f"bianca_chick_{i + 1}", 150, 105, by_height=True) for i in range(2)]
         self.ghost = [assets.load(f"ghost_{i + 1}", 16 * PS, 16 * PS, assets.pix(px.GHOST[i], scale=PS), by_height=True) for i in range(2)]
@@ -156,6 +160,25 @@ class Gfx:
             return None
         row = 0 if ch == "#" else 1 + r % (TITAN_N - 1)
         return self.titan_ground.subsurface(((c % TITAN_N) * TILE, row * TILE, TILE, TILE))
+
+    def wide_sky(self, num, pan):
+        """Cielo allargato di `pan` pixel, in proporzione, ancorato in basso."""
+        key = ("wide_sky", num, pan)
+        if key not in self.bg_cache:
+            sky = self.background("sky", num)
+            k = (W + pan) / sky.get_width()
+            self.bg_cache[key] = pygame.transform.smoothscale(sky, (W + pan, int(sky.get_height() * k)))
+        return self.bg_cache[key]
+
+    def mirrored(self, img):
+        """Striscia [immagine | immagine specchiata]: ripetuta, non mostra cuciture."""
+        key = ("mirrored", id(img))
+        if key not in self.bg_cache:
+            strip = pygame.Surface((img.get_width() * 2, img.get_height()), pygame.SRCALPHA)
+            strip.blit(img, (0, 0))
+            strip.blit(pygame.transform.flip(img, True, False), (img.get_width(), 0))
+            self.bg_cache[key] = strip
+        return self.bg_cache[key]
 
     def background(self, kind, num):
         key = (kind, num)
@@ -1323,23 +1346,20 @@ class Game:
     def draw_world(self):
         s, cam, lv = self.screen, self.cam, self.lv
         if self.part in ("surface", "trials"):
-            sky = self.gfx.background("sky", self.cfg["num"])
-            off = -(int(cam * 0.08) % sky.get_width())
-            for x in range(off, W, sky.get_width()):
-                s.blit(sky, (x, 0))
+            # Il cielo non si ripete: e' appena piu' largo dello schermo e scorre
+            # pochissimo, cosi' Saturno resta uno solo.
+            sky = self.gfx.wide_sky(self.cfg["num"], SKY_PAN)
+            off = -min(SKY_PAN, int(cam * SKY_PAN / max(1, lv.cols * TILE - W)))
+            s.blit(sky, (off, H - sky.get_height()))
             hills = self.gfx.background("hills", self.cfg["num"])
             if self.ci == 0 and self.gfx.titan_hills_near:
-                # Titano ha due piani: quello lontano scompare nella foschia,
-                # quello vicino rende leggibili lapidi e rocce in movimento.
-                distant = hills.copy()
-                distant.set_alpha(235)
-                off = -(int(cam * 0.16) % distant.get_width())
-                for x in range(off, W, distant.get_width()):
-                    s.blit(distant, (x, 0))
-                near = self.gfx.titan_hills_near
-                off = -(int(cam * 0.42) % near.get_width())
-                for x in range(off, W, near.get_width()):
-                    s.blit(near, (x, 0))
+                # Titano ha due piani di rocce; ognuno si ripete alternando una
+                # copia specchiata, cosi' i bordi combaciano senza cuciture.
+                for layer, speed in ((self.gfx.mirrored(hills), 0.16),
+                                     (self.gfx.mirrored(self.gfx.titan_hills_near), 0.42)):
+                    off = -(int(cam * speed) % layer.get_width())
+                    for x in range(off, W, layer.get_width()):
+                        s.blit(layer, (x, 0))
             else:
                 hw = hills.get_width()
                 off = -(int(cam * 0.3) % hw)

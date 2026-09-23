@@ -131,6 +131,18 @@ def _figures(img, n, rows):
     return out
 
 
+def frames(names, h):
+    """Fotogrammi separati della stessa figura, scalati con un unico fattore
+    (il piu' alto diventa alto h), cosi' il corpo non cambia misura fra una posa e l'altra."""
+    key = ("frames", tuple(names), h)
+    if key not in _cache:
+        imgs = [pygame.image.load(os.path.join(DIR, n + ".png")).convert_alpha() for n in names]
+        k = h / max(i.get_height() for i in imgs)
+        _cache[key] = [pygame.transform.smoothscale(i, (max(1, int(i.get_width() * k)), max(1, int(i.get_height() * k))))
+                       for i in imgs]
+    return _cache[key]
+
+
 def sheet(name, h, cols=4, rows=2, typical=False):
     """Foglio di sprite: restituisce la lista dei fotogrammi, tutti della stessa dimensione,
     scalati con lo stesso fattore (altezza del personaggio -> h) e allineati ai piedi. None se manca."""
