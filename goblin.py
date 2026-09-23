@@ -1065,6 +1065,14 @@ class Game:
         self.effects = []
         self.intro = 0
         self.trials = athletics.Trials() if self.part == "trials" else None
+        if self.part == "trials" and self.ci == 0:
+            for kind, col, *row in levels.TITAN_TRIAL_FOES:
+                if row:
+                    flyer = Flyer(col * TILE, row[0] * TILE, kind)
+                    flyer.state = "wait"          # aspetta il passaggio, come i corvi di guardia
+                    self.crows.append(flyer)
+                else:
+                    self.skels.append(Walker(col * TILE, kind))
         self.waves = None
         if self.part == "surface" and self.ci == 0:
             self.waves = waves.WaveDirector(levels.TITAN_ARENAS, levels.TITAN_WAVES, Walker, Flyer, seed=self.ci)

@@ -157,6 +157,9 @@ TITAN_WAVES = [
     dict(name="LA NUBE", roster=[("crow", 20), ("jelly", 6), ("skeleton_fly", 4)], alive=12),
 ]
 WAVE_WIDTH = 30
+# Nelle prove pochissimi nemici: disturbano, non trasformano le prove in battaglia.
+# (specie, colonna[, riga per i volanti])
+TITAN_TRIAL_FOES = [("lizard", 22), ("skeleton", 27), ("crow", 58, 5)]
 
 
 def gen_titan_surface():
