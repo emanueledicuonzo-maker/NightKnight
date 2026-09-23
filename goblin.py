@@ -155,6 +155,22 @@ class Gfx:
             self.boss_cache[num] = knights.knight_images(self, num, color)
         return self.boss_cache[num]
 
+    def title_backdrop(self):
+        """Titolo: cielo di Titano smorzato, lo stemma al centro, NightKnight a sinistra."""
+        if "title" not in self.bg_cache:
+            bg = self.background("sky", 1).copy()
+            shade = pygame.Surface((W, H), pygame.SRCALPHA)
+            shade.fill((20, 8, 4, 110))
+            bg.blit(shade, (0, 0))
+            if assets.has("emblema"):
+                em = assets.load("emblema", 560, 470, by_height=True)
+                bg.blit(em, (W // 2 - em.get_width() // 2, 250))
+            if assets.has("knight_idle"):
+                hero = assets.load("knight_idle", 900, 820, by_height=True)
+                bg.blit(hero, (330 - hero.get_width() // 2, H - hero.get_height() - 20))
+            self.bg_cache["title"] = bg
+        return self.bg_cache["title"]
+
     def titan_tile(self, ch, c, r):
         if self.titan_ground is None or ch not in "#D":
             return None
@@ -1440,17 +1456,12 @@ class Game:
     def draw(self):
         s = self.screen
         if self.state == "title":
-            s.blit(self.gfx.background("sky", 1), (0, 0))
-            self.draw_center("NIGHTKNIGHT", 230, (222, 201, 150), 16)
-            self.draw_center("12 CIMITERI", 420, (200, 200, 220), 8)
-            self.draw_center("SAME COURAGE, NEW NIGHTMARES", 500, (150, 160, 190), 4)
-            self.draw_center(f"RECORD {self.hi:08d}", 560, (200, 200, 220), 4)
-            self.draw_menu(610)
-            self.draw_center("FRECCE MUOVI  SPAZIO SALTA  Z AFFONDO DI LANCIA  X PUGNO  C CALCIO", 900, (150, 160, 190), 4)
-            self.draw_center("V LUCE: RAFFICA DI PUGNI     SU/GIU SULLE SCALE", 940, (150, 160, 190), 4)
-            img = self.gfx.player["idle"][0]
-            hero = pygame.transform.smoothscale(img, (img.get_width() * 2, img.get_height() * 2))
-            s.blit(hero, (260 - hero.get_width() // 2, 880 - hero.get_height()))
+            s.blit(self.gfx.title_backdrop(), (0, 0))
+            self.draw_center("NIGHTKNIGHT", 40, (238, 222, 190), 16)
+            self.draw_center("DODICI SATELLITI, UN CAVALIERE", 205, (230, 205, 170), 4)
+            self.draw_menu(760)
+            self.draw_center(f"RECORD {self.hi:08d}", 965, (220, 205, 180), 3)
+            self.draw_center("FRECCE MUOVI   SPAZIO SALTA   Z SPADA   X SASSO   C CALCIO   V BIANCA", 1010, (225, 210, 185), 3)
             self.draw_save_status()
             pygame.display.flip()
             return
