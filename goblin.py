@@ -891,9 +891,9 @@ class Game:
     def next_part(self):
         if self.state == "victory":
             return
-        if self.part == "surface":
-            self.start_part("crypt")
-        elif self.part == "crypt":
+        # Un'unica ambientazione per satellite: dalla superficie si passa alle prove.
+        # La cripta resta nel codice per i satelliti dove si vive sotto (Europa).
+        if self.part in ("surface", "crypt"):
             self.start_part("trials")
         elif self.part == "trials":
             if not self.trials.complete:

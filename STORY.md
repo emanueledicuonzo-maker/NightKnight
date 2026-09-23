@@ -74,8 +74,24 @@ Ogni satellite dura circa dieci minuti, in tre parti:
 3. **Guardiano — 2/3 minuti.** Duello contro il cavaliere che governa il
    satellite, con arma, stile e potere del suo mondo.
 
-La superficie ha tre quadri visivi: ingresso nel satellite, zona abitata o
-industriale abbandonata, soglia del Guardiano.
+Ogni satellite è **un'unica ambientazione continua**: superficie, prove e
+Guardiano si svolgono nello stesso luogo, con tre quadri visivi (ingresso nel
+satellite, zona abitata o industriale abbandonata, soglia del Guardiano).
+
+Si va sottoterra solo dove le condizioni reali lo impongono: radiazioni letali o
+nessuna superficie praticabile. Il freddo non basta, perché tutti i satelliti
+stanno fra −150 e −230 °C e il freddo lo regge la tuta. Oggi l'unico caso è
+**Europa**, investita dalle radiazioni di Giove, con la vita sotto la crosta.
+
+### Stile degli ambienti
+
+Philip K. Dick e *Blade Runner*, non *Ghosts 'n Goblins*: niente lapidi, croci e
+alberi morti. Colonie aziendali abbandonate con le luci ancora accese, insegne al
+neon a metà spente, ologrammi pubblicitari che parlano a nessuno, altoparlanti
+che annunciano turni a una colonia vuota. Ciarpame che si accumula (il *kipple*
+di Dick). Foschia tagliata da fari e riflettori, lampioni al sodio arancioni
+contro neon ciano e magenta, megastrutture che spariscono nella nebbia e
+NightKnight piccolissimo sotto.
 
 ### Le ondate della superficie
 

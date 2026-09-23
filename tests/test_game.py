@@ -133,9 +133,6 @@ class GameTests(unittest.TestCase):
             self.assertEqual(g.ci, i)
             g.state = "play"
             g.next_part()
-            self.assertEqual(g.part, "crypt")
-            g.state = "play"
-            g.next_part()
             self.assertEqual(g.part, "trials")
             g.trials.done = set(range(5))
             g.state = "play"
