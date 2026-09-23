@@ -111,9 +111,13 @@ class Gfx:
             self.deco["t2"] = assets.load("tomb2", TILE, TILE)
         self.player = player_images()
         self.sheets = {}
-        for pose, file in (("run", "run_sheet"), ("punch", "punch_sheet"), ("kick", "kick_sheet"),
-                           ("jump", "jump_sheet"), ("throw", "spear_lunge_sheet")):
-            fr = assets.sheet("knight_" + file, PH)
+        # posa -> (file, colonne, righe): i fogli cartoon hanno griglie diverse
+        for pose, (file, cols, rows) in {
+                "run": ("run_sheet", 4, 2), "jump": ("jump_sheet", 4, 2),
+                "throw": ("sword_sheet", 4, 1), "punch": ("stone_sheet", 4, 1),
+                "kick": ("kick_sheet", 3, 1), "flykick": ("flykick_sheet", 3, 1),
+                "spinkick": ("spinkick_sheet", 4, 2)}.items():
+            fr = assets.sheet("knight_" + file, PH, cols, rows, typical=True)
             if fr:
                 self.sheets[pose] = (fr, [assets.flip(f) for f in fr])
         self.bones = px.sprite(px.BONES, scale=PS)
@@ -436,6 +440,8 @@ class Player(Entity):
         if self.attack:
             name, f = self.attack
             base = {"punch": "punch", "kick": "kick", "throw": "throw", "albedo": "punch"}[name]
+            if base == "kick" and not self.on_ground and "flykick" in sheets:
+                base = "flykick"
             if base not in sheets:
                 return None
             fr = sheets[base][side]
