@@ -7,7 +7,10 @@ W = 1920
 SPAWN_EVERY = 28          # fotogrammi fra un nemico e il successivo
 ALIVE = 8                 # nemici in campo insieme, se l'ondata non dice altro
 FLEE = 1800               # oltre questa distanza dalla zona l'ondata smette di mandare rinforzi
-VIEW_HALF = 640           # meta' della vista del mondo (1280 px con lo zoom)
+# Nessuno compare dal nulla: si nasce fuori dallo schermo anche con la telecamera
+# allargata al massimo (meta' vista 800 px) e si arriva da lontano.
+SPAWN_AWAY = 960
+SPAWN_SPREAD = 300
 FLYING = ("crow", "skeleton_fly", "jelly")
 QUIET_RANGE = 1100        # nessun nemico piu' vicino di cosi': si e' soli
 
@@ -106,19 +109,19 @@ class WaveDirector:
         return event
 
     def spawn(self, kind, cx, walkers, flyers, cy=None):
-        # i nemici entrano dai bordi della vista, due su tre davanti a NightKnight;
+        # i nemici arrivano da fuori dello schermo, due su tre davanti a NightKnight;
         # i volanti all'altezza di chi inseguono, i camminatori sul suolo che trovano
         self.side = 1 if self.rnd.random() < 0.67 else -1
         if kind in FLYING:
-            x = cx - VIEW_HALF - 80 if self.side < 0 else cx + VIEW_HALF + 20
+            x = cx + self.side * (SPAWN_AWAY + self.rnd.randrange(SPAWN_SPREAD))
             y = cy - self.rnd.randrange(60, 300) if cy is not None else self.rnd.randrange(*self.flyer_y)
             e = self.make_flyer(x, y, kind)
             flyers.append(e)
             return e
-        if kind in ("worm", "burrower"):     # questi vermi escono dal suolo, non lontano
-            x = cx + self.side * self.rnd.randrange(250, 550)
-        else:
-            x = cx + self.side * (VIEW_HALF + self.rnd.randrange(20, 260))
+        if kind in ("worm", "burrower"):
+            # il verme sta fermo dove emerge: lo si trova sulla strada, piu' avanti
+            self.side = 1 if self.rnd.random() < 0.85 else -1
+        x = cx + self.side * (SPAWN_AWAY + self.rnd.randrange(SPAWN_SPREAD))
         e = self.make_walker(x, kind)
         walkers.append(e)
         return e

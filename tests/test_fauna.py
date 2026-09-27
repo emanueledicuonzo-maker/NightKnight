@@ -275,6 +275,16 @@ class FaunaTests(unittest.TestCase):
                 with self.subTest(vent=v.x, geyser=q.x):
                     self.assertFalse(v.hitbox.inflate(160, 0).colliderect(q.hitbox) and abs(v.floor - q.floor) < 200)
 
+    def test_nobody_appears_on_screen(self):
+        import levels
+        g = self.game
+        g.skels, g.crows = [], []
+        p = g.player
+        for kind in ("skeleton", "worm", "worm_walk", "crow", "jelly", "lizard") * 6:
+            e = g.waves.spawn(kind, p.rect.centerx, g.skels, g.crows, p.rect.top)
+            with self.subTest(kind=kind):
+                self.assertGreater(abs(e.rect.centerx - p.rect.centerx), goblin.DW // 2 + 60)
+
 
 if __name__ == "__main__":
     unittest.main()

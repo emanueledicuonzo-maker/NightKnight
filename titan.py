@@ -6,6 +6,22 @@ import pygame
 
 # Disegni caricati dal gioco (goblin.Gfx): senza, si disegna tutto in codice.
 ART = {}
+SINK = 8           # gli oggetti affondano un poco nel suolo: poggiano, non galleggiano
+_shadows = {}
+
+
+def ground_shadow(screen, cx, floor, w):
+    """Ombra di contatto: una macchia scura e morbida dove l'oggetto tocca terra."""
+    w = max(20, int(w))
+    if w not in _shadows:
+        sh = pygame.Surface((w, 22), pygame.SRCALPHA)
+        for i in range(8, 0, -1):
+            k = i / 8
+            pygame.draw.ellipse(sh, (20, 10, 6, int(40 * (1 - k) + 18)),
+                                (w * (1 - k) / 2, 11 * (1 - k), w * k, 22 * k))
+        _shadows[w] = sh
+    sh = _shadows[w]
+    screen.blit(sh, (cx - w // 2, floor - 13))
 
 
 class Geyser:
@@ -91,7 +107,8 @@ class Geyser:
             screen.blit(jet, (x - jet.get_width() // 2 + wobble, floor - base.get_height() // 3 - jet.get_height()))
         elif phase == "warning" and (self.age // 4) % 2:
             x += 2                                # il cono trema prima dell'eruzione
-        screen.blit(base, (x - base.get_width() // 2, floor - base.get_height()))
+        ground_shadow(screen, x, floor, base.get_width() * 0.9)
+        screen.blit(base, (x - base.get_width() // 2, floor - base.get_height() + SINK))
 
 
 class Spento:
@@ -121,7 +138,8 @@ class Spento:
                 pygame.draw.ellipse(light, (255, 186, 79, int(20 * self.glow / 60)),
                                     (90-radius, 120-radius, radius*2, radius*2))
             screen.blit(light, (x-90, self.floor-220))
-        screen.blit(img, (x-img.get_width()//2, self.floor-img.get_height()))
+        ground_shadow(screen, x, self.floor, img.get_width() * 0.95)
+        screen.blit(img, (x-img.get_width()//2, self.floor-img.get_height() + SINK))
 
 
 class OxygenStation:
@@ -140,7 +158,8 @@ class OxygenStation:
         x, f = int(self.x - cam), self.floor
         if not -200 < x < screen.get_width() + 200:
             return
-        screen.blit(img, (x - img.get_width() // 2, f - img.get_height()))
+        ground_shadow(screen, x, f, img.get_width() * 0.9)
+        screen.blit(img, (x - img.get_width() // 2, f - img.get_height() + SINK))
         if active:
             for i in range(4):                      # sbuffi d'aria mentre si ricarica
                 k = ((self.t * 3 + i * 25) % 100) / 100
@@ -189,7 +208,8 @@ class GasVent:
                 pipe = pygame.transform.flip(pipe, True, False)
             w = ART["vent"][0].get_width()
             px = x - w // 2 if self.facing > 0 else x + w // 2 - pipe.get_width()
-            screen.blit(pipe, (px, f - pipe.get_height()))
+            ground_shadow(screen, x, f, w * 1.1)
+            screen.blit(pipe, (px, f - pipe.get_height() + SINK))
         else:
             pygame.draw.ellipse(screen, (20, 16, 14), (x - 34, f - 14, 68, 18))
         if k < 0:

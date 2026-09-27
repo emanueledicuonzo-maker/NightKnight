@@ -454,6 +454,11 @@ class Entity:
 
     def draw_img(self, s, img, cam):
         r = self.rect
+        if self.on_ground:
+            # a terra: ombra di contatto e piedi appena dentro il suolo
+            titan.ground_shadow(s, r.centerx - cam, r.bottom, r.w * 1.3)
+            s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height() + titan.SINK // 2))
+            return
         s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height()))
 
 
@@ -1335,10 +1340,11 @@ class Game:
         (colline e montagne comprese), il piu' vicino all'altezza di NightKnight."""
         w = Walker(x, kind)
         feet_y = self.player.rect.bottom
-        step = TILE if x < self.player.rect.centerx else -TILE
-        # dentro una montagna non si nasce: ci si sposta verso NightKnight finche'
-        # non c'e' un suolo a una quota vicina alla sua
-        x0 = w.x
+        away = -TILE if x < self.player.rect.centerx else TILE
+        # dentro una montagna o su un lago non si nasce: ci si sposta lontano da
+        # NightKnight (mai verso di lui, per non comparire sullo schermo) finche'
+        # c'e' un suolo a una quota vicina alla sua
+        x0, step = w.x, away
         for i in range(16):
             feet = self.lv.floor_near(x0 + w.w / 2 + i * step, feet_y, 4)
             if feet is None:
@@ -2064,7 +2070,8 @@ class Game:
                         self.rock_edges(s, lv, c, r, x, y)
                 elif ch in "EP":
                     img = self.gfx.airlock if ch == "E" else self.gfx.capsule
-                    s.blit(img, (x + TILE // 2 - img.get_width() // 2, y + TILE - img.get_height()))
+                    titan.ground_shadow(s, x + TILE // 2, y + TILE, img.get_width() * 0.9)
+                    s.blit(img, (x + TILE // 2 - img.get_width() // 2, y + TILE - img.get_height() + titan.SINK))
 
     def draw_cave_props(self, s, cam, lv):
         """Stalattiti, stalagmiti, puntelli e rottami della colonia nelle gallerie."""
