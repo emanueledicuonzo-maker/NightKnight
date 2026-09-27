@@ -51,6 +51,7 @@ FIGHT_RANGE = (520, 320)     # distanza (orizzontale, verticale) dei nemici che 
 PARALLAX = (("hills_far", 0.07, 0, 70), ("hills_01", 0.16, 0, 45),
             ("colony_ruins", 0.28, 90, 30), ("hills_02", 0.42, 0, 0))
 FOG_COLOR = (196, 112, 58)
+DARKNESS, VISOR = 195, 460       # buio delle gallerie e raggio della luce della visiera
 FOREGROUND_SPEED, FOREGROUND_SINK = 1.35, 230
 CROWD = 6                    # con piu' nemici vicini di cosi' la telecamera resta larga      # margini oltre i quali la telecamera insegue un salto o una caduta
 GRAVITY = 0.75
@@ -112,6 +113,13 @@ class Gfx:
             color = tuple(int(a + (b - a) * min(1, k * 2.2)) for a, b in zip(top, low))
             pygame.draw.line(self.titan_lake, color + (255,), (0, y), (TILE, y))
         # Vignettatura: bordi dello schermo appena piu' scuri
+        # Buio delle gallerie e luce della visiera (un alone che sfuma al buio).
+        self.darkness = pygame.Surface((W, H), pygame.SRCALPHA)
+        self.visor_light = pygame.Surface((VISOR * 2, VISOR * 2), pygame.SRCALPHA)
+        self.visor_light.fill((255, 255, 255, 255))
+        for rad in range(VISOR, 0, -4):
+            k = rad / VISOR
+            pygame.draw.circle(self.visor_light, (255, 255, 255, int(255 * k ** 1.6)), (VISOR, VISOR), rad)
         # Primo piano all'aperto: solo le sagome che salgono dal basso (quelle
         # appese in alto servono sottoterra).
         fg = assets.load("foreground", W, H, exact=True)
@@ -1038,6 +1046,7 @@ class Game:
         self.cam = 0
         self.camy = self.camy_target = VIEW_Y
         self.zoom, self.focus_x = ZOOM, None
+        self.dark = 0.0
         self.boss = None
         self.msg = None
         self.effects = []
@@ -1045,14 +1054,16 @@ class Game:
         self.cable = None
         if self.part == "surface":
             self.cable = athletics.Cable(levels.TITAN_PASS_ROPE * TILE)
-            for kind, col, *row in levels.TITAN_PASS_FOES:
+            for kind, col, row in levels.TITAN_PASS_FOES:
                 col += levels.TITAN_PASS_START
-                if row:
-                    flyer = Flyer(col * TILE, row[0] * TILE, kind)
+                if kind in FLYERS:
+                    flyer = Flyer(col * TILE, row * TILE, kind)
                     flyer.state = "wait"          # aspetta il passaggio, come i corvi di guardia
                     self.crows.append(flyer)
                 else:
-                    self.skels.append(Walker(col * TILE, kind))
+                    walker = Walker(col * TILE, kind)
+                    walker.y = row * TILE - walker.h     # sulla cengia o in galleria
+                    self.skels.append(walker)
         self.waves = None
         if self.part == "surface":
             self.waves = waves.WaveDirector(levels.TITAN_ARENAS, levels.TITAN_WAVES, Walker, Flyer, seed=self.ci,
@@ -1273,6 +1284,9 @@ class Game:
             self.cam = int(max(lock[0], min(target, lock[1] - VW)))
         self.follow_y(p)
         self.update_zoom(p)
+        # scendendo nelle gallerie la luce se ne va piano
+        depth = (p.rect.bottom / TILE - levels.CAVE_TOP) / 3
+        self.dark += (max(0.0, min(1.0, depth)) - self.dark) * 0.05
         if self.lv.drowned(p.rect):
             self.die(); return
         r = p.rect
@@ -1614,13 +1628,34 @@ class Game:
             s.set_clip(clip)
 
     def draw_foreground(self, s):
-        """Il piano piu' vicino, davanti a tutto: sagome scure che passano veloci."""
+        """Il piano piu' vicino, davanti a tutto: sagome scure che passano veloci.
+        Sono rocce della superficie: scendendo sottoterra svaniscono."""
+        fade = 1 - (self.camy - VIEW_Y) / (3 * TILE)
+        if fade <= 0:
+            return
         fg = self.gfx.mirrored(self.gfx.foreground_low)
+        fg.set_alpha(int(255 * min(1, fade)))
         lift = (VIEW_Y - self.camy) * ZOOM
         off = -(int(self.cam * ZOOM * FOREGROUND_SPEED) % fg.get_width())
         y = H - fg.get_height() + FOREGROUND_SINK + int(lift * FOREGROUND_SPEED)
         for x in range(off, W, fg.get_width()):
             s.blit(fg, (x, y))
+
+    def draw_darkness(self, s):
+        """Nelle gallerie non arriva luce: resta solo il cono della visiera."""
+        p = self.player
+        if self.dark < 0.02:
+            return
+        vx, vy, cw, ch = self.view_rect()
+        k = W / cw
+        cx = (p.rect.centerx + p.facing * 40 - self.cam - vx) * k
+        cy = (p.rect.top + 40 - self.camy - vy) * k
+        shade = self.gfx.darkness
+        shade.fill((6, 3, 2, int(DARKNESS * self.dark)))
+        light = self.gfx.visor_light
+        shade.blit(light, (cx - light.get_width() // 2, cy - light.get_height() // 2),
+                   special_flags=pygame.BLEND_RGBA_MIN)
+        s.blit(shade, (0, 0))
 
     def view_rect(self):
         """La parte della vista del mondo che finisce sullo schermo: con lo zoom
@@ -1671,7 +1706,8 @@ class Game:
             rnd = random.Random(7)
             self.drops = [(rnd.randrange(W), rnd.randrange(H), rnd.uniform(3, 6)) for _ in range(140)]
         t = self.frame
-        for x0, y0, v in self.drops:
+        # sottoterra non piove: le gocce diradano mentre si scende
+        for x0, y0, v in self.drops[:int(len(self.drops) * (1 - self.dark))]:
             y = (y0 + t * v) % H
             x = (x0 - t * v * 0.35 - self.cam * 0.6) % W
             pygame.draw.line(s, (255, 208, 160), (x, y), (x - 4, y + 16), 1)
@@ -1793,6 +1829,7 @@ class Game:
         jolt = (random.randint(-self.shake, self.shake), random.randint(-self.shake, self.shake)) if self.shake else (0, 0)
         s.blit(pygame.transform.smoothscale(view, (W, H)), jolt)
         self.draw_foreground(s)
+        self.draw_darkness(s)
         self.draw_drizzle(s)
         s.blit(self.gfx.vignette, (0, 0))
         self.draw_hud()

@@ -42,8 +42,8 @@ class TraversalTests(unittest.TestCase):
     def test_cable_carries_across_its_lake(self):
         g = self.game
         p = g.player
-        p.x = (levels.TITAN_PASS_ROPE - 6) * TILE
-        p.y = levels.GROUND * TILE - p.h
+        p.x = (levels.TITAN_PASS_START + 78) * TILE          # sull'ultima guglia
+        p.y = (levels.GROUND - 4) * TILE - p.h
         p.do_jump()
         keys = defaultdict(bool, {pygame.K_RIGHT: True, pygame.K_SPACE: True})
         grabbed = False

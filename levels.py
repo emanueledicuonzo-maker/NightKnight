@@ -64,8 +64,9 @@ TITAN_WAVES = [
     dict(name="dal cielo e dal suolo", roster=[("skeleton_fly", 6), ("worm", 3)]),
     dict(name="la nube", roster=[("crow", 20), ("jelly", 6), ("skeleton_fly", 4)], alive=12),
 ]
-# Nella traversata pochissimi nemici: (specie, colonna dall'inizio[, riga per i volanti]).
-TITAN_PASS_FOES = [("lizard", 28), ("skeleton", 74), ("crow", 100, 4)]
+# Nella traversata pochissimi nemici.
+# (specie, colonna dall'inizio, riga: quella dei piedi per chi cammina, del volo per i volanti)
+TITAN_PASS_FOES = [("lizard", 26, GROUND - 4), ("crow", 32, GROUND - 20), ("skeleton", 136, GROUND + 10)]
 # Nel duello, di tanto in tanto, un volante in aiuto al Guardiano (mai piu' di due).
 TITAN_ARENA_FLYERS = ["crow", "jelly", "skeleton_fly"]
 TITAN_ARENA_FLYERS_MAX = 2
@@ -114,36 +115,98 @@ def _ladder(g, c, h):
 
 
 TITAN_PASS_START = 216       # dove finiscono le ondate e comincia la traversata
-TITAN_PASS_ROPE = TITAN_PASS_START + 82      # colonna del cavo sopra il lago grande
+TITAN_PASS_ROPE = TITAN_PASS_START + 83      # colonna del cavo sopra il lago delle guglie
+# Il labirinto di Titano (il "labyrinth terrain" visto da Cassini: altopiani
+# sciolti dalla pioggia di metano in gole, guglie e pozzi). Altezze in tessere
+# sopra il suolo; le gallerie stanno sotto la crosta.
+LEDGES = (4, 10, 17)          # le tre cengie della rupe
+CAVE_TOP, CAVE_FLOOR = GROUND + 3, GROUND + 10    # prima riga libera e pavimento delle gallerie
+
+
+def _ledge(g, c0, c1, h):
+    """Cengia sottile sospesa, alta h tessere, da c0 a c1 esclusa."""
+    for c in range(c0, c1):
+        g[GROUND - h][c] = "#"
+
+
+def _pillar(g, c0, c1, h):
+    """Guglia di roccia che sale dal fondo (anche dentro un lago)."""
+    for c in range(c0, c1):
+        for r in range(GROUND - h, ROWS):
+            g[r][c] = "#" if r == GROUND - h else "D"
+
+
+def _dig(g, c0, c1, r0, r1):
+    """Scava una galleria: righe da r0 a r1 escluse."""
+    for c in range(c0, c1):
+        for r in range(r0, r1):
+            g[r][c] = "."
+
+
+def _ladder_rows(g, c, r0, r1):
+    for r in range(r0, r1):
+        g[r][c] = "H"
 
 
 def gen_titan_pass():
-    """Seconda parte di Titano: attraversare il satellite. Cumuli di rocce,
-    pareti da scalare con le scale di servizio, pilastri sopra i laghi di
-    metano, un cavo sopra il lago grande. Con la gravita' di Titano si salta
-    alto (circa 5 tessere) e lontano (quasi 6): le pareti sono alte 7."""
-    cols = 128
+    """Seconda parte di Titano, un labirinto che non va dritto:
+    1. la rupe: tre cengie a zig-zag, si sale a destra, si torna indietro a
+       sinistra, si risale a destra; scale di servizio alle estremita';
+    2. la cresta in cima, poi le guglie che scendono dentro il lago di metano
+       e il cavo per l'ultima campata;
+    3. il crepaccio: oltre la riva una parete troppo alta, si scende a salti;
+    4. le gallerie: a sinistra un vicolo cieco con prigioniero e ossigeno, a
+       destra un passaggio basso, una pozza di metano, il gas; una scala risale
+       al portello in superficie.
+    Con la gravita' di Titano si salta alto circa 5 tessere e lontano quasi 6."""
+    cols = 160
     g = _grid(cols)
     _rock(g, 0, cols, 0)
-    _rock(g, 10, 13, 1); _rock(g, 13, 16, 2); _rock(g, 16, 19, 3)      # gradini di roccia
-    _lake(g, 22, 27)
-    _rock(g, 35, 45, 7); _ladder(g, 34, 7)                              # prima parete
-    _lake(g, 57, 71)
-    _rock(g, 60, 62, 2); _rock(g, 65, 67, 2)                            # pilastri nel lago
-    for c in (60, 61, 65, 66):
-        for r in range(GROUND, ROWS):
+    l1, l2, l3 = LEDGES
+    # 1. la rupe
+    _rock(g, 12, 14, 2)                                   # gradino per la prima cengia
+    _ledge(g, 15, 43, l1)                                 # cengia bassa, verso destra
+    _ladder_rows(g, 41, GROUND - l2, GROUND - l1)         # scala a destra
+    _ledge(g, 15, 41, l2)                                 # cengia media, si torna a sinistra
+    for c in (27, 28):                                    # un buco da saltare
+        g[GROUND - l2][c] = "."
+    _ladder_rows(g, 15, GROUND - l3, GROUND - l2)         # scala a sinistra
+    _ledge(g, 16, 44, l3)                                 # cengia alta, di nuovo a destra
+    _rock(g, 44, 63, l3)                                  # la massa della rupe e la cresta
+    # 2. le guglie nel lago e il cavo
+    _lake(g, 63, 87)
+    for c0, h in ((66, 13), (70, 10), (74, 7), (78, 4)):
+        _pillar(g, c0, c0 + 2, h)
+    # 3. il crepaccio, chiuso oltre da una parete troppo alta da scalare
+    _dig(g, 97, 103, GROUND, CAVE_FLOOR)
+    g[GROUND + 4][97] = g[GROUND + 4][98] = "#"           # sporgenze per scendere a salti
+    g[GROUND + 7][101] = g[GROUND + 7][102] = "#"
+    _rock(g, 103, 111, 8)
+    # 4. le gallerie sotto la crosta
+    _dig(g, 87, 97, CAVE_TOP, CAVE_FLOOR)                 # vicolo cieco a sinistra
+    _dig(g, 103, 148, CAVE_TOP, CAVE_FLOOR)               # la galleria verso l'uscita
+    for c in range(114, 121):                             # passaggio basso
+        for r in range(CAVE_TOP, CAVE_FLOOR - 3):
             g[r][c] = "D"
-    _lake(g, 78, 87)                                                     # lago del cavo
-    _rock(g, 93, 96, 2); _rock(g, 96, 105, 4)
-    _lake(g, 106, 111)
-    g[GROUND - 1][50] = "q"
-    for c, h in ((30, 0), (40, 7), (90, 0), (100, 4), (116, 0)):
-        g[GROUND - 1 - h][c] = "u"
-    for c in (5, 47, 88, 119):
-        g[GROUND - 1][c] = "o"
-    for c in (20, 54, 114):
-        g[GROUND - 1][c] = "c"
-    g[GROUND - 1][cols - 4] = "E"
+    _lake(g, 124, 127, top=CAVE_FLOOR)                    # pozza di metano
+    for c in (145, 146, 147):                             # pozzo verso la superficie
+        for r in range(GROUND, CAVE_TOP):
+            g[r][c] = "."
+    _ladder_rows(g, 146, GROUND, CAVE_FLOOR)
+    for c in range(cols):                                 # pavimento delle gallerie
+        if g[CAVE_FLOOR][c] == "D" and g[CAVE_FLOOR - 1][c] in ".H":
+            g[CAVE_FLOOR][c] = "#"
+    # prigionieri, ossigeno, gas, geyser, uscita
+    floor, cave = GROUND - 1, CAVE_FLOOR - 1
+    for c, r in ((30, floor), (18, GROUND - l2 - 1), (54, GROUND - l3 - 1),
+                 (89, cave), (129, cave)):
+        g[r][c] = "u"
+    for c, r in ((5, floor), (50, GROUND - l3 - 1), (92, cave), (140, cave)):
+        g[r][c] = "o"
+    for c, r in ((34, GROUND - l2 - 1), (133, cave)):
+        g[r][c] = "c"
+    g[floor][91] = "q"
+    g[floor][cols - 4] = "E"
     return g
 
 
