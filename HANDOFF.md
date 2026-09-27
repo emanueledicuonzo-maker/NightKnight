@@ -37,10 +37,14 @@ after the Guardian an end screen says so):
    start when NightKnight enters their zone and never lock the way
    (`waves.py`); methane lakes, geysers, cryogenic gas vents, oxygen stations,
    fifteen prisoners (5 Light each).
-2. **Traversal** — same map, after column `TITAN_PASS_START`: rock steps, two
-   walls with service ladders, pillars over lakes, a cable over the big lake
-   (grabbed automatically when touched mid-jump). Few enemies. Dying here
-   restarts from the traversal.
+2. **Traversal** — same map, after column `TITAN_PASS_START`: a small labyrinth
+   (`levels.gen_titan_pass()`, modelled on Titan's real "labyrinth terrain"): a
+   cliff climbed zig-zag on three ledges joined by service ladders, the crest,
+   spires stepping down into a methane lake, the cable between two cranes, a
+   crevasse (the far side is a wall too high to climb), dark galleries lit only
+   by the visor (dead end with prisoner and oxygen to the left, a low passage, a
+   methane pool and a nitrogen vent to the right), a shaft with a ladder up to
+   the airlock. Three enemies. Dying here restarts from the traversal.
 3. **Duel** — one round against the Guardian of Titan (2x NightKnight's height,
    halberd and a hook thrown on a chain), helped by at most two flyers.
 
@@ -60,16 +64,27 @@ in hits (see `WALKERS` / `FLYERS` in `goblin.py`, and `STORY.md`).
 | `levels.py` | Titan config, weapons, map generation (surface + traversal, arena), wave data |
 | `waves.py` | wave director (independent waves, spawn at view edges, flee rule) |
 | `knights.py` | the Guardian: moves, AI, projectiles (hook), pose loading |
-| `titan.py` | geysers, prisoners, oxygen stations, gas vents |
+| `titan.py` | cryovolcanoes (`Geyser`), prisoners, oxygen stations, nitrogen vents (horizontal jet) |
 | `athletics.py` | the physical cable (pymunk pendulum) |
 | `assets.py` | image loading; sprite sheets split **by silhouette**, not by grid |
 | `music.py` | synthesized bass + light percussion tracks and all sound effects |
 | `fonts.py` | UI text |
 | `progress.py` | atomic save of record and checkpoint |
 
-Rendering: sky and parallax hills are drawn at full resolution; the world
-(tiles, entities, effects) is drawn on a `VW x H` surface and scaled by `ZOOM`
-(1.5) so characters read large; then drizzle, vignette and HUD.
+Rendering: sky and the parallax layers (`PARALLAX`: far mountains, hills,
+colony ruins, near rocks) are drawn at full resolution, with Titan's haze baked
+into each layer at load time (`Gfx.fogged`); below the crust `cave_bg` replaces
+them. The world (tiles, entities, effects) is drawn on a `VW x level height`
+surface; the camera crops a piece of it (`view_rect`) and scales it to the
+screen: `ZOOM` 1.5 when exploring, up to `ZOOM_FIGHT` 1.75 with a few enemies
+close (not in a crowd), `ZOOM_DUEL` 1.6 with the Guardian always in frame. The
+camera follows vertically (`follow_y`: feet at a fixed height when grounded,
+margins while jumping). Then the foreground silhouettes (fade out underground),
+cave darkness with the visor light, drizzle (none underground), vignette, HUD.
+
+The map is `levels.ROWS` rows: `SKY` rows of sky above the surface (for the
+cliff), the crust at `GROUND`, `DEPTH` rows of rock below (galleries). Methane
+is its own tile `~` (`LAKE_DEPTH` deep): a head under it drowns.
 
 ## Asset pipeline
 
@@ -84,7 +99,14 @@ The owner generates images with ChatGPT "Create image" from the prompts in
 - knight strips and the Guardian strip are split by silhouette at load time
   (`assets.sheet(..., typical=True)` scales on the typical figure, so a raised
   sword doesn't shrink the sheet);
-- rename to the names the code expects, move old versions to `assets/inutili/`.
+- rename to the names the code expects, move old versions to `assets/inutili/`;
+- sheets that come on a pure black background: key out only the black connected
+  to the image border (outlines are 7-30, the background 0-6), done for
+  `knight_climb/wind/ledge_sheet.png`;
+- props and multi-object images load with `assets.pieces(name, n, h, ref)`
+  (split by silhouette, one common scale);
+- keep Titan plausible (see STORY.md, "Titano vero"): water-ice rock, organic
+  sediment, methane liquid, no rust, cryovolcanoes, nitrogen.
 
 ## How the owner works (important)
 
@@ -101,29 +123,43 @@ The owner generates images with ChatGPT "Create image" from the prompts in
 
 ## Next steps (agreed direction, in order)
 
-1. **Make Titan a ten-minute level** built on action + skill + planning:
+1. **Make Titan a ten-minute level** built on action + skill + planning
+   (plan agreed on 23/9, decisions taken on 27/9):
    - oxygen drains faster while fighting, sprinting and jumping, so long fights
      force a stop at a station;
-   - fatigue: after sustained effort NightKnight breathes hard (audible), slows
-     down and jumps less; resting recovers;
-   - acid rain that wears the suit when out in the open (shelter under rocks,
-     canopies, in tunnels); storms that push and cut visibility;
-   - stone tunnels to climb, cavities, tighter passages;
-   - geysers drawn and animated (new art), more spectacular hazards;
+   - fatigue with no bar: NightKnight pants (`knight_tired_sheet` is ready),
+     slows down and jumps less; resting recovers;
+   - methane downpour instead of acid rain (Titan's rain is not acidic): out in
+     the open it freezes the suit's joints, in the labyrinth's channels and
+     galleries it brings flash floods; shelters are drawn (`shelter.png`);
+   - storms that push and cut visibility (`knight_wind_sheet` is ready);
+   - ledge grab (`knight_ledge_sheet` is ready) — agreed, not coded yet;
+   - some cryovolcanoes launch you up to ledges and hidden prisoners;
    - jellyfish that stick to you, slow you and drain life until knocked off;
-   - a longer map and more varied pacing between the waves.
+   - a longer surface and more varied pacing between the waves.
 2. **Gravity, atmosphere and weather must matter more** on every satellite
    (jump, fall, inertia, projectiles, enemy behaviour): it is the game's
    differentiator.
 3. **Game feel**: hit-stop, knockback, snappier acceleration and fall, camera
    look-ahead, dash/combos (to be agreed), enemy reactions.
-4. **Parallax with many layers** so the scene feels almost 3D.
+4. ~~Parallax with many layers~~ done (27/9); `cliff_bg.png` (a canyon wall
+   for when the camera is high on the cliff) and `ledge.png` (drawn ledges) are
+   in `assets/` but not used yet.
 5. Browser build (pygbag; pymunk must be replaced by a hand-written pendulum)
    and the case-study page.
 6. The other eleven satellites, Saturn's rings, Luna (see `STORY.md`,
    "Ancora da decidere").
 
 ## Known gaps
+
+- Frame time is ~9.5 ms on the surface and ~11 ms in the galleries (darkness
+  overlay); fine on desktop, to be optimised for the browser build.
+- In the galleries under the edge of the spire lake, the lake is seen from the
+  side as a dark band.
+- The owner suggested writing the name as **9T9T** ("figo come nome reale"):
+  not decided yet.
+- Older chats: the 23/9 transcript was moved into this project's transcript
+  folder (the project used to live under `/home/ema`).
 
 - `Player` still keeps its Light in the attribute `albedo` (old name).
 - The Guardian's movement code (`knights.py`) still carries generic moves from

@@ -70,6 +70,8 @@ Ogni satellite dura circa dieci minuti, in tre parti:
 1. **Superficie — 4/5 minuti.** Atmosfera, insidie, prigionieri e ondate.
 2. **Traversata — 2/3 minuti.** Ostacoli e difficoltà del satellite: salti sui
    massi, corsa, liane, cavi, laghi, piattaforme, gravità e aria del posto.
+   **Non è una linea retta**: è un piccolo labirinto che sale, torna indietro e
+   scende, con vicoli ciechi che premiano chi esplora.
    **Pochi nemici, davvero pochi**: la traversata serve a spezzare il ritmo e a
    far sentire il luogo, non a combattere. Non sono prove atletiche.
 3. **Guardiano — 2/3 minuti.** Duello a **un solo round** contro il cavaliere
@@ -88,6 +90,9 @@ Si va sottoterra solo dove le condizioni reali lo impongono: radiazioni letali o
 nessuna superficie praticabile. Il freddo non basta, perché tutti i satelliti
 stanno fra −150 e −230 °C e il freddo lo regge la tuta. Oggi l'unico caso è
 **Europa**, investita dalle radiazioni di Giove, con la vita sotto la crosta.
+Su **Titano** si scende solo per un tratto della traversata: oltre il crepaccio
+la superficie è chiusa da una parete, e si passa per le gallerie del terreno a
+labirinto, scavate dal metano.
 
 ### Stile degli ambienti
 
@@ -234,7 +239,7 @@ Volanti e terrestri sono solo creature del satellite, mai scheletri.
 
 | # | Satellite | Arma affine | Scheletri | 2 volanti | 3 terrestri | 4 insidie |
 | --- | --- | --- | --- | --- | --- | --- |
-| 01 | Titano | Spada termica | normali + volanti | corvi necrofagi; meduse atmosferiche | minatori mutati; lucertole criogeniche; vermi di silicio | geyser; gas criogenico; lago di metano; ossigeno scarso |
+| 01 | Titano | Spada termica | normali + volanti | corvi necrofagi; meduse atmosferiche | minatori mutati; lucertole criogeniche; vermi di silicio | criovulcani; azoto criogenico; lago di metano; ossigeno scarso |
 | 02 | Nix | Lancia luminosa | volanti + 2× | pipistrelli del vuoto; falene ossee | custodi senza volto; ragni da condotto; copie difettose | nube ossea; sirene psichiche; crepacci; ossigeno scarso |
 | 03 | Io | Martello sismico | normali + 2× | arpie di ferraglia; falene ossee | minatori mutati; cinghiali minerari; vermi di silicio | geyser di zolfo; pioggia di detriti; pavimento instabile; gas corrosivo |
 | 04 | Europa | Falce a fusione | normali + 3× | meduse atmosferiche; angeli corrosi | cadaveri pressurizzati; lucertole criogeniche; ragni da condotto | ghiaccio che cede; gas criogenico; ossigeno scarso; pozze conduttive |
@@ -251,7 +256,7 @@ Volanti e terrestri sono solo creature del satellite, mai scheletri.
 
 | Satellite | Sfondo e terreno | Lungo la strada | Traversata |
 | --- | --- | --- | --- |
-| Titano | Nebbia arancione opaca, Saturno appena visibile; terra scura e ghiaccio di metano | Torri d'estrazione piegate, tubi che perdono, rover sepolti, relitti di tute | Salti su massi di ghiaccio, corsa sulle rive, lago di metano attraversato con un cavo industriale |
+| Titano | Nebbia arancione opaca, Saturno appena visibile; roccia di ghiaccio d'acqua sporca di sedimenti organici | Torri d'estrazione piegate, condotte d'azoto rotte, rover sepolti, relitti di tute | Il labirinto: rupe a zig-zag su tre cengie, guglie dentro un lago di metano e cavo fra due gru, crepaccio, gallerie buie, pozzo con la scala fino al portello |
 | Nix | Buio quasi totale, stelle immobili, rocce nere e neve grigia | Ripetitori spenti, ossari nelle miniere, antenne spezzate, porte senza corrente | Salti tra crateri, piattaforme che cedono, cavi sospesi |
 | Io | Giove enorme nel cielo, rosso vulcanico e fumo giallo | Miniere di zolfo, nastri trasportatori, escavatori fusi, statue di cavalieri annerite | Passerelle calde, massi vulcanici, colonne mobili sopra le colate |
 | Europa | Ghiaccio blu, luce dell'oceano sotto la crosta, cupole sommerse | Laboratori sotto il ghiaccio, capsule di salvataggio, finestre crepate con ombre nell'acqua | Scivolate e salti sul ghiaccio, piattaforme galleggianti, cavo sopra una spaccatura |
@@ -297,15 +302,36 @@ NightKnight.
   stazione. Scegliere dove combattere e quando ricaricare fa parte del gioco.
 - **Fatica.** Dopo uno sforzo lungo NightKnight ha il fiato corto: si sente il
   respiro, rallenta, salta meno. Fermarsi un momento lo fa riprendere.
-- **Meteo del satellite.** Tempeste che spingono e tolgono visibilità; **pioggia
-  acida** che consuma la tuta se si resta allo scoperto (ripararsi sotto rocce,
-  tettoie, nei tunnel); nebbia che nasconde i fossi.
+- **Meteo del satellite.** Tempeste che spingono e tolgono visibilità; su
+  Titano il **diluvio di metano** (la pioggia vera di Titano, non acida): allo
+  scoperto ghiaccia le giunture della tuta, e nei canali e nelle gallerie del
+  labirinto porta piene improvvise; nebbia che nasconde i fossi.
 - **Terreno più vario.** Tunnel di pietra da risalire, cavità, passaggi stretti,
   oltre a pareti, cumuli, laghi e cavi.
-- **Insidie più belle da vedere.** Geyser disegnati e animati, non solo
+- **Insidie più belle da vedere.** Criovulcani disegnati e animati, non solo
   particelle; ogni fenomeno deve essere uno spettacolo prima che un ostacolo.
 - **Gravità e atmosfera.** Su ogni satellite cambiano salto, caduta, inerzia,
   velocità dei proiettili e comportamento dei nemici, in modo che si senta.
+
+### Titano vero
+
+Le insidie di Titano partono da quello che si sa dalla missione Cassini-Huygens:
+
+- **−179 °C**, atmosfera di azoto (95%) e metano, pressione una volta e mezza la
+  terrestre, **niente ossigeno**: le bombole e le stazioni hanno senso.
+- Foschia arancione di toline: dalla superficie è un crepuscolo continuo.
+  Saturno non si vedrebbe; lo lasciamo intravedere per licenza.
+- La "roccia" è **ghiaccio d'acqua** duro come pietra, sporco di sedimenti
+  organici scuri. Il metano è liquido: **laghi e mari**, pioggia a gocce grosse e
+  lente, fiumi e piene. Niente ruggine: senza ossigeno il ferro non arrugginisce.
+- Il **terreno a labirinto** esiste: altopiani sciolti dalla pioggia di metano in
+  gole, guglie e pozzi, come il carsismo. Le stalattiti sono organiche.
+- I **criovulcani** (fango gelido d'acqua e ammoniaca) sono un'ipotesi; i geyser
+  veri sono su Encelado. Il gas criogenico è **azoto** che esce dalle condotte
+  rotte della colonia.
+- Gravità 0,14 g e aria densa: salti lunghi e lenti, l'aria frena. Nel gioco la
+  gravità è più alta per restare giocabile, ma Titano resta il satellite dei
+  salti lunghi.
 
 ### Riferimenti di qualità
 
@@ -339,9 +365,11 @@ fatto.
 
 ## Asset
 
-Tutto è ridisegnato in cartoon. Già fatti: NightKnight (posa e sette
-animazioni), Bianca, i prigionieri illuminati, cielo, fondali e terreno di
-Titano, i nemici di Titano e il suo Guardiano. Delle immagini del vecchio
+Tutto è ridisegnato in cartoon. Già fatti: NightKnight (posa e sedici
+animazioni: anche scala, cavo, colpito, morte, respiro, stanchezza, vento,
+atterraggio, presa al bordo), Bianca, i prigionieri illuminati, cielo, cinque
+piani di parallasse e terreno di Titano, le gallerie, i criovulcani, le condotte
+d'azoto, le gru del cavo, i nemici di Titano e il suo Guardiano. Delle immagini del vecchio
 prototipo non resta nulla: sono tutte in `assets/inutili/`.
 
 ## Ancora da decidere

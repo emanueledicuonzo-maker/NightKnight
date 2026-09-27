@@ -45,10 +45,13 @@ duello contro il Guardiano, aiutato solo da pochi volanti. Regole, nemici e
 tabelle dei satelliti sono in `STORY.md`.
 
 Oggi e' giocabile **solo Titano**, dall'inizio alla fine: un unico percorso con
-quattro ondate (non bloccano mai, si puo' scappare), laghi di metano, geyser, gas
-criogenico, stazioni d'ossigeno e quindici prigionieri; poi la traversata fra
-rocce, pareti con le scale di servizio, pilastri e il cavo sopra il lago grande;
-infine il duello a un round col Guardiano, alto il doppio di NightKnight, con
+quattro ondate (non bloccano mai, si puo' scappare), laghi di metano, criovulcani,
+condotte d'azoto, stazioni d'ossigeno e quindici prigionieri; poi la traversata,
+un labirinto che non va dritto: una rupe da salire a zig-zag su tre cengie con le
+scale di servizio, la cresta, le guglie dentro un lago di metano e il cavo fra
+due gru, un crepaccio in cui scendere, gallerie buie (si vede solo la luce della
+visiera) con un vicolo cieco, un passaggio basso e una pozza di metano, e un pozzo
+con la scala che risale al portello; infine il duello a un round col Guardiano, alto il doppio di NightKnight, con
 alabarda e gancio. Gli altri undici satelliti arriveranno.
 
 **Bianca** segue NightKnight e non muore. Ogni prigioniero liberato da' 5 Luce;
@@ -61,11 +64,15 @@ slancio, Spazio lascia la presa. In salto, muovendosi, `C` e' il calcio volante
 girato (da fermo resta il calcio volante semplice): colpisce tutto intorno, ma
 all'atterraggio si resta scoperti per un attimo.
 
+La telecamera segue NightKnight anche in altezza, si avvicina quando combatte
+contro pochi nemici (resta larga in mezzo alla folla) e nel duello tiene in
+quadro anche il Guardiano. Dietro il mondo ci sono cinque piani di parallasse con
+la foschia di Titano fra l'uno e l'altro, e sagome scure in primo piano.
+
 **Prossimo lavoro** (dettagli in `HANDOFF.md`): portare Titano a dieci minuti
-con piu' azione e pianificazione (ossigeno che cala combattendo, fatica, pioggia
-acida e tempeste, tunnel di pietra, geyser disegnati, meduse che si attaccano),
-gravita' e meteo che pesano di piu', parallasse a piu' piani e una sensazione dei
-colpi da gioco d'azione moderno.
+con piu' azione e pianificazione (ossigeno che cala combattendo, fatica, diluvio
+di metano e tempeste, meduse che si attaccano, presa al bordo), gravita' e meteo
+che pesano di piu' e una sensazione dei colpi da gioco d'azione moderno.
 
 ## Progressi
 
@@ -99,8 +106,9 @@ in esplorazione il basso e' suonato al contrario, nel duello torna dritto. Ogni
 evento ha il suo effetto (fendente, sasso, calcio, ossa, prigioniero, geyser,
 porte stagne, gancio, raffica di Bianca...).
 
-I test simulano i salti delle fosse, l'attraversamento dei geyser, i prigionieri
-e la raffica di Bianca. Verificano anche il flusso
+I test simulano i salti delle fosse, ogni passaggio del labirinto con la fisica
+del gioco (e che le scorciatoie non esistano), la telecamera, l'attraversamento
+dei geyser, i prigionieri e la raffica di Bianca. Verificano anche il flusso
 di ricompense fino al finale; non sostituiscono una partita completa per
 valutare difficolta' dei combattimenti e ritmo.
 

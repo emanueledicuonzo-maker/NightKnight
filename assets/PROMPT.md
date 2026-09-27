@@ -43,6 +43,18 @@ STYLE: match the attached character's dark 2D cartoon style exactly: bold clean 
 | `titan_rock.png` | roccia a strati delle pareti |
 | `stazione_ossigeno.png`, `portello.png`, `capsula.png` | stazione, uscita, capsula d'atterraggio |
 | `emblema.png` | stemma di NightKnight (titolo e HUD) |
+| `knight_idle/climb/hang/hurt/death/tired/land/wind/ledge_sheet.png` | respiro, scala (da dietro), cavo, colpito, morte, stanco, atterraggio, vento, presa al bordo |
+| `hills_far.png`, `colony_ruins.png`, `foreground.png` | piani di parallasse: montagne lontane, rovine della colonia, primo piano |
+| `cave_bg.png`, `cave_rock.png`, `cave_props.png`, `cave_mouth.png` | gallerie: fondale, roccia, 5 decorazioni, imbocco |
+| `geyser.png`, `geyser_jet.png` | criovulcano: cono (spento, incrinato) e colonna in 3 fasi |
+| `gas_vent.png` | condotta dell'azoto, chiusa e aperta (soffia di lato) |
+| `cable_pylon.png`, `ladder.png`, `hook.png` | gru e impugnatura del cavo, scala di servizio, gancio e maglia del Guardiano |
+| `cliff_bg.png`, `ledge.png`, `shelter.png` | parete del canyon, cengia, ripari: pronti, non ancora usati |
+
+Per Titano i prompt nuovi devono restare credibili (vedi `STORY.md`, "Titano
+vero"): roccia di ghiaccio d'acqua e sedimenti organici scuri sotto luce
+arancione, metallo brinato e incrostato invece che arrugginito, cristalli di
+ghiaccio d'acqua o organici, non "ghiaccio di metano".
 
 Le strip del cavaliere si possono generare con qualunque numero di fotogrammi:
 il gioco separa le figure seguendo le sagome. Nelle nuove strip aggiungere:
