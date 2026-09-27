@@ -13,27 +13,37 @@ ART = {}           # pilone e impugnatura disegnati (caricati dal gioco)
 FLOOR = levels.GROUND * TILE
 BED = FLOOR + levels.LAKE_DEPTH * TILE      # il fondo dei laghi
 _pylons = {}       # gru scalate all'altezza di ogni portale
+ROPE_PERIOD, ROPE_SWING = 2.7, 50    # un'oscillazione completa in 2,7 s, 50 gradi per parte
 GRAB = 130         # in salto, a questa distanza dall'impugnatura ci si aggrappa
 
 
+class Handle:
+    """L'impugnatura: posizione e velocita' (in px/s, come prima con pymunk)."""
+    def __init__(self):
+        self.position = pymunk.Vec2d(0, 0)
+        self.velocity = pymunk.Vec2d(0, 0)
+
+
 class Rope:
+    """Cavo che dondola da solo, come un pendolo regolare: ampiezza fissa, e ogni
+    cavo col suo ritmo (`speed`); chi ci sta appeso non lo spinge."""
     ANCHOR_Y = FLOOR - 656
 
-    def __init__(self, x, y=ANCHOR_Y, length=500):
+    def __init__(self, x, y=ANCHOR_Y, length=500, speed=1.0, phase=0.0):
         self.anchor = pymunk.Vec2d(x, y)
         self.length = length
-        self.space = pymunk.Space()
-        self.space.gravity = (0, 2700)
-        self.space.damping = 0.999
-        self.body = pymunk.Body(1, float("inf"))
-        self.body.position = self.anchor + pymunk.Vec2d(-length * 0.65, length * math.sqrt(1 - 0.65**2))
-        self.joint = pymunk.PinJoint(self.space.static_body, self.body, self.anchor, (0, 0))
-        self.space.add(self.body, self.joint)
+        self.omega = 2 * math.pi / ROPE_PERIOD * speed
+        self.t = -phase / self.omega if self.omega else 0.0
+        self.body = Handle()
+        self.update()
 
     def update(self, steering=0):
-        for _ in range(2):
-            self.body.apply_force_at_local_point((steering * 1600, 0))
-            self.space.step(1 / 120)
+        self.t += 1 / 60
+        a = math.radians(ROPE_SWING) * math.sin(self.omega * self.t - math.pi / 2)
+        da = math.radians(ROPE_SWING) * self.omega * math.cos(self.omega * self.t - math.pi / 2)
+        L = self.length
+        self.body.position = self.anchor + pymunk.Vec2d(L * math.sin(a), L * math.cos(a))
+        self.body.velocity = pymunk.Vec2d(L * math.cos(a) * da, -L * math.sin(a) * da)
 
     def draw(self, screen, cam):
         a = (int(self.anchor.x) - cam, int(self.anchor.y))
@@ -73,8 +83,8 @@ def draw_portal(screen, cam, left, right, top):
 class Cable:
     """Un cavo solo: la corda, la presa, il lancio quando si lascia."""
 
-    def __init__(self, x, y=Rope.ANCHOR_Y, length=500):
-        self.rope = Rope(x, y, length)
+    def __init__(self, x, y=Rope.ANCHOR_Y, length=500, speed=1.0):
+        self.rope = Rope(x, y, length, speed)
         self.attached = False
         self.regrab = 0
 
@@ -157,7 +167,7 @@ class Cables:
     def update_player(self, p, keys, lv):
         steering = int(keys[pygame.K_RIGHT] or keys[pygame.K_d]) - int(keys[pygame.K_LEFT] or keys[pygame.K_a])
         for c in self.all:
-            c.rope.update(steering if c.attached else 0)
+            c.rope.update()                   # dondolano da soli: le frecce non li spingono
             c.regrab = max(0, c.regrab - 1)
         if not self.attached and not p.on_ground:
             for c in self.all:

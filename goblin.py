@@ -1438,7 +1438,9 @@ class Game:
         self.cable = None
         if self.part == "surface":
             x0 = levels.TITAN_PASS_START * TILE
-            self.cable = athletics.Cables([[athletics.Cable(x0 + col * TILE + TILE // 2, athletics.FLOOR - top, length)
+            speeds = iter(levels.ROPE_SPEEDS)
+            self.cable = athletics.Cables([[athletics.Cable(x0 + col * TILE + TILE // 2, athletics.FLOOR - top, length,
+                                                            next(speeds))
                                             for col, top, length in group] for group in levels.TITAN_CABLES])
             for kind, col, row in levels.TITAN_PASS_FOES:
                 col += levels.TITAN_PASS_START

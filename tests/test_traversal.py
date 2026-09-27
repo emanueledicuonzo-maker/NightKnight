@@ -40,29 +40,33 @@ class TraversalTests(unittest.TestCase):
         self.assertNotIn("PROVE ATLETICHE", g.menu_items())
 
     def test_cable_carries_across_its_lake(self):
+        """Dall'ultima guglia, aspettando il momento giusto, il cavo porta di la'."""
+        import athletics
         g = self.game
-        p = g.player
-        p.x = (levels.TITAN_PASS_START + 78) * TILE          # sull'ultima guglia
-        p.y = (levels.GROUND - 4) * TILE - p.h
-        p.do_jump()
+        idle = defaultdict(bool)
         keys = defaultdict(bool, {pygame.K_RIGHT: True, pygame.K_SPACE: True})
-        cable = g.cable.all[0]
-        grabbed = False
-        for _ in range(240):
-            g.cable.update_player(p, keys, g.lv)
-            if not grabbed:
-                g.cable.interact(p, g.lv)
-                grabbed = cable.attached
-            elif cable.rope.body.position.x > cable.rope.anchor.x + 120:
-                g.cable.release(p)
+        crossed = False
+        for wait in range(0, 170, 10):
+            col, top, length = levels.TITAN_CABLES[0][0]
+            cables = athletics.Cables([[athletics.Cable((levels.TITAN_PASS_START + col) * TILE + TILE // 2,
+                                                        athletics.FLOOR - top, length, levels.ROPE_SPEEDS[0])]])
+            cable = cables.all[0]
+            p = goblin.Player((levels.TITAN_PASS_START + 78) * TILE, (levels.GROUND - 4) * TILE - goblin.Player.h)
+            p.on_ground = True
+            for _ in range(wait):
+                cables.update_player(p, idle, g.lv)
+            p.do_jump()
+            for _ in range(400):
+                cables.update_player(p, keys, g.lv)
+                if cable.attached and cable.rope.body.velocity.x > 0 \
+                        and cable.rope.body.position.x > cable.rope.anchor.x + 120:
+                    cables.release(p)
+                if p.on_ground or g.lv.drowned(p.rect):
+                    break
+            if p.on_ground and p.rect.left > (levels.TITAN_PASS_ROPE + 4) * TILE:
+                crossed = True
                 break
-        self.assertTrue(grabbed)
-        for _ in range(150):
-            g.cable.update_player(p, keys, g.lv)
-            if p.on_ground:
-                break
-        self.assertTrue(p.on_ground)
-        self.assertGreater(p.rect.left, (levels.TITAN_PASS_ROPE + 4) * TILE)
+        self.assertTrue(crossed)
 
     def test_reaching_the_traversal_is_a_restart_point(self):
         g = self.game

@@ -140,7 +140,9 @@ class LabyrinthTests(unittest.TestCase):
         ogni cavo si lascia quando l'impugnatura ha superato releases[i] della
         lunghezza nel verso giusto. Restituisce (esito, cavi presi, colonna, altezza)."""
         x0 = X0 * TILE
-        cables = athletics.Cables([[athletics.Cable(x0 + col * TILE + TILE // 2, athletics.FLOOR - top, length)
+        speeds = iter(levels.ROPE_SPEEDS)
+        cables = athletics.Cables([[athletics.Cable(x0 + col * TILE + TILE // 2, athletics.FLOOR - top, length,
+                                                    next(speeds))
                                     for col, top, length in group] for group in levels.TITAN_CABLES])
         p = self.stand(start, h)
         idle = defaultdict(bool)
@@ -168,8 +170,9 @@ class LabyrinthTests(unittest.TestCase):
                 return "a terra", grabs, col, h
         return "appeso", grabs, None, None
 
-    def crossings(self, start, h, releases, waits=range(0, 200, 10)):
-        """Tutti i modi di passare provando attese e rilasci: [(attesa, rilasci, esito)]."""
+    def crossings(self, start, h, releases, waits=range(0, 200, 5)):
+        """Tutti i modi di passare provando attese e rilasci: [(attesa, rilasci, esito)].
+        I cavi dondolano da soli: si sceglie solo quando saltare e quando lasciare."""
         import itertools
         out = []
         for wait in waits:
@@ -178,17 +181,19 @@ class LabyrinthTests(unittest.TestCase):
         return out
 
     def test_the_double_cable_needs_both_cables(self):
-        tries = self.crossings(165, 3, [(0.75, 0.85, 0.95), (0.5, 0.65, 0.75)])
-        ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [1, 2] and t[2][2] >= 201]
+        tries = self.crossings(165, 3, [(0.2, 0.35, 0.5, 0.65, 0.75), (0.35, 0.5, 0.65, 0.75)])
+        ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [1, 2] and t[2][2] >= 196]
         self.assertTrue(ok, "col doppio cavo non si passa mai")
         for wait, rel, (outcome, grabs, col, h) in tries:              # col primo soltanto no
-            self.assertFalse(outcome == "a terra" and grabs == [1] and col >= 201)
+            self.assertFalse(outcome == "a terra" and grabs == [1] and col >= 196)
 
     def test_the_triple_cable_is_crossed_only_from_high_up(self):
-        tries = self.crossings(213, levels.TITAN_TOWER, [(0.5, 0.65), (0.65, 0.75, 0.85), (0.5, 0.65, 0.75)])
+        tries = self.crossings(213, levels.TITAN_TOWER, [(0.35, 0.5, 0.65), (0.5, 0.65), (0.5, 0.65)],
+                               waits=range(0, 200, 10))
         ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [3, 4, 5] and t[2][2] >= 253]
         self.assertTrue(ok, "col triplo cavo non si passa mai")
-        low = self.crossings(213, levels.TITAN_TOWER, [(0.5, 0.65), (0.35,), (0.5, 0.65, 0.75)])
+        low = self.crossings(213, levels.TITAN_TOWER, [(0.35, 0.5, 0.65), (0.0, 0.2), (0.5, 0.65, 0.75)],
+                             waits=range(0, 200, 10))
         self.assertFalse([t for t in low if t[2][0] == "a terra" and t[2][2] >= 253])   # lasciato basso, no
 
     def test_handles_hang_above_the_launch_points(self):
@@ -198,6 +203,19 @@ class LabyrinthTests(unittest.TestCase):
             lowest = (top - length) / TILE                  # l'impugnatura nel punto piu' basso
             with self.subTest(col=col):
                 self.assertGreaterEqual(lowest, launch + 4.5)  # sopra la testa: si salta per prenderla
+
+    def test_ropes_swing_on_their_own_each_at_its_pace(self):
+        rope = athletics.Rope(0, 0, 500, 1.0)
+        fast = athletics.Rope(0, 0, 500, 1.2)
+        xs, fx = [], []
+        for _ in range(int(athletics.ROPE_PERIOD * 60)):     # un'oscillazione completa
+            rope.update(steering=1)                          # spingere non conta
+            fast.update()
+            xs.append(rope.body.position.x)
+            fx.append(fast.body.position.x)
+        self.assertAlmostEqual(max(xs), -min(xs), delta=5)  # dondola uguale da una parte e dall'altra
+        self.assertNotAlmostEqual(xs[-1], fx[-1], delta=20)  # ognuno col suo ritmo
+        self.assertEqual(len(levels.ROPE_SPEEDS), sum(len(g) for g in levels.TITAN_CABLES))
 
 
 if __name__ == "__main__":

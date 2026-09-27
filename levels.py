@@ -179,9 +179,11 @@ TITAN_TOWER = 5              # la torre da cui si parte per il triplo
 _SPIRE, _STEP = 4, 3         # l'ultima guglia e lo scalino del doppio cavo
 ROPE_TOP, ROPE_MID, ROPE_HIGH = (_SPIRE * 64 + ROPE_ABOVE + 500, _STEP * 64 + ROPE_ABOVE + 470,
                                  TITAN_TOWER * 64 + ROPE_ABOVE + 480)
+# Velocita' del dondolio di ogni cavo, nell'ordine: ognuno un po' diverso dall'altro.
+ROPE_SPEEDS = (1.0, 1.1, 0.9, 1.2, 0.8, 1.1)
 TITAN_CABLES = [
     [(83, ROPE_TOP, 500)],                                     # il lago delle guglie
-    [(173, ROPE_MID, 470), (189, ROPE_MID, 530)],              # il doppio cavo
+    [(170, ROPE_MID, 470), (184, ROPE_MID, 500)],              # il doppio cavo
     [(217, ROPE_HIGH, 480), (230, ROPE_HIGH, 520), (243, ROPE_HIGH, 460)],   # il triplo, dall'alto
 ]
 # Da che parte soffiano gli sfiati d'azoto (colonna assoluta -> verso): verso chi
@@ -280,8 +282,8 @@ def gen_titan_pass():
             g[CAVE_FLOOR][c] = "#"
     # 5. il doppio cavo, fra due scalini di roccia da cui lanciarsi e su cui atterrare
     _rock(g, 162, 167, 3)
-    _lake(g, 167, 201)
-    _rock(g, 201, 204, 3)
+    _lake(g, 167, 196)
+    _rock(g, 196, 204, 3)
     # 6. la torre, il triplo cavo sul lago grande, lo scalino della riva di la'
     _pillar(g, 210, 215, TITAN_TOWER)
     _ladder_rows(g, 207, GROUND - TITAN_TOWER, GROUND)
