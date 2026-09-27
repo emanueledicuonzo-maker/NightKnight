@@ -66,7 +66,7 @@ FIGHT_RANGE = (520, 320)     # distanza (orizzontale, verticale) dei nemici che 
 # Piani di parallasse sopra il cielo: (immagine, velocita', spostamento in giu',
 # foschia steso sopra). Il primo piano, davanti al mondo, corre piu' del terreno.
 PARALLAX = (("hills_far", 0.07, 0, 70), ("hills_01", 0.16, 0, 45),
-            ("colony_ruins", 0.28, 90, 30), ("hills_02", 0.42, 0, 0))
+            ("colony_ruins", 0.28, 90, 30), ("hills_02", 0.42, 0, 38))
 FOG_COLOR = (196, 112, 58)
 DARKNESS, VISOR = 140, 640       # buio delle gallerie e raggio della luce della visiera
 FOREGROUND_SPEED, FOREGROUND_SINK = 1.35, 230
@@ -130,9 +130,11 @@ class Gfx:
         self.titan_lake = pygame.Surface((TILE, depth), pygame.SRCALPHA)
         for y in range(LAKE_LEVEL, depth):
             k = (y - LAKE_LEVEL) / (depth - LAKE_LEVEL)
-            top, low = (132, 70, 34), (12, 7, 8)
-            color = tuple(int(a + (b - a) * min(1, k * 2.2)) for a, b in zip(top, low))
+            # metano liquido: arancio scuro che riflette il cielo, non un buco nero
+            top, low = (178, 100, 50), (78, 40, 22)
+            color = tuple(int(a + (b - a) * min(1, k * 1.4)) for a, b in zip(top, low))
             pygame.draw.line(self.titan_lake, color + (255,), (0, y), (TILE, y))
+        pygame.draw.line(self.titan_lake, (240, 176, 104, 255), (0, LAKE_LEVEL), (TILE, LAKE_LEVEL), 3)
         # Vignettatura: bordi dello schermo appena piu' scuri
         # Insidie di Titano disegnate: criovulcano (cono e colonna), condotta dell'azoto
         for key, name, n, h, ref in (("geyser", "geyser", 2, 118, 0), ("geyser_jet", "geyser_jet", 3, 340, 1),
@@ -270,7 +272,7 @@ class Gfx:
             return self.titan_ladder
         if self.titan_ground is None or ch not in "#D":
             return None
-        if ch == "D" and r > GROUND + 2 and self.cave_rock:
+        if ch == "D" and r > GROUND + 2 and self.cave_rock and c >= levels.TITAN_PASS_START:
             # sotto la crosta: la roccia scura delle gallerie
             return self.cave_rock.subsurface(((c % ROCK_N) * TILE, (r % ROCK_N) * TILE, TILE, TILE))
         if ch == "D" and r < GROUND:
@@ -383,13 +385,16 @@ class Level:
     def tile_at(self, x, y):
         return self.at(int(x // TILE), int(y // TILE))
 
-    def floor_near(self, x, y, reach=8):
+    def floor_near(self, x, y, reach=8, liquid=False):
         """La quota del suolo (una cima con aria sopra) nella colonna di x piu'
-        vicina a y, entro `reach` tessere; None se li' c'e' solo vuoto o metano."""
+        vicina a y, entro `reach` tessere; None se li' c'e' solo vuoto o metano.
+        liquid: anche il pelo di un lago conta (per la telecamera, non per chi cammina)."""
         c = int(x // TILE)
         best = None
         for r in range(max(1, int(y // TILE) - reach), min(self.rows, int(y // TILE) + reach)):
-            if self.at(c, r) in SOLID and self.at(c, r - 1) not in SOLID and self.at(c, r - 1) != "~":
+            cell, above = self.at(c, r), self.at(c, r - 1)
+            top = (cell in SOLID and above not in SOLID and above != "~") or (liquid and cell == "~" and above != "~")
+            if top:
                 if best is None or abs(r * TILE - y) < abs(best - y):
                     best = r * TILE
         return best
@@ -1285,7 +1290,22 @@ class Game:
         """Un camminatore dei rinforzi, appoggiato sul suolo che c'e' dove entra
         (colline e montagne comprese), il piu' vicino all'altezza di NightKnight."""
         w = Walker(x, kind)
-        feet = self.lv.floor_near(w.rect.centerx, self.player.rect.bottom)
+        feet_y = self.player.rect.bottom
+        step = TILE if x < self.player.rect.centerx else -TILE
+        # dentro una montagna non si nasce: ci si sposta verso NightKnight finche'
+        # non c'e' un suolo a una quota vicina alla sua
+        x0 = w.x
+        for i in range(16):
+            feet = self.lv.floor_near(x0 + w.w / 2 + i * step, feet_y, 4)
+            if feet is None:
+                continue
+            w.x, w.y = x0 + i * step, feet - w.h
+            r = w.rect
+            if not any(self.lv.solid(px, py) for px in (r.left + 2, r.centerx, r.right - 3)
+                       for py in (r.top + 2, r.centery, r.bottom - 3)):
+                return w
+        w.x = x0
+        feet = self.lv.floor_near(w.rect.centerx, feet_y, 20)
         if feet is not None:
             w.y = feet - w.h
         return w
@@ -1441,7 +1461,7 @@ class Game:
         drop = 0
         for ahead in range(1, EDGE_LOOK + 1):
             x = r.centerx + p.facing * ahead * TILE
-            floor = self.lv.floor_near(x, r.bottom + 6 * TILE, 7)
+            floor = self.lv.floor_near(x, r.bottom + 6 * TILE, 7, liquid=True)
             if floor is None:
                 return 99
             drop = max(drop, (floor - r.bottom) // TILE)

@@ -202,6 +202,18 @@ class FaunaTests(unittest.TestCase):
         g.update()
         self.assertEqual(w.state, "done")
 
+    def test_reinforcements_never_appear_inside_rock(self):
+        import levels
+        g = self.game
+        p = g.player
+        p.x, p.y = 232 * goblin.TILE, levels.GROUND * goblin.TILE - p.h        # ai piedi della montagna
+        for col in range(236, 256):
+            with self.subTest(col=col):
+                w = g.make_walker(col * goblin.TILE, "lizard")
+                r = w.rect
+                self.assertFalse(any(g.lv.solid(x, y) for x in (r.left + 4, r.right - 4)
+                                     for y in (r.top + 4, r.centery, r.bottom - 4)))
+
 
 if __name__ == "__main__":
     unittest.main()
