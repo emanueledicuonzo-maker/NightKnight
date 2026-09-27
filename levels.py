@@ -12,6 +12,9 @@ GROUND = 14 + SKY
 DEPTH = 14
 ROWS = GROUND + 3 + DEPTH
 LAKE_DEPTH = 3
+# Le gallerie sotto Titano sono lunghe: CAVE_EXTRA colonne in piu' dopo il passaggio
+# basso; tutto quello che viene dopo (pozzo, cavi, torre, portello) e' spostato.
+CAVE_EXTRA = 135
 
 # La scelta e' deliberatamente senza conferma: una volta entrati nella campagna
 # si porta la stessa arma fino alla fine. L'affinita' giusta evita le resistenze
@@ -75,14 +78,15 @@ TITAN_PATROLS = dict(every=14, size=(2, 4), start=12,
 TITAN_PASS_FOES = [("lizard", 26, GROUND - 4), ("crow", 32, GROUND - 20),
                    ("skeleton", 92, GROUND + 10), ("burrower", 108, GROUND + 10), ("worm", 113, GROUND + 10),
                    ("worm", 122, GROUND + 10), ("miner", 134, GROUND + 10), ("burrower", 142, GROUND + 10),
-                   ("jelly", 180, GROUND - 6), ("crow", 236, GROUND - 18)]
+                   ("jelly", 180 + CAVE_EXTRA, GROUND - 6), ("crow", 236 + CAVE_EXTRA, GROUND - 18)]
 # Le tappe: perdendo una vita si riparte dall'ultima raggiunta, (colonna, riga dei
 # piedi). In superficie prima delle arene, nella traversata a ogni tratto nuovo.
 def _stages():
     p = TITAN_PASS_START
     return [(2, GROUND), (70, GROUND), (132, GROUND), (216, GROUND), (292, GROUND), (360, GROUND),
             (p + 1, GROUND), (p + 50, GROUND - LEDGES[2]), (p + 104, CAVE_FLOOR),
-            (p + 150, GROUND), (p + 206, GROUND), (p + 270, GROUND)]
+            (p + 152, CAVE_FLOOR), (p + 201, CAVE_FLOOR), (p + 230, CAVE_FLOOR),
+            (p + 150 + CAVE_EXTRA, GROUND), (p + 206 + CAVE_EXTRA, GROUND), (p + 270 + CAVE_EXTRA, GROUND)]
 
 
 # Nel duello il Guardiano e' solo: nessun altro nemico.
@@ -183,8 +187,9 @@ ROPE_TOP, ROPE_MID, ROPE_HIGH = (_SPIRE * 64 + ROPE_ABOVE + 500, _STEP * 64 + RO
 ROPE_SPEEDS = (1.0, 1.1, 0.9, 1.2, 0.8, 1.1)
 TITAN_CABLES = [
     [(83, ROPE_TOP, 500)],                                     # il lago delle guglie
-    [(170, ROPE_MID, 470), (184, ROPE_MID, 500)],              # il doppio cavo
-    [(217, ROPE_HIGH, 480), (230, ROPE_HIGH, 520), (243, ROPE_HIGH, 460)],   # il triplo, dall'alto
+    [(170 + CAVE_EXTRA, ROPE_MID, 470), (184 + CAVE_EXTRA, ROPE_MID, 500)],  # il doppio cavo
+    [(217 + CAVE_EXTRA, ROPE_HIGH, 480), (230 + CAVE_EXTRA, ROPE_HIGH, 520),
+     (243 + CAVE_EXTRA, ROPE_HIGH, 460)],                      # il triplo, dall'alto
 ]
 # Da che parte soffiano gli sfiati d'azoto (colonna assoluta -> verso): verso chi
 # arriva; sulla cengia media si arriva da destra.
@@ -200,7 +205,8 @@ CAVE_TOP, CAVE_FLOOR = GROUND + 3, GROUND + 10    # prima riga libera e paviment
 # 0 stalattite organica appesa al soffitto, 1 stalagmite, 2 puntello di miniera,
 # 3 condotta rotta, 4 lampada da lavoro spenta. MOUTH: l'imbocco dal crepaccio.
 CAVE_PROPS = ((89, 2), (91, 0), (95, 1), (105, 4), (108, 0), (111, 2), (122, 3),
-              (130, 0), (135, 1), (138, 2), (143, 0))
+              (130, 0), (135, 1), (138, 2), (143, 0)) + tuple(
+              (c, (0, 2, 1, 0, 4, 3)[i % 6]) for i, c in enumerate(range(150, 146 + CAVE_EXTRA, 7)))
 CAVE_MOUTH = 103
 
 
@@ -245,7 +251,8 @@ def gen_titan_pass():
        riva di la' e' uno scalino alto, lo si raggiunge solo lasciando l'ultimo
        cavo dall'alto; poi l'ultimo tratto fino al portello.
     Con la gravita' di Titano si salta alto circa 5 tessere e lontano quasi 6."""
-    cols = 320
+    X = CAVE_EXTRA
+    cols = 320 + X
     g = _grid(cols)
     _rock(g, 0, cols, 0)
     l1, l2, l3 = LEDGES
@@ -270,35 +277,49 @@ def gen_titan_pass():
     _rock(g, 103, 111, 8)
     # 4. le gallerie sotto la crosta
     _dig(g, 87, 97, CAVE_TOP, CAVE_FLOOR)                 # vicolo cieco a sinistra
-    _dig(g, 103, 148, CAVE_TOP, CAVE_FLOOR)               # la galleria verso il pozzo
+    _dig(g, 103, 148 + X, CAVE_TOP, CAVE_FLOOR)           # la galleria lunga verso il pozzo
     for c in range(114, 121):                             # passaggio basso
         for r in range(CAVE_TOP, CAVE_FLOOR - 3):
             g[r][c] = "D"
     _lake(g, 124, 127, top=CAVE_FLOOR)                    # pozza di metano
-    _dig(g, 145, 148, GROUND, CAVE_TOP)                   # pozzo verso la superficie
-    _ladder_rows(g, 145, GROUND, CAVE_FLOOR)
-    for c in range(cols):                                 # pavimento delle gallerie
-        if g[CAVE_FLOOR][c] == "D" and g[CAVE_FLOOR - 1][c] in ".H":
-            g[CAVE_FLOOR][c] = "#"
+    # il tratto lungo: passaggi bassi, pozze, gradini di roccia
+    for c0, c1 in ((163, 169), (214, 221), (258, 264)):   # passaggi bassi
+        for c in range(c0, c1):
+            for r in range(CAVE_TOP, CAVE_FLOOR - 3):
+                g[r][c] = "D"
+    for c0 in (180, 234, 270):                            # pozze di metano
+        _lake(g, c0, c0 + 3, top=CAVE_FLOOR)
+    for c0, c1, h in ((192, 197, 2), (242, 246, 1), (246, 250, 3), (250, 253, 1)):
+        for c in range(c0, c1):                           # gradini di roccia sul pavimento
+            for r in range(CAVE_FLOOR - h, CAVE_FLOOR):
+                g[r][c] = "D"
+    _dig(g, 145 + X, 148 + X, GROUND, CAVE_TOP)           # pozzo verso la superficie
+    _ladder_rows(g, 145 + X, GROUND, CAVE_FLOOR)
+    for c in range(cols):                                 # pavimento e gradini delle gallerie
+        for r in range(CAVE_TOP, CAVE_FLOOR + 1):
+            if g[r][c] == "D" and g[r - 1][c] in ".H":
+                g[r][c] = "#"
     # 5. il doppio cavo, fra due scalini di roccia da cui lanciarsi e su cui atterrare
-    _rock(g, 162, 167, 3)
-    _lake(g, 167, 196)
-    _rock(g, 196, 204, 3)
+    _rock(g, 162 + X, 167 + X, 3)
+    _lake(g, 167 + X, 196 + X)
+    _rock(g, 196 + X, 204 + X, 3)
     # 6. la torre, il triplo cavo sul lago grande, lo scalino della riva di la'
-    _pillar(g, 210, 215, TITAN_TOWER)
-    _ladder_rows(g, 207, GROUND - TITAN_TOWER, GROUND)
-    _lake(g, 215, 253)
-    _rock(g, 253, 268, 4)
+    _pillar(g, 210 + X, 215 + X, TITAN_TOWER)
+    _ladder_rows(g, 207 + X, GROUND - TITAN_TOWER, GROUND)
+    _lake(g, 215 + X, 253 + X)
+    _rock(g, 253 + X, 268 + X, 4)
     # prigionieri, ossigeno, gas, criovulcani, uscita
     floor, cave = GROUND - 1, CAVE_FLOOR - 1
     for c, r in ((30, GROUND - l1 - 1), (18, GROUND - l2 - 1), (54, GROUND - l3 - 1), (89, cave), (94, cave),
-                 (129, cave), (152, floor), (202, GROUND - 4), (212, GROUND - TITAN_TOWER - 1), (262, GROUND - 5)):
+                 (129, cave), (175, cave), (226, cave), (248, CAVE_FLOOR - 4), (268, cave),
+                 (152 + X, floor), (202 + X, GROUND - 4), (212 + X, GROUND - TITAN_TOWER - 1),
+                 (262 + X, GROUND - 5)):
         g[r][c] = "u"
-    for c, r in ((149, floor),):             # una sola stazione nella traversata
+    for c, r in ((205, cave), (149 + X, floor)):  # una stazione a meta' delle gallerie, una fuori
         g[r][c] = "o"
-    for c, r in ((34, GROUND - l2 - 1), (133, cave)):
+    for c, r in ((34, GROUND - l2 - 1), (133, cave), (238, cave)):
         g[r][c] = "c"
-    for c in (91, 157):
+    for c in (91, 157 + X):
         g[floor][c] = "q"
     g[floor][cols - 4] = "E"
     return g
@@ -322,3 +343,22 @@ def gen_arena(c=None):
 
 
 TITAN_STAGES = _stages()
+
+
+def _cave_worms():
+    """Le gallerie sono piene di vermi: uno ogni poche colonne dove il pavimento e'
+    in piano (niente pozze, gradini, passaggi bassi, oggetti), e ogni tanto uno che
+    corre sotto la roccia alla Tremors."""
+    g = gen_titan_pass()
+    free = lambda c: (g[CAVE_FLOOR][c] == "#" and g[CAVE_FLOOR - 1][c] == "."
+                      and all(g[r][c] == "." for r in range(CAVE_TOP, CAVE_FLOOR)))
+    out, last = [], -99
+    for c in range(106, 144 + CAVE_EXTRA):
+        if c - last < 4 or not all(free(k) for k in range(c - 2, c + 3)):
+            continue
+        out.append(("burrower" if len(out) % 5 == 4 else "worm", c, CAVE_FLOOR))
+        last = c
+    return out
+
+
+TITAN_PASS_FOES = [f for f in TITAN_PASS_FOES if f[0] not in ("worm", "burrower")] + _cave_worms()

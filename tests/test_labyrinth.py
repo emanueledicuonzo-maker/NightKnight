@@ -14,6 +14,7 @@ import levels
 TILE = 64
 G = levels.GROUND
 X0 = levels.TITAN_PASS_START
+E = levels.CAVE_EXTRA
 
 
 class LabyrinthTests(unittest.TestCase):
@@ -131,9 +132,9 @@ class LabyrinthTests(unittest.TestCase):
                 self.assertTrue(self.feet(p)[1] > beyond if direction > 0 else self.feet(p)[1] < beyond)
 
     def test_the_shaft_climbs_back_to_the_surface(self):
-        p = self.climb(self.stand(146, G - levels.CAVE_FLOOR), frames=400)
+        p = self.climb(self.stand(146 + E, G - levels.CAVE_FLOOR), frames=400)
         self.assertEqual(self.feet(p)[0], 0)
-        self.assertEqual(self.lv.exit[0] - X0, 316)
+        self.assertEqual(self.lv.exit[0] - X0, 316 + E)
 
     def swing(self, start, h, wait, releases):
         """Si aspetta il momento, si salta verso i cavi tenendo la destra, e da
@@ -181,20 +182,20 @@ class LabyrinthTests(unittest.TestCase):
         return out
 
     def test_the_double_cable_needs_both_cables(self):
-        tries = self.crossings(165, 3, [(0.2, 0.35, 0.5, 0.65, 0.75), (0.35, 0.5, 0.65, 0.75)])
-        ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [1, 2] and t[2][2] >= 196]
+        tries = self.crossings(165 + E, 3, [(0.2, 0.35, 0.5, 0.65, 0.75), (0.35, 0.5, 0.65, 0.75)])
+        ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [1, 2] and t[2][2] >= 196 + E]
         self.assertTrue(ok, "col doppio cavo non si passa mai")
         for wait, rel, (outcome, grabs, col, h) in tries:              # col primo soltanto no
-            self.assertFalse(outcome == "a terra" and grabs == [1] and col >= 196)
+            self.assertFalse(outcome == "a terra" and grabs == [1] and col >= 196 + E)
 
     def test_the_triple_cable_is_crossed_only_from_high_up(self):
-        tries = self.crossings(213, levels.TITAN_TOWER, [(0.35, 0.5, 0.65), (0.5, 0.65), (0.5, 0.65)],
+        tries = self.crossings(213 + E, levels.TITAN_TOWER, [(0.35, 0.5, 0.65), (0.5, 0.65), (0.5, 0.65)],
                                waits=range(0, 200, 10))
-        ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [3, 4, 5] and t[2][2] >= 253]
+        ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [3, 4, 5] and t[2][2] >= 253 + E]
         self.assertTrue(ok, "col triplo cavo non si passa mai")
-        low = self.crossings(213, levels.TITAN_TOWER, [(0.35, 0.5, 0.65), (0.0, 0.2), (0.5, 0.65, 0.75)],
+        low = self.crossings(213 + E, levels.TITAN_TOWER, [(0.35, 0.5, 0.65), (0.0, 0.2), (0.5, 0.65, 0.75)],
                              waits=range(0, 200, 10))
-        self.assertFalse([t for t in low if t[2][0] == "a terra" and t[2][2] >= 253])   # lasciato basso, no
+        self.assertFalse([t for t in low if t[2][0] == "a terra" and t[2][2] >= 253 + E])   # lasciato basso, no
 
     def test_handles_hang_above_the_launch_points(self):
         cables = levels.TITAN_CABLES
@@ -216,6 +217,17 @@ class LabyrinthTests(unittest.TestCase):
         self.assertAlmostEqual(max(xs), -min(xs), delta=5)  # dondola uguale da una parte e dall'altra
         self.assertNotAlmostEqual(xs[-1], fx[-1], delta=20)  # ognuno col suo ritmo
         self.assertEqual(len(levels.ROPE_SPEEDS), sum(len(g) for g in levels.TITAN_CABLES))
+
+    def test_the_galleries_are_long_and_full_of_worms(self):
+        worms = [f for f in levels.TITAN_PASS_FOES if f[0] in ("worm", "burrower")]
+        self.assertGreaterEqual(len(worms), 15)
+        self.assertGreaterEqual(levels.CAVE_EXTRA, 135)
+        for kind, col, row in worms:
+            with self.subTest(col=col):
+                self.assertEqual(row, levels.CAVE_FLOOR)
+                for c in range(col - 2, col + 3):          # in piano, sul pavimento pieno
+                    self.assertTrue(self.lv.solid((X0 + c) * TILE + 32, row * TILE + 2))
+                    self.assertFalse(self.lv.solid((X0 + c) * TILE + 32, row * TILE - 2))
 
 
 if __name__ == "__main__":
