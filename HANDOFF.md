@@ -66,7 +66,9 @@ after the Guardian an end screen says so):
 3. **Duel** — one round against the Guardian of Titan (2x NightKnight's height,
    halberd and a hook thrown on a chain), helped by at most two flyers.
 
-Player kit: sword (Z, 3 slashes/s, counts 2), stone (X, 2 throws/s, counts 1,
+Player kit: sword (Z, 3 slashes/s, counts 2, reach 240 px; pressed in rhythm it
+chains a 3-slash combo: the second is a backhand, the third lunges forward and
+reaches 60 px further), stone (X, 2 throws/s, counts 1,
 half the sword), kick (C), flying kick (C in the air from standing), spinning
 flying kick (C in the air while moving: hits all around, counts 2, short
 recovery on landing), run (double-tap and hold an arrow, or Shift: oxygen

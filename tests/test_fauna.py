@@ -312,6 +312,29 @@ class FaunaTests(unittest.TestCase):
             g.update()
             self.assertEqual(p.running, 0)           # lasciata la freccia, si smette
 
+    def test_sword_reaches_further_and_chains_three_slashes(self):
+        from collections import defaultdict
+        import levels
+        g = self.game
+        p = g.player
+        p.x, p.y, p.on_ground, p.facing = 128 * goblin.TILE, levels.GROUND * goblin.TILE - p.h, True, 1
+        far = goblin.Walker(p.rect.right + 200, "skeleton")
+        p.attack = ("throw", 6)
+        box, _ = p.attack_box()
+        self.assertTrue(box.colliderect(far.rect))                 # la spada arriva a 200 px
+        p.attack = None
+        keys = defaultdict(bool)
+        combos, x0 = [], p.x
+        for frame in range(90):
+            if frame % 8 == 0:
+                p.slash()                                          # Z premuto a ritmo
+            p.update(keys, g.lv)
+            if p.attack:
+                combos.append(p.combo)
+        self.assertEqual(max(combos), goblin.COMBO_MAX)
+        self.assertEqual(sorted(set(combos)), [1, 2, 3])
+        self.assertGreater(p.x, x0 + 40)                           # il terzo fa un passo avanti
+
 
 if __name__ == "__main__":
     unittest.main()

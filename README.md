@@ -24,7 +24,7 @@ Per ricrearlo: `python3 -m venv .venv`, poi `.venv/bin/pip install -r requiremen
 | --- | --- |
 | Frecce o WASD | Movimento e scale |
 | Spazio / Su / W | Salto; tenere premuto per saltare piu' in alto |
-| Z | Colpo con l'arma scelta |
+| Z | Fendente con l'arma scelta; premuto a ritmo fa una combo di tre (il terzo fa un passo avanti) |
 | X | Lancio del sasso |
 | C | Calcio; in salto, calcio volante |
 | V | Bianca in incursione: un'unita' di Luce (25), abbatte fino a 5 nemici uno alla volta |

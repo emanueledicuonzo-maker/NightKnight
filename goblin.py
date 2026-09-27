@@ -75,8 +75,11 @@ GRAVITY = 0.75
 MAX_FALL = 18
 RUN_ACC = 0.65
 RUN_MAX = 5.8
-SWORD_REACH = 170
+SWORD_REACH = 240       # la spada lunga e sottile arriva lontano
 SWORD_FRAMES = 20       # tre fendenti al secondo
+# Combo: premendo Z durante un fendente (o appena finito) parte il successivo, fino
+# a tre; il terzo fa un passo avanti e arriva ancora piu' lontano.
+COMBO_MAX, COMBO_WINDOW, LUNGE_SPEED, LUNGE_REACH = 3, 16, 9.0, 60
 STONE_FRAMES = 30       # due sassi al secondo
 # Danno in colpi: la spada vale 2, il sasso sempre la meta'.
 SWORD_HIT, STONE_HIT = 2, 1
@@ -510,6 +513,8 @@ class Player(Entity):
         self.weapon = levels.weapon_cfg(0)
         self.gravity_scale = 1.0
         self.t = 0
+        self.combo, self.combo_t, self.slash_queued = 0, 0, False     # combo di spada
+        self.new_slash = False
         self.running = 0          # corsa col doppio tocco: verso in cui si corre
         self.last_tap, self.tap_dir = -999, 0
         self.jellies = 0          # meduse attaccate addosso
@@ -543,7 +548,8 @@ class Player(Entity):
             return pygame.Rect(r.right if self.facing > 0 else r.left - 110, r.top + 76, 110, 60), 9
         if name == "throw" and 4 <= f <= 10:
             # il fendente scende fino ai piedi: prende anche lucertole e ratti
-            return pygame.Rect(r.right if self.facing > 0 else r.left - SWORD_REACH, r.top + 40, SWORD_REACH, r.h - 40), 12
+            reach = SWORD_REACH + (LUNGE_REACH if self.combo == COMBO_MAX else 0)
+            return pygame.Rect(r.right if self.facing > 0 else r.left - reach, r.top + 40, reach, r.h - 40), 12
         return None, 0
 
     def update(self, keys, lv):
@@ -627,6 +633,8 @@ class Player(Entity):
                 self.vx *= 0.8 if self.on_ground else 0.98
                 if abs(self.vx) < 0.3:
                     self.vx = 0
+        elif self.attack[0] == "throw" and self.combo == COMBO_MAX and self.attack[1] < 9:
+            self.vx = self.facing * LUNGE_SPEED        # il terzo fendente fa un passo avanti
         else:
             self.vx = 0
         if not jump and self.vy < SHORT_JUMP_V:
@@ -655,6 +663,15 @@ class Player(Entity):
             if name == "spin" and (self.attack is None or self.on_ground):
                 self.attack = None
                 self.recover = SPIN_RECOVERY
+            if name == "throw" and self.attack is None:
+                self.combo_t = COMBO_WINDOW            # c'e' ancora un attimo per il prossimo
+                if self.slash_queued:
+                    self.slash_queued = False
+                    self.slash()
+        elif self.combo_t:
+            self.combo_t -= 1
+            if not self.combo_t:
+                self.combo = 0
         if self.invuln:
             self.invuln -= 1
 
@@ -676,6 +693,19 @@ class Player(Entity):
             return True
         self.jump_buffer = JUMP_BUFFER_FRAMES
         return False
+
+    def slash(self):
+        """Z: un fendente, oppure il successivo della combo (fino a tre)."""
+        if self.attack and self.attack[0] == "throw":
+            if self.combo < COMBO_MAX and self.attack[1] > 4:
+                self.slash_queued = True               # parte appena finisce questo
+            return False
+        combo = self.combo + 1 if self.combo_t and self.combo < COMBO_MAX else 1
+        if not self.start_attack("throw"):
+            return False
+        self.combo, self.combo_t = combo, 0
+        self.new_slash = True                          # il gioco lo fa suonare
+        return True
 
     def start_attack(self, name):
         if not self.attack and not self.climbing and not self.recover:
@@ -704,7 +734,10 @@ class Player(Entity):
                 return None
             fr = sheets[base][side]
             limit = {"punch": STONE_FRAMES, "kick": 18, "throw": SWORD_FRAMES, "spin": SPIN_FRAMES}[name]
-            return fr[min(len(fr) - 1, f * len(fr) // limit)]
+            i = min(len(fr) - 1, f * len(fr) // limit)
+            if name == "throw" and self.combo == 2:
+                i = len(fr) - 1 - i                    # il secondo fendente e' un rovescio
+            return fr[i]
         if not self.on_ground:
             if "jump" not in sheets:
                 return None
@@ -1471,6 +1504,14 @@ class Game:
         if p.hp == 0:
             self.die()
 
+    def sword_feedback(self):
+        """Ogni fendente, anche quelli della combo partiti da soli: suono e medusa staccata."""
+        p = self.player
+        if p.new_slash:
+            p.new_slash = False
+            self.jb.fx("sword")
+            self.shake_off(1)
+
     def shake_off(self, n):
         """Un fendente o un calcio stacca una medusa di dosso; il calcio girato tutte."""
         for c in [c for c in self.crows if c.alive and getattr(c, "stuck", None) is not None][:n]:
@@ -1778,6 +1819,7 @@ class Game:
         self.luce = p.albedo
         if p.jumped:
             self.jb.fx("jump")
+        self.sword_feedback()
         for e in self.effects:
             e.update()
         self.effects = [e for e in self.effects if e.alive]
@@ -2068,9 +2110,8 @@ class Game:
                 if p.do_jump():
                     self.jb.fx("jump")
         elif k == pygame.K_z:
-            if p.start_attack("throw"):
-                self.jb.fx("sword")
-                self.shake_off(1)
+            p.slash()
+            self.sword_feedback()
         elif k == pygame.K_x:
             if p.start_attack("punch"):
                 self.balls.append(Stone(p))
