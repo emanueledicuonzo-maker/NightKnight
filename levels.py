@@ -158,6 +158,6 @@ def gen_arena(c=None):
     cols = 30
     g = _grid(cols)
     _rock(g, 0, cols, 0)
-    for r in range(ROWS):
+    for r in range(GROUND):
         g[r][0] = "S"; g[r][cols - 1] = "S"
     return g

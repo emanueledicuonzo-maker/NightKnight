@@ -40,7 +40,12 @@ GROUND = levels.GROUND
 # della vista; VIEW_Y e' la cima della vista in quel caso (ondate, duello).
 FEET_IN_VIEW = int(14 * TILE / ZOOM)
 VIEW_Y = GROUND * TILE - FEET_IN_VIEW
-CAM_TOP, CAM_BOTTOM = 70, 150      # margini oltre i quali la telecamera insegue un salto o una caduta
+CAM_TOP, CAM_BOTTOM = 70, 150
+# Zoom: in combattimento la telecamera si avvicina, ma non in mezzo alla folla
+# (li' serve vedere); nel duello resta un po' piu' vicina per tutto lo scontro.
+ZOOM_FIGHT, ZOOM_DUEL = 1.75, 1.6
+FIGHT_RANGE = (520, 320)     # distanza (orizzontale, verticale) dei nemici che fanno avvicinare
+CROWD = 6                    # con piu' nemici vicini di cosi' la telecamera resta larga      # margini oltre i quali la telecamera insegue un salto o una caduta
 GRAVITY = 0.75
 MAX_FALL = 18
 RUN_ACC = 0.65
@@ -970,6 +975,7 @@ class Game:
                 self.spenti.append(spento)
         self.cam = 0
         self.camy = self.camy_target = VIEW_Y
+        self.zoom, self.focus_x = ZOOM, None
         self.boss = None
         self.msg = None
         self.effects = []
@@ -1094,6 +1100,32 @@ class Game:
         if abs(self.camy - self.camy_target) < 0.5:
             self.camy = self.camy_target
 
+    def update_zoom(self, p):
+        """Si avvicina in circa mezzo secondo e si allontana piu' piano, inquadrando
+        NightKnight insieme ai nemici che ha addosso."""
+        r = p.rect
+        near = [e.rect.center for e in self.skels + self.crows
+                if e.alive and getattr(e, "state", "") not in ("away", "wait")
+                and abs(e.rect.centerx - r.centerx) < FIGHT_RANGE[0]
+                and abs(e.rect.centery - r.centery) < FIGHT_RANGE[1]]
+        if self.part == "arena":
+            target = ZOOM_DUEL
+            if self.boss:
+                near = [self.boss.rect.center]
+        else:
+            target = ZOOM_FIGHT if 0 < len(near) <= CROWD else ZOOM
+        if near:
+            # mai cosi' vicina da lasciare fuori qualcuno che ti sta addosso
+            xs = [x for x, _ in near] + [r.centerx]
+            target = max(ZOOM, min(target, VW * ZOOM / (max(xs) - min(xs) + 420)))
+        self.zoom += (target - self.zoom) * (0.08 if target > self.zoom else 0.035)
+        if abs(self.zoom - target) < 0.002:
+            self.zoom = target
+        fx = r.centerx
+        if near:
+            fx += (sum(x for x, _ in near) / len(near) - r.centerx) * 0.5
+        self.focus_x = fx if self.focus_x is None else self.focus_x + (fx - self.focus_x) * 0.1
+
     def die(self):
         self.state, self.state_t = "dead", 0
         self.jb.fx("death")
@@ -1177,6 +1209,7 @@ class Game:
             p.x = max(lock[0] + 30, min(p.x, lock[1] - 30 - p.w))
             self.cam = int(max(lock[0], min(target, lock[1] - VW)))
         self.follow_y(p)
+        self.update_zoom(p)
         if self.lv.drowned(p.rect):
             self.die(); return
         r = p.rect
@@ -1655,7 +1688,15 @@ class Game:
             pygame.draw.line(s, color, (int(x) - cam, int(y)), (int(x - vx * 1.5) - cam, int(y - vy * 1.5)), 3)
         # la vista del mondo si ingrandisce sopra cielo e fondali
         self.screen = s = screen
-        view = self.world_surf.subsurface((0, camy, VW, VH))
+        # Zoom ancorato ai piedi: il suolo resta dov'e' e la scena si stringe
+        # attorno a NightKnight e ai nemici che ha addosso.
+        k = ZOOM / self.zoom
+        cw, ch = int(VW * k), int(VH * k)
+        fx = max(0, min(VW, (self.focus_x if self.focus_x is not None else p.rect.centerx) - cam))
+        fy = max(0, min(VH, p.rect.bottom - camy))
+        vx = max(0, min(VW - cw, int(fx * (1 - k))))
+        vy = max(0, min(VH - ch, int(fy * (1 - k))))
+        view = self.world_surf.subsurface((vx, camy + vy, cw, ch))
         jolt = (random.randint(-self.shake, self.shake), random.randint(-self.shake, self.shake)) if self.shake else (0, 0)
         s.blit(pygame.transform.smoothscale(view, (W, H)), jolt)
         self.draw_drizzle(s)

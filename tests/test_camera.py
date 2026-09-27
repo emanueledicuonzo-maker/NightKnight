@@ -71,6 +71,21 @@ class CameraTests(unittest.TestCase):
                 break
         self.assertEqual(g.state, "dead")
 
+    def zoom_with(self, foes):
+        g = self.start()
+        p = g.player
+        p.x = 30 * TILE
+        g.skels = [goblin.Walker(p.x + 250 + i * 30, "skeleton") for i in range(foes)]
+        for _ in range(90):
+            g.update()
+        return g.zoom
+
+    def test_camera_moves_in_on_a_small_fight(self):
+        self.assertAlmostEqual(self.zoom_with(2), goblin.ZOOM_FIGHT, places=2)
+
+    def test_camera_stays_wide_in_a_crowd(self):
+        self.assertAlmostEqual(self.zoom_with(goblin.CROWD + 3), goblin.ZOOM, places=2)
+
 
 if __name__ == "__main__":
     unittest.main()
