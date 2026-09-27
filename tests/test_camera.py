@@ -86,6 +86,24 @@ class CameraTests(unittest.TestCase):
     def test_camera_stays_wide_in_a_crowd(self):
         self.assertAlmostEqual(self.zoom_with(goblin.CROWD + 3), goblin.ZOOM, places=2)
 
+    def test_camera_pulls_back_over_a_drop_and_in_a_fall(self):
+        g = self.start()
+        g.skels, g.crows = [], []
+        p = g.player
+        x0, top = levels.TITAN_PASS_START, levels.GROUND - levels.LEDGES[2]
+        p.x, p.y, p.facing = (x0 + 61) * TILE + 10, top * TILE - p.h, 1
+        for _ in range(90):
+            g.update()
+        self.assertAlmostEqual(g.zoom, goblin.ZOOM_OUT, places=2)        # sul bordo della cresta
+        p.x, p.y, p.facing = (x0 + 50) * TILE, top * TILE - p.h, 1
+        for _ in range(150):
+            g.update()
+        self.assertAlmostEqual(g.zoom, goblin.ZOOM, places=2)            # in mezzo alla cresta
+        p.x, p.y, p.on_ground = (x0 + 99) * TILE, (levels.GROUND - 1) * TILE - p.h, False
+        for _ in range(30):
+            g.update()
+        self.assertLess(g.zoom, goblin.ZOOM - 0.15)                      # giu' nel crepaccio
+
 
 if __name__ == "__main__":
     unittest.main()

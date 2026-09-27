@@ -47,6 +47,12 @@ CAM_TOP, CAM_BOTTOM = 70, 150
 # Zoom: in combattimento la telecamera si avvicina, ma non in mezzo alla folla
 # (li' serve vedere); nel duello resta un po' piu' vicina per tutto lo scontro.
 ZOOM_FIGHT, ZOOM_DUEL = 1.75, 1.6
+# Cadendo, appesi al cavo o sul bordo di un vuoto la telecamera si allontana per
+# far vedere dove si atterra; il mondo si disegna largo quanto serve a quello zoom.
+ZOOM_OUT = 1.2
+DW, DH = int(W / ZOOM_OUT), int(H / ZOOM_OUT)
+DROP_BIAS = 1.0
+EDGE_DROP = 5        # un vuoto di almeno 5 tessere sotto il bordo      # allontanandosi, la vista scende: si vede sotto i piedi
 FIGHT_RANGE = (520, 320)     # distanza (orizzontale, verticale) dei nemici che fanno avvicinare
 # Piani di parallasse sopra il cielo: (immagine, velocita', spostamento in giu',
 # foschia steso sopra). Il primo piano, davanti al mondo, corre piu' del terreno.
@@ -213,9 +219,9 @@ class Gfx:
                      for table in (WALKERS, FLYERS) for kind, spec in table.items()}
         self.skeleton, self.crow = self.foes["skeleton"], self.foes["crow"]
         # foschia bassa che lega il terreno ai fondali
-        self.haze = pygame.Surface((VW, 105), pygame.SRCALPHA)
+        self.haze = pygame.Surface((DW, 105), pygame.SRCALPHA)
         for yy in range(105):
-            pygame.draw.line(self.haze, (184, 91, 31, int(60 * math.sin(math.pi * yy / 105))), (0, yy), (VW, yy))
+            pygame.draw.line(self.haze, (184, 91, 31, int(60 * math.sin(math.pi * yy / 105))), (0, yy), (DW, yy))
         self.boss_cache = {}
         self.bg_cache = {}
 
@@ -736,7 +742,7 @@ class Bianca:
             # raffica: si illumina e attraversa la parte alta dello schermo
             self.burst -= 1
             k = 1 - self.burst / BURST_FRAMES
-            self.x, self.y, self.facing = cam - 200 + (VW + 400) * k, camy + 90 + math.sin(k * math.pi * 2) * 30, 1
+            self.x, self.y, self.facing = cam - 200 + (DW + 400) * k, camy + 90 + math.sin(k * math.pi * 2) * 30, 1
             return
         # Resta poco dietro e sopra al protagonista; il ritardo rende il volo vivo.
         offset = -155 if player.facing > 0 else 155
@@ -1285,7 +1291,7 @@ class Game:
         self.bianca.burst = BURST_FRAMES
         self.jb.fx("luce")
         for c in self.crows:
-            if c.alive and self.cam - 100 < c.x < self.cam + VW + 100:
+            if c.alive and self.cam - 100 < c.x < self.cam + DW + 100:
                 self.hit_enemy(c, 999, pts=getattr(c, "spec", {}).get("pts", 150))
         if self.boss and self.boss.hp > 0:
             self.boss.hp = max(0, self.boss.hp - max(1, round(self.boss.max_hp * 0.05 * units)))
@@ -1331,13 +1337,31 @@ class Game:
             # mai cosi' vicina da lasciare fuori qualcuno che ti sta addosso
             xs = [x for x, _ in near] + [r.centerx]
             target = max(ZOOM, min(target, VW * ZOOM / (max(xs) - min(xs) + 420)))
-        self.zoom += (target - self.zoom) * (0.08 if target > self.zoom else 0.035)
+        wide = self.part != "arena" and self.looking_down(p)
+        if wide:
+            target = ZOOM_OUT
+        self.zoom += (target - self.zoom) * (0.08 if target > self.zoom else (0.06 if wide else 0.035))
         if abs(self.zoom - target) < 0.002:
             self.zoom = target
         fx = r.centerx
         if near:
             fx += (sum(x for x, _ in near) / len(near) - r.centerx) * 0.5
         self.focus_x = fx if self.focus_x is None else self.focus_x + (fx - self.focus_x) * 0.1
+
+    def looking_down(self, p):
+        """Si cade, si e' appesi al cavo, o si sta sul bordo di un vuoto di cui non
+        si vede il fondo: e' il momento di allontanare la telecamera."""
+        if self.cable and self.cable.attached:
+            return True
+        if not p.on_ground and not p.climbing and p.vy > 9:
+            return True
+        if p.on_ground:
+            r = p.rect
+            for ahead in (TILE, 2 * TILE):
+                x = r.centerx + p.facing * ahead
+                if not any(self.lv.solid(x, r.bottom + 2 + i * TILE) for i in range(EDGE_DROP)):
+                    return True
+        return False
 
     def die(self):
         self.state, self.state_t = "dead", 0
@@ -1414,13 +1438,13 @@ class Game:
             sp[0] += sp[2]; sp[1] += sp[3]; sp[3] += 0.4; sp[4] -= 1
         self.sparks = [sp for sp in self.sparks if sp[4] > 0]
         self.shake = max(0, self.shake - 1)
-        target = p.rect.centerx - VW // 2
-        self.cam = int(max(0, min(target, self.lv.w - VW)))
+        target = p.rect.centerx - DW // 2
+        self.cam = int(max(0, min(target, self.lv.w - DW)))
         lock = self.waves.lock() if self.waves else None
         if lock:
             # porte stagne chiuse: si resta nell'arena finche' l'ondata non e' finita
             p.x = max(lock[0] + 30, min(p.x, lock[1] - 30 - p.w))
-            self.cam = int(max(lock[0], min(target, lock[1] - VW)))
+            self.cam = int(max(lock[0], min(target, lock[1] - DW)))
         self.follow_y(p)
         self.update_zoom(p)
         # scendendo nelle gallerie la luce se ne va piano
@@ -1476,7 +1500,7 @@ class Game:
             if self.arena_flyer_t <= 0 and sum(c.alive for c in self.crows) < levels.TITAN_ARENA_FLYERS_MAX:
                 self.arena_flyer_t = 420
                 side = random.choice((-1, 1))
-                x = self.cam - 80 if side < 0 else self.cam + VW + 20
+                x = self.cam - 80 if side < 0 else self.cam + DW + 20
                 self.crows.append(Flyer(x, random.randrange(VIEW_Y + 40, VIEW_Y + 240), random.choice(levels.TITAN_ARENA_FLYERS)))
         if (self.part == "surface" and not self.reached_pass
                 and p.x > levels.TITAN_PASS_START * TILE):
@@ -1826,17 +1850,23 @@ class Game:
         p = self.player
         k = ZOOM / self.zoom
         cw, ch = int(VW * k), int(VH * k)
-        fx = max(0, min(VW, (self.focus_x if self.focus_x is not None else p.rect.centerx) - self.cam))
-        fy = max(0, min(VH, p.rect.bottom - int(self.camy)))
-        return (max(0, min(VW - cw, int(fx * (1 - k)))), max(0, min(VH - ch, int(fy * (1 - k)))), cw, ch)
+        camy = int(self.camy)
+        fx = max(0, min(DW, (self.focus_x if self.focus_x is not None else p.rect.centerx) - self.cam))
+        fy = max(0, min(VH, p.rect.bottom - camy))
+        vx = max(0, min(DW - cw, int(fx - VW / 2 * k)))
+        # avvicinandosi i piedi restano dove sono; allontanandosi la vista scende
+        vy = int(fy * (1 - k) + max(0, k - 1) * VH * DROP_BIAS)
+        vy = max(-camy, min(self.lv.h - ch - camy, vy))
+        return vx, vy, cw, ch
 
     def draw_tiles(self):
         """Terreno, laghi di metano, scale e portello: disegnati nella vista del mondo."""
         s, cam, lv = self.screen, self.cam, self.lv
         c0 = max(0, cam // TILE)
-        cols = range(c0, min(lv.cols, c0 + VW // TILE + 3))
-        r0 = max(0, int(self.camy) // TILE)
-        rows = range(r0, min(lv.rows, r0 + VH // TILE + 2))
+        cols = range(c0, min(lv.cols, c0 + DW // TILE + 3))
+        _, vy, _, ch = self.view_rect()
+        r0 = max(0, (int(self.camy) + vy) // TILE)
+        rows = range(r0, min(lv.rows, r0 + ch // TILE + 2))
         for c in cols:
             for r in range(max(0, r0 - levels.LAKE_DEPTH), rows.stop):
                 if lv.g[r][c] != "~" or lv.at(c, r - 1) == "~":
@@ -1872,14 +1902,14 @@ class Game:
         mouth = self.gfx.cave_mouth
         if mouth:
             x = x0 + levels.CAVE_MOUTH * TILE
-            if -mouth.get_width() < x < VW + mouth.get_width():
+            if -mouth.get_width() < x < DW + mouth.get_width():
                 s.blit(mouth, (x - mouth.get_width() // 2, levels.CAVE_FLOOR * TILE - mouth.get_height() + 12))
         for col, kind in levels.CAVE_PROPS:
             if kind >= len(self.gfx.cave_props):
                 continue
             img = self.gfx.cave_props[kind]
             x = x0 + col * TILE + TILE // 2 - img.get_width() // 2
-            if not -img.get_width() < x < VW:
+            if not -img.get_width() < x < DW:
                 continue
             if kind == 0:              # appesa al soffitto
                 s.blit(img, (x, levels.CAVE_TOP * TILE - 10))
@@ -1967,8 +1997,9 @@ class Game:
         screen = self.screen
         camy = int(self.camy)
         if getattr(self, "world_surf", None) is None or self.world_surf.get_height() != self.lv.h:
-            self.world_surf = pygame.Surface((VW, self.lv.h), pygame.SRCALPHA)
-        self.world_surf.fill((0, 0, 0, 0), (0, camy, VW, VH))
+            self.world_surf = pygame.Surface((DW, self.lv.h), pygame.SRCALPHA)
+        _, vy, _, ch = self.view_rect()
+        self.world_surf.fill((0, 0, 0, 0), (0, camy + vy, DW, ch))
         self.screen = s = self.world_surf
         self.draw_tiles()
         cam = self.cam
