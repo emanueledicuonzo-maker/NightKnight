@@ -22,6 +22,8 @@ Saturno, e poi la Luna.
 
 ## NightKnight
 
+**NightKnight** è il nome del gioco. Il cavaliere si chiama **9T9T**.
+
 Aspetto fissato (riferimento: l'immagine approvata del cavaliere con la spada):
 
 - elmo a secchio avorio, alto, con una fessura ambra luminosa e piccoli fori di

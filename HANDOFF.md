@@ -156,8 +156,8 @@ The owner generates images with ChatGPT "Create image" from the prompts in
   overlay); fine on desktop, to be optimised for the browser build.
 - In the galleries under the edge of the spire lake, the lake is seen from the
   side as a dark band.
-- The owner suggested writing the name as **9T9T** ("figo come nome reale"):
-  not decided yet.
+- **NightKnight** is the game; the knight is called **9T9T** (decided 27/9).
+  Code and docs still call the knight NightKnight in many places.
 - Older chats: the 23/9 transcript was moved into this project's transcript
   folder (the project used to live under `/home/ema`).
 
