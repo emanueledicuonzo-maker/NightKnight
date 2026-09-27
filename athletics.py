@@ -82,6 +82,9 @@ class Cable:
             p.x = self.rope.body.position.x - p.w / 2
             p.y = self.rope.body.position.y - 45
             p.facing = 1 if self.rope.body.velocity.x >= 0 else -1
+            # posa: gambe indietro o avanti secondo da che parte oscilla
+            swing = (self.rope.body.position.x - self.rope.anchor.x) / 500 * p.facing
+            p.hanging = -1 if swing < -0.2 else (1 if swing > 0.2 else 0)
             p.vx = p.vy = 0
             p.on_ground = False
             p.jumped = False

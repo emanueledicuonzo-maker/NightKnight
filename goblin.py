@@ -73,6 +73,7 @@ CLIMB = 5
 COYOTE_FRAMES = 6
 JUMP_BUFFER_FRAMES = 7
 PLAYER_HP = 100
+LAND_FRAMES, HURT_FRAMES = 10, 22
 SOLID = set("#DS")
 
 PS = 8          # scala pixel art personaggi
@@ -139,12 +140,20 @@ class Gfx:
         self.player = player_images()
         self.sheets = {}
         # posa -> (file, colonne, righe): i fogli cartoon hanno griglie diverse
-        for pose, (file, cols, rows) in {
-                "run": ("run_sheet", 4, 2), "jump": ("jump_sheet", 4, 2),
-                "throw": ("sword_sheet", 4, 1), "punch": ("stone_sheet", 4, 1),
-                "kick": ("kick_sheet", 3, 1), "flykick": ("flykick_sheet", 3, 1),
-                "spinkick": ("spinkick_sheet", 4, 2)}.items():
-            fr = assets.sheet("knight_" + file, PH, cols, rows, typical=True)
+        # scale: le pose piegate si rimpiccioliscono, quelle a braccia alzate crescono,
+        # cosi' il cavaliere resta della stessa taglia; typical=False scala sulla figura
+        # piu' alta (morte, atterraggio, presa al bordo: le altre sono piu' basse di lui)
+        for pose, (file, cols, rows, scale, typical) in {
+                "run": ("run_sheet", 4, 2, 1, True), "jump": ("jump_sheet", 4, 2, 1, True),
+                "throw": ("sword_sheet", 4, 1, 1, True), "punch": ("stone_sheet", 4, 1, 1, True),
+                "kick": ("kick_sheet", 3, 1, 1, True), "flykick": ("flykick_sheet", 3, 1, 1, True),
+                "spinkick": ("spinkick_sheet", 4, 2, 1, True),
+                "idle": ("idle_sheet", 4, 1, 1, True), "climb": ("climb_sheet", 4, 1, 1.12, True),
+                "hang": ("hang_sheet", 4, 1, 1.1, True), "hurt": ("hurt_sheet", 2, 1, 1, True),
+                "death": ("death_sheet", 4, 1, 1, False), "land": ("land_sheet", 2, 1, 0.78, False),
+                "tired": ("tired_sheet", 4, 1, 0.9, True), "wind": ("wind_sheet", 4, 1, 0.88, True),
+                "ledge": ("ledge_sheet", 4, 1, 1.1, False)}.items():
+            fr = assets.sheet("knight_" + file, int(PH * scale), cols, rows, typical=typical)
             if fr:
                 self.sheets[pose] = (fr, [assets.flip(f) for f in fr])
         # Prigionieri: coloni chiusi in una capsula, poco piu' alta di NightKnight.
@@ -366,6 +375,9 @@ class Player(Entity):
         self.jumped = False
         self.weapon = levels.weapon_cfg(0)
         self.gravity_scale = 1.0
+        self.t = 0
+        self.land_t = self.hurt_t = 0
+        self.hanging = None       # appeso al cavo: -1 gambe indietro, 0 dritto, 1 gambe avanti
 
     def hurtbox(self):
         return self.rect.inflate(-10, -6)
@@ -386,6 +398,10 @@ class Player(Entity):
         return None, 0
 
     def update(self, keys, lv):
+        self.t += 1
+        self.land_t = max(0, self.land_t - 1)
+        self.hurt_t = max(0, self.hurt_t - 1)
+        self.hanging = None
         self.jumped = False
         self.coyote = COYOTE_FRAMES if self.on_ground else max(0, self.coyote - 1)
         self.jump_buffer = max(0, self.jump_buffer - 1)
@@ -456,7 +472,10 @@ class Player(Entity):
             self.vx = 0
         if not jump and self.vy < SHORT_JUMP_V:
             self.vy = SHORT_JUMP_V
+        falling, airborne = self.vy, not self.on_ground
         self.move(lv)
+        if airborne and self.on_ground and falling > 13:
+            self.land_t = LAND_FRAMES             # atterraggio da un salto alto: gambe piegate
         if self.vy >= 0 and not self.on_ground:
             r = self.rect
             for fx in (r.left + 4, r.right - 5):
@@ -506,8 +525,14 @@ class Player(Entity):
         """Fotogramma dal foglio di sprite della posa corrente, se esiste."""
         sheets = gfx.sheets
         side = 0 if self.facing > 0 else 1
+        if self.hanging is not None and "hang" in sheets:
+            return sheets["hang"][side][{-1: 0, 0: 1, 1: 2}[self.hanging]]
         if self.climbing:
-            return None
+            if "climb" not in sheets:
+                return None
+            return sheets["climb"][0][int(self.anim / 4) % 4]
+        if self.hurt_t and not self.attack and "hurt" in sheets:
+            return sheets["hurt"][side][0 if self.hurt_t > HURT_FRAMES // 2 else 1]
         if self.attack:
             name, f = self.attack
             base = "flykick" if name == "kick" and not self.on_ground and "flykick" in sheets else name
@@ -527,9 +552,13 @@ class Player(Entity):
             else:
                 i = n // 2 + min(n // 2 - 1, int(self.vy / 14 * (n // 2)))
             return fr[max(0, i)]
+        if self.land_t and not abs(self.vx) > 2 and "land" in sheets:
+            return sheets["land"][side][0 if self.land_t > LAND_FRAMES // 2 else 1]
         if abs(self.vx) > 0.5 and "run" in sheets:
             fr = sheets["run"][side]
             return fr[int(self.run_t) % len(fr)]
+        if "idle" in sheets:
+            return sheets["idle"][side][(self.t // 14) % 4]    # respira
         return None
 
     def draw(self, s, gfx, cam):
@@ -1081,6 +1110,7 @@ class Game:
                 or (self.boss and self.boss.hp <= 0)):
             return
         p.invuln = 80
+        p.hurt_t = HURT_FRAMES
         p.vy = -9
         p.vx = 6 if p.x > from_x else -6
         p.attack = None
@@ -1744,8 +1774,12 @@ class Game:
         if self.state == "dead":
             # NightKnight a terra: la posa ferma distesa sul suolo
             if not self.lv.drowned(p.rect):
-                fallen = pygame.transform.rotate(self.gfx.player["idle"][0], 90 * p.facing)
-                s.blit(fallen, (p.rect.centerx - fallen.get_width() // 2 - cam, p.rect.bottom - fallen.get_height() + 10))
+                if "death" in self.gfx.sheets:
+                    fr = self.gfx.sheets["death"][0 if p.facing > 0 else 1]
+                    p.draw_img(s, fr[min(len(fr) - 1, self.state_t // 9)], cam)
+                else:
+                    fallen = pygame.transform.rotate(self.gfx.player["idle"][0], 90 * p.facing)
+                    s.blit(fallen, (p.rect.centerx - fallen.get_width() // 2 - cam, p.rect.bottom - fallen.get_height() + 10))
         else:
             p.draw(s, self.gfx, cam)
         for e in self.effects:
