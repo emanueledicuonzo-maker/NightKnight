@@ -27,8 +27,9 @@ Per ricrearlo: `python3 -m venv .venv`, poi `.venv/bin/pip install -r requiremen
 | Z | Colpo con l'arma scelta |
 | X | Lancio del sasso |
 | C | Calcio; in salto, calcio volante |
-| V | Bianca: raffica di Luce (tutte le unita' da 25 disponibili) |
-| Maiusc + movimento | Rincorsa: aumenta velocita' e lunghezza del salto |
+| V | Bianca in incursione: un'unita' di Luce (25), abbatte fino a 5 nemici uno alla volta |
+| B | Nova: dal 10° colono liberato, una volta per livello, spazza via tutti i nemici in scena |
+| Doppio tocco di freccia tenuta, o Maiusc | Corsa: piu' veloce e salti piu' lunghi, ma l'aria cala due volte e mezzo |
 | E | Afferra / lascia il cavo |
 | Esc o P | Pausa / ripresa |
 | M | Attiva / silenzia la musica, lasciando gli effetti |
@@ -59,10 +60,15 @@ un lago largo (dall'altra parte si arriva solo lasciando il cavo dall'alto);
 infine il duello a un round col Guardiano, alto il doppio di NightKnight, con
 alabarda e gancio. Gli altri undici satelliti arriveranno.
 
-**Bianca** segue NightKnight e non muore. Ogni prigioniero liberato da' 5 Luce;
-con `V` Bianca attraversa il cielo e scarica tutte le unita' da 25: abbatte i
-volanti sullo schermo e toglie al Guardiano il 5% della vita per unita' (fino al
-20%). Luce e prigionieri liberati restano anche dopo una vita persa.
+**Bianca** segue il cavaliere e non muore. Quando sullo schermo ci sono piu' di
+4 volanti parte da sola e ne abbatte fino a 5, uno alla volta, poi riposa 12
+secondi. Ogni prigioniero liberato da' 5 Luce; con `V` Bianca spende un'unita' da
+25 e va in incursione su volanti e nemici di terra (fino a 5); nel duello toglie
+al Guardiano il 5%. Luce e prigionieri liberati restano anche dopo una vita persa.
+
+**Nova**: i coloni liberati ricaricano il nucleo della tuta. Al decimo, una volta
+per livello, `B` fa salire 9T9T in una colonna di luce: calcio girato, due
+bagliori, un'onda d'urto, e tutti i nemici in scena spariscono (al Guardiano il 10%).
 
 Il cavo si prende al volo toccandone l'impugnatura in salto; le frecce danno
 slancio, Spazio lascia la presa. In salto, muovendosi, `C` e' il calcio volante

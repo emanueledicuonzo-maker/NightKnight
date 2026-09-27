@@ -99,6 +99,8 @@ DOUBLE_TAP, SPRINT_O2 = 14, 2.5
 # Nova: al decimo colono liberato, una volta per livello, 9T9T scarica il nucleo
 # della tuta: salta, calcio girato, due bagliori, e non resta nessuno sullo schermo.
 NOVA_PRISONERS, NOVA_FRAMES, NOVA_FLASH, NOVA_BLAST, NOVA_BOSS = 10, 110, 46, 64, 0.10
+NOVA_HEIGHT = 260          # quanto sale 9T9T durante la scarica
+NOVA_BEAM = 180            # larghezza della colonna di luce
 # Meduse: ti puntano appena ti vedono e ti si attaccano (al massimo tre); ognuna
 # rallenta e toglie un po' di vita finche' un colpo non la stacca.
 # I camminatori sul terreno: gradini da saltare, da scendere, laghi da scavalcare.
@@ -330,6 +332,17 @@ class Gfx:
             strip.blit(img, (0, 0))
             strip.blit(pygame.transform.flip(img, True, False), (img.get_width(), 0))
             self.bg_cache[key] = strip
+        return self.bg_cache[key]
+
+    def nova_beam(self, h):
+        """Colonna di luce di Nova, alta h: chiara al centro, sfumata ai lati."""
+        key = ("beam", h // 16)
+        if key not in self.bg_cache:
+            beam = pygame.Surface((NOVA_BEAM, max(1, h // 16 * 16)), pygame.SRCALPHA)
+            for x in range(NOVA_BEAM):
+                k = math.exp(-((x - NOVA_BEAM / 2) / (NOVA_BEAM / 6)) ** 2)
+                pygame.draw.line(beam, (int(255 * k), int(226 * k), int(160 * k), 255), (x, 0), (x, beam.get_height()))
+            self.bg_cache[key] = beam
         return self.bg_cache[key]
 
     def frosted(self, img):
@@ -1195,6 +1208,7 @@ class Game:
         self.sparks, self.shake = [], 0       # scintille dei colpi e scossa dello schermo
         self.reached_pass = False             # su Titano: arrivati alla traversata
         self.stage = 0                        # ultima tappa raggiunta (levels.TITAN_STAGES)
+        self.nova_used, self.nova_t = False, 0  # Nova: una per livello, e la sequenza in corso
         pygame.display.set_caption("NightKnight")
         self.clock = pygame.time.Clock()
         self.gfx = Gfx()
@@ -1231,7 +1245,7 @@ class Game:
             self.saved["checkpoint"] = {
                 "cemetery": 0, "part": self.part, "lives": self.lives, "score": self.score,
                 "luce": self.luce, "freed": sorted(list(f) for f in self.freed),
-                "pass": self.reached_pass, "stage": self.stage,
+                "pass": self.reached_pass, "stage": self.stage, "nova": self.nova_used,
             }
         self.save_error = progress.save(self.saved, self.save_path)
 
@@ -1241,6 +1255,7 @@ class Game:
             self.ci, self.lives, self.score = 0, cp["lives"], cp["score"]
             self.luce = max(0, min(LUCE_MAX, int(cp.get("luce", 0))))
             self.reached_pass = cp.get("pass") is True
+            self.nova_used = cp.get("nova") is True
             stage = cp.get("stage", 0)
             self.stage = stage if type(stage) is int and 0 <= stage < len(levels.TITAN_STAGES) else 0
             self.freed = {tuple(f) for f in cp.get("freed", []) if isinstance(f, list) and len(f) == 3}
@@ -1285,6 +1300,7 @@ class Game:
         self.luce, self.freed = 0, set()
         self.reached_pass = False
         self.stage = 0
+        self.nova_used = False
         self.lives = 3
         self.ci = 0
         self.start_part(part)
@@ -1299,6 +1315,7 @@ class Game:
         g = {"surface": levels.gen_surface, "arena": levels.gen_arena}[part]()
         self.lv = Level(g, part)
         self.rounds = [0, 0]
+        self.nova_t = 0
         self.spawn()
         self.state = "card"
         self.card_t = 150
@@ -1473,6 +1490,94 @@ class Game:
             self.boss.hp = max(0, self.boss.hp - max(1, round(self.boss.max_hp * 0.05)))
             self.boss.flash = 20
         return True
+
+    @property
+    def nova_ready(self):
+        freed = sum(1 for f in self.freed if f[0] == self.ci)
+        return not self.nova_used and freed >= NOVA_PRISONERS
+
+    def start_nova(self):
+        """B: 9T9T scarica il nucleo della tuta ricaricato dai coloni liberati."""
+        p = self.player
+        if not self.nova_ready or self.nova_t or self.state != "play" or (self.cable and self.cable.attached):
+            return False
+        self.nova_used, self.nova_t = True, 1
+        self.nova_base = p.y
+        p.climbing, p.attack, p.vx, p.vy = False, None, 0, 0
+        self.jb.fx("nova_rise")
+        return True
+
+    def update_nova(self):
+        """La sequenza di Nova: il mondo si ferma, 9T9T sale da solo facendo il
+        calcio girato, due bagliori, un'onda d'urto, e non resta nessuno."""
+        p, t = self.player, self.nova_t
+        self.nova_t += 1
+        rise = min(1.0, t / 28) if t < 70 else max(0.0, 1 - (t - 70) / (NOVA_FRAMES - 70))
+        p.y = self.nova_base - NOVA_HEIGHT * math.sin(rise * math.pi / 2)
+        p.on_ground, p.vx, p.vy, p.hanging = False, 0, 0, None
+        p.attack = ("spin", (t * 2) % SPIN_FRAMES) if 12 <= t < 76 else None
+        if 12 <= t < 76:
+            p.facing = 1 if (t // 6) % 2 else -1          # gira su se stesso
+        if t in (NOVA_FLASH, NOVA_BLAST):
+            self.jb.fx("nova")
+            self.shake = 18 if t == NOVA_FLASH else 34
+            self.burst_sparks(p.rect.centerx, p.rect.centery, 60, (255, 240, 200))
+        if t == NOVA_BLAST:
+            for e in self.skels + self.crows:
+                if e.alive and self.on_screen(e):
+                    self.hit_enemy(e, 999, pts=getattr(e, "spec", {}).get("pts", 150))
+                    self.burst_sparks(e.rect.centerx, e.rect.centery, 30, (255, 226, 160))
+            if self.boss and self.boss.hp > 0:
+                self.boss.hp = max(1, self.boss.hp - round(self.boss.max_hp * NOVA_BOSS))
+                self.boss.flash = 30
+        for sp in self.sparks:
+            sp[0] += sp[2]; sp[1] += sp[3]; sp[3] += 0.4; sp[4] -= 1
+        self.sparks = [sp for sp in self.sparks if sp[4] > 0]
+        self.shake = max(0, self.shake - 1)
+        self.skels = [k for k in self.skels if k.alive]
+        self.crows = [c for c in self.crows if c.alive]
+        if t >= NOVA_FRAMES:
+            p.y, p.attack, p.on_ground = self.nova_base, None, True
+            p.invuln = 60
+            self.nova_t = 0
+
+    def draw_nova(self, s):
+        """Buio attorno, colonna di luce su 9T9T, due bagliori e l'onda d'urto."""
+        t = self.nova_t
+        if not t:
+            return
+        p = self.player
+        vx, vy, cw, ch = self.view_rect()
+        k = W / cw
+        sx = int((p.rect.centerx - self.cam - vx) * k)
+        sy = int((p.rect.centery - int(self.camy) - vy) * k)
+        dim = pygame.Surface((W, H), pygame.SRCALPHA)
+        dim.fill((8, 4, 2, int(150 * min(1, t / 20)) if t < NOVA_BLAST else max(0, 150 - (t - NOVA_BLAST) * 8)))
+        s.blit(dim, (0, 0))
+        # alone dorato attorno a lui: la luce della visiera rovesciata, chiara al centro
+        size = int(self.gfx.visor_light.get_width() * (0.4 + 0.6 * min(1, t / 40)))
+        edge = pygame.transform.smoothscale(self.gfx.visor_light, (size, size))
+        halo = pygame.Surface((size, size), pygame.SRCALPHA)
+        halo.fill((255, 220, 140, 180))
+        halo.blit(edge, (0, 0), special_flags=pygame.BLEND_RGBA_SUB)
+        s.blit(halo, (sx - size // 2, sy - size // 2), special_flags=pygame.BLEND_RGBA_ADD)
+        if NOVA_FLASH - 14 < t < NOVA_BLAST + 10 and sy > 0:
+            # la colonna di luce che scende dal cielo su di lui, sfumata ai lati
+            k = 1 - abs(t - (NOVA_FLASH + NOVA_BLAST) / 2) / ((NOVA_BLAST - NOVA_FLASH) / 2 + 14)
+            s.blit(self.gfx.nova_beam(sy), (sx - NOVA_BEAM // 2, 0), special_flags=pygame.BLEND_RGBA_ADD)
+
+        for at in (NOVA_FLASH, NOVA_BLAST):            # i due bagliori
+            if at <= t < at + 16:
+                flash = pygame.Surface((W, H), pygame.SRCALPHA)
+                flash.fill((255, 244, 214, int(255 * (1 - (t - at) / 16))))
+                s.blit(flash, (0, 0))
+        if t >= NOVA_BLAST:                            # l'onda d'urto che spazza la scena
+            r = (t - NOVA_BLAST) * 70
+            alpha = max(0, 255 - (t - NOVA_BLAST) * 7)
+            ring = pygame.Surface((W, H), pygame.SRCALPHA)
+            pygame.draw.circle(ring, (255, 236, 190, alpha), (sx, sy), r, 18)
+            pygame.draw.circle(ring, (255, 160, 80, alpha // 2), (sx, sy), max(1, r - 30), 10)
+            s.blit(ring, (0, 0))
 
     def on_screen(self, e):
         """Nella scena: dentro la vista piu' larga che la telecamera puo' avere."""
@@ -1650,6 +1755,9 @@ class Game:
         if self.state != "play":
             return
         p = self.player
+        if self.nova_t:
+            self.update_nova()
+            return
         if self.msg:
             t, n, col = self.msg
             self.msg = (t, n - 1, col) if n > 1 else None
@@ -2023,6 +2131,14 @@ class Game:
         self.pill(x0, y0 + 50, 360, 6, o2, (120, 200, 220) if o2 > 0.25 else (220, 90, 70))
         for i in range(self.lives):
             pygame.draw.circle(s, (238, 226, 204), (x0 + 380 + i * 22, y0 + 7), 6)
+        if self.nova_ready:
+            # Nova pronta: una stella che pulsa accanto alla Luce
+            cx, cy = x0 + 392, y0 + 34
+            pulse = 1 + 0.25 * math.sin(self.frame / 7)
+            for a in range(8):
+                ang = a * math.pi / 4 + self.frame / 40
+                pygame.draw.line(s, (255, 214, 120), (cx, cy), (cx + math.cos(ang) * 16 * pulse, cy + math.sin(ang) * 16 * pulse), 3)
+            pygame.draw.circle(s, (255, 244, 214), (cx, cy), int(7 * pulse))
         sc = f"{self.score}"
         fonts.draw_text(s, sc, W - 48 - fonts.text_width(sc, 4), y0 - 6, (238, 226, 204), scale=4)
         if self.boss:
@@ -2317,6 +2433,7 @@ class Game:
         s.blit(pygame.transform.smoothscale(view, (W, H)), jolt)
         self.draw_foreground(s)
         self.draw_darkness(s)
+        self.draw_nova(s)
         self.draw_drizzle(s)
         s.blit(self.gfx.vignette, (0, 0))
         self.draw_hud()

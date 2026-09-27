@@ -233,6 +233,14 @@ def sfx(name):
         n = L(0.9); t = np.arange(n) / SR
         breath = np.sin(np.pi * np.clip(t / 0.35, 0, 1)) ** 2 + 0.8 * np.sin(np.pi * np.clip((t - 0.45) / 0.35, 0, 1)) ** 2
         w = _lowpass(_noise(n, 23), 0.35) * breath * 0.35 + _tone(140, 120, n) * breath * 0.05
+    elif name == "nova_rise":     # Nova: il nucleo della tuta si carica, un sibilo che sale
+        n = L(0.9); t = np.arange(n) / SR
+        w = (_tone(120, 900, n) * 0.25 + _tone(240, 1800, n) * 0.1) * np.minimum(1, t * 3) + _whoosh(n, 24, 0.4) * 0.3
+    elif name == "nova":          # Nova: il bagliore, un colpo profondo e il crepitio della luce
+        n = L(1.6); t = np.arange(n) / SR
+        crack = (_noise(n, 25) > 0.9).astype(float) * np.exp(-t * 4)
+        w = (_tone(70, 28, n) * 0.9 * np.exp(-t * 2.2) + _lowpass(_noise(n, 26), 0.4) * np.exp(-t * 3) * 0.6
+             + crack * 0.2) * (1 - np.exp(-t * 60))
     elif name == "albedo":        # vecchio nome della raffica
         return sfx("luce")
     elif name == "pickup":

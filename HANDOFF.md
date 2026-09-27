@@ -69,8 +69,12 @@ after the Guardian an end screen says so):
 Player kit: sword (Z, 3 slashes/s, counts 2), stone (X, 2 throws/s, counts 1,
 half the sword), kick (C), flying kick (C in the air from standing), spinning
 flying kick (C in the air while moving: hits all around, counts 2, short
-recovery on landing), sprint (Shift), Bianca's Light burst (V: every 25 Light
-kills all flyers on screen and takes 5% of the Guardian's life, max 20%).
+recovery on landing), run (double-tap and hold an arrow, or Shift: oxygen
+drains 2.5x). Bianca attacks alone when more than 4 flyers are on screen (up to
+5, one at a time, flyers only, then rests 12 s); V spends 25 Light to send her
+on up to 5 enemies of any kind (5% of the Guardian's life). Nova (B): at the
+10th colonist freed, once per level, a scripted blast (rise, spinning kick, two
+flashes, shockwave) that kills every enemy in the scene (10% of the Guardian).
 Oxygen drains outdoors (~100 s) and refills at stations. Enemy life is counted
 in hits (see `WALKERS` / `FLYERS` in `goblin.py`, and `STORY.md`).
 

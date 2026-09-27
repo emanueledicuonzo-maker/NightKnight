@@ -139,6 +139,35 @@ class TitanTests(unittest.TestCase):
         g.start_part("surface")
         g.state = "play"
 
+    def test_nova_needs_ten_colonists_and_works_once(self):
+        g, crows, skels = self.sortie_scene(flyers=3, walkers=3)
+        far = goblin.Walker(g.player.x + 3000, "skeleton")
+        g.skels.append(far)
+        g.freed = {(0, "surface", i) for i in range(goblin.NOVA_PRISONERS - 1)}
+        self.assertFalse(g.start_nova())                             # nove non bastano
+        g.freed.add((0, "surface", 99))
+        self.assertTrue(g.start_nova())
+        for _ in range(goblin.NOVA_FRAMES + 2):
+            g.update()
+        self.assertTrue(all(not e.alive for e in crows + skels))     # chi era in scena
+        self.assertTrue(far.alive)                                   # chi era lontano no
+        self.assertFalse(g.start_nova())                             # una sola per livello
+        self.assertTrue(g.player.on_ground)
+
+    def test_nova_takes_a_tenth_from_the_guardian(self):
+        g = self.game
+        g.start_part("arena")
+        g.state = "play"
+        g.freed = {(0, "surface", i) for i in range(goblin.NOVA_PRISONERS)}
+        g.nova_used = False
+        hp = g.boss.hp
+        self.assertTrue(g.start_nova())
+        for _ in range(goblin.NOVA_FRAMES + 2):
+            g.update()
+        self.assertEqual(hp - g.boss.hp, round(g.boss.max_hp * goblin.NOVA_BOSS))
+        g.start_part("surface")
+        g.state = "play"
+
     def test_titan_render_all_phases(self):
         g = self.game
         for age in (0, titan.Geyser.REST, titan.Geyser.REST + titan.Geyser.WARNING):
