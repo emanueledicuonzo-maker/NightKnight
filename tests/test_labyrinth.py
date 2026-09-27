@@ -183,10 +183,10 @@ class LabyrinthTests(unittest.TestCase):
 
     def test_the_double_cable_needs_both_cables(self):
         tries = self.crossings(165 + E, 3, [(0.2, 0.35, 0.5, 0.65, 0.75), (0.35, 0.5, 0.65, 0.75)])
-        ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [1, 2] and t[2][2] >= 196 + E]
+        ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [1, 2] and t[2][2] >= 194 + E]
         self.assertTrue(ok, "col doppio cavo non si passa mai")
         for wait, rel, (outcome, grabs, col, h) in tries:              # col primo soltanto no
-            self.assertFalse(outcome == "a terra" and grabs == [1] and col >= 196 + E)
+            self.assertFalse(outcome == "a terra" and grabs == [1] and col >= 194 + E)
 
     def test_the_triple_cable_is_crossed_only_from_high_up(self):
         tries = self.crossings(213 + E, levels.TITAN_TOWER, [(0.35, 0.5, 0.65), (0.5, 0.65), (0.5, 0.65)],

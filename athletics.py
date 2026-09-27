@@ -14,6 +14,7 @@ FLOOR = levels.GROUND * TILE
 BED = FLOOR + levels.LAKE_DEPTH * TILE      # il fondo dei laghi
 _pylons = {}       # gru scalate all'altezza di ogni portale
 ROPE_PERIOD, ROPE_SWING = 2.7, 50    # un'oscillazione completa in 2,7 s, 50 gradi per parte
+HANG = 25          # appesi: il corpo sta sotto l'impugnatura, le mani su di lei
 GRAB = 130         # in salto, a questa distanza dall'impugnatura ci si aggrappa
 
 
@@ -117,7 +118,7 @@ class Cable:
     def hold(self, p):
         body = self.rope.body
         p.x = body.position.x - p.w / 2
-        p.y = body.position.y - 45
+        p.y = body.position.y + HANG           # le mani sulla punta del cavo, sull'impugnatura
         if not p.attack:
             p.facing = 1 if body.velocity.x >= 0 else -1
         # posa: gambe indietro o avanti secondo da che parte oscilla

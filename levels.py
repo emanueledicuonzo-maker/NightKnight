@@ -301,8 +301,8 @@ def gen_titan_pass():
                 g[r][c] = "#"
     # 5. il doppio cavo, fra due scalini di roccia da cui lanciarsi e su cui atterrare
     _rock(g, 162 + X, 167 + X, 3)
-    _lake(g, 167 + X, 196 + X)
-    _rock(g, 196 + X, 204 + X, 3)
+    _lake(g, 167 + X, 194 + X)
+    _rock(g, 194 + X, 204 + X, 3)
     # 6. la torre, il triplo cavo sul lago grande, lo scalino della riva di la'
     _pillar(g, 210 + X, 215 + X, TITAN_TOWER)
     _ladder_rows(g, 207 + X, GROUND - TITAN_TOWER, GROUND)
