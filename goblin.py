@@ -107,7 +107,9 @@ NOVA_PRISONERS, NOVA_FRAMES, NOVA_FLASH, NOVA_BLAST, NOVA_BOSS = 10, 110, 46, 64
 BIANCA_BOSS_HIT, BIANCA_BOSS_REST = 0.02, 6 * 60
 BOSS_FAR, BOSS_STRIDE = 1250, 4      # oltre questa distanza il Guardiano viene avanti
 NOVA_HEIGHT = 260          # quanto sale 9T9T durante la scarica
-GEYSER_COLUMN = 400        # altezza della colonna di vapore in eruzione
+# larghezza (px) del cono nei cinque disegni dell'eruzione, per allinearli al nostro
+GEYSER_ERUPT_CONES = (1388, 1391, 899, 1102, 1053)
+GEYSER_CONE = 1.3          # il cono dell'eruzione appena piu' largo del nostro
 NOVA_BEAM = 180            # larghezza della colonna di luce
 # Meduse: ti puntano appena ti vedono e ti si attaccano (al massimo tre); ognuna
 # rallenta e toglie un po' di vita finche' un colpo non la stacca.
@@ -163,12 +165,23 @@ class Gfx:
             art = assets.pieces(name, n, h, ref)
             if art:
                 titan.ART[key] = art
-        # i soffi del criovulcano: filo, pennacchio, colonna (alta come il getto che fa male)
-        if all(assets.has(f"geyser_steam_{i}") for i in (1, 2, 3)):
-            raw = [pygame.image.load(os.path.join(assets.DIR, f"geyser_steam_{i}.png")).convert_alpha() for i in (1, 2, 3)]
-            k = GEYSER_COLUMN / raw[2].get_height()
-            titan.ART["steam"] = [pygame.transform.smoothscale(im, (int(im.get_width() * k), int(im.get_height() * k)))
-                                  for im in raw]
+        # l'eruzione: cinque disegni interi (cono e vapore), dal filo alla colonna piena,
+        # scalati perche' il loro cono sia largo come il nostro
+        if all(assets.has(f"geyser_erupt_{i}") for i in range(1, 6)) and "geyser" in titan.ART:
+            cone = titan.ART["geyser"][0].get_width() * GEYSER_CONE
+            frames = []
+            for i, width in enumerate(GEYSER_ERUPT_CONES, 1):
+                im = pygame.image.load(os.path.join(assets.DIR, f"geyser_erupt_{i}.png")).convert_alpha()
+                k = cone / width
+                im = pygame.transform.smoothscale(im, (int(im.get_width() * k), int(im.get_height() * k)))
+                # la cima del vapore sfuma: nei disegni a volte e' tagliata dal bordo
+                fade = im.get_height() // 5
+                for y in range(fade):
+                    im.fill((255, 255, 255, int(255 * (y / fade) ** 0.7)), (0, y, im.get_width(), 1),
+                            special_flags=pygame.BLEND_RGBA_MULT)
+                frames.append(im)
+            titan.ART["erupt"] = frames
+            titan.ERUPT_REACH = tuple(int(f.get_height() * 0.9) for f in frames)
         # Il cavo fra due gru della colonia, l'impugnatura, il gancio del Guardiano
         pylon = assets.pieces("cable_pylon", 2, athletics.FLOOR - athletics.Rope.ANCHOR_Y + 30, 0)
         handle = assets.pieces("cable_pylon", 2, 64, 1)

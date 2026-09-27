@@ -46,6 +46,10 @@ class TitanTests(unittest.TestCase):
         g.set_paused(False)
         vent.age = vent.REST + vent.WARNING - 1
         g.update()
+        self.assertEqual(g.player.hp, 100)       # il getto appena uscito e' un filo: non fa male
+        vent.age = vent.REST + vent.WARNING + vent.ERUPTION // 3
+        g.player.x = vent.x - g.player.w / 2
+        g.update()
         self.assertEqual(g.player.hp, 75)
         g.update()
         self.assertEqual(g.player.hp, 75)  # invulnerabilita': niente danni ogni frame
