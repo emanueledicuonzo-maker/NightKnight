@@ -237,6 +237,11 @@ class Gfx:
         self.foes = {kind: assets.frames([spec["frames"].format(i) for i in (1, 2)], spec.get("h", 10 * PS))
                      for table in (WALKERS, FLYERS) for kind, spec in table.items()}
         self.skeleton, self.crow = self.foes["skeleton"], self.foes["crow"]
+        # il verme resta dov'e': quando attacca sputa schegge ma non si solleva
+        for kind in ("worm", "burrower"):
+            rest, bite = self.foes[kind]
+            h = int(rest.get_height() * 1.12)
+            self.foes[kind] = [rest, pygame.transform.smoothscale(bite, (int(bite.get_width() * h / bite.get_height()), h))]
         # foschia bassa che lega il terreno ai fondali
         self.haze = pygame.Surface((DW, 105), pygame.SRCALPHA)
         for yy in range(105):
@@ -846,7 +851,6 @@ WALKERS = {
     "miner":       dict(frames="miner_mutant_{}", h=PH, box=(80, 176), hp=4, speed=2.0, dmg=35, reach=95, pts=500),
     "lizard":      dict(frames="lizard_cryo_{}", h=80, box=(170, 70), hp=1, speed=1.4, dmg=25, reach=60, pts=400, lunge=True),
     "worm":        dict(frames="worm_silicon_{}", h=230, box=(100, 200), hp=1, speed=0, dmg=30, reach=120, pts=600),
-    "worm_walk":   dict(frames="worm_silicon_{}", h=210, box=(100, 180), hp=1, speed=1.5, dmg=30, reach=120, pts=600),
     # solo nelle gallerie, alla Tremors: corre sotto la roccia (si vede solo il
     # suolo che trema) e sbuca sotto i piedi
     "burrower":    dict(frames="worm_silicon_{}", h=260, box=(110, 230), hp=1, speed=3.4, dmg=35, reach=120, pts=800,
@@ -1036,7 +1040,7 @@ class Walker(Skeleton):
 
     @property
     def crawls(self):
-        """I vermi strisciano: non saltano ne' gradini ne' laghi."""
+        """Chi non salta ne' gradini ne' laghi."""
         return self.kind.startswith("worm")
 
     def turn_back(self):

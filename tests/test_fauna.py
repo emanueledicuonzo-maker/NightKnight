@@ -71,16 +71,19 @@ class FaunaTests(unittest.TestCase):
         g.update()
         self.assertEqual(g.player.jellies, 0)
 
-    def test_worms_walk_towards_you(self):
+    def test_worms_stay_where_they_emerge(self):
         import levels
         g = self.game
-        g.player.x, g.player.y = 128 * goblin.TILE, levels.GROUND * goblin.TILE - g.player.h   # in piano
-        w = goblin.Walker(g.player.x + 600, "worm_walk")
+        g.player.x, g.player.y = 128 * goblin.TILE, levels.GROUND * goblin.TILE - g.player.h
+        w = goblin.Walker(g.player.x + 300, "worm")
         g.skels.append(w)
-        x0 = w.x
-        for _ in range(60):
+        x0, y0 = w.x, w.y
+        for _ in range(120):
             g.update()
-        self.assertLess(w.x, x0)
+            g.player.hp = goblin.PLAYER_HP
+        self.assertEqual((w.x, w.y), (x0, y0))
+        rest, bite = g.gfx.foes["worm"]
+        self.assertLessEqual(bite.get_height(), rest.get_height() * 1.15)     # attaccando non si solleva
 
     def test_a_burrower_travels_hidden_and_bursts_under_your_feet(self):
         g = self.game
@@ -282,17 +285,10 @@ class FaunaTests(unittest.TestCase):
         g = self.game
         g.skels, g.crows = [], []
         p = g.player
-        for kind in ("skeleton", "worm", "worm_walk", "crow", "jelly", "lizard") * 6:
+        for kind in ("skeleton", "worm", "crow", "jelly", "lizard") * 6:
             e = g.waves.spawn(kind, p.rect.centerx, g.skels, g.crows, p.rect.top)
             with self.subTest(kind=kind):
                 self.assertGreater(abs(e.rect.centerx - p.rect.centerx), goblin.DW // 2 + 60)
-
-    def test_worms_never_jump(self):
-        for start, target in ((40, 47), (13, 26)):          # un gradino, un lago
-            w, track = self.walker_run("worm_walk", start, target, 300)
-            with self.subTest(start=start):
-                self.assertTrue(w.alive)
-                self.assertEqual(min(b for _, b, _ in track), max(b for _, b, _ in track))
 
 
 if __name__ == "__main__":

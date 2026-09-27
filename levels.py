@@ -59,7 +59,7 @@ def _grid(cols):
 # sua fauna: corvi, meduse, minatori, lucertole criogeniche e vermi di silicio.
 TITAN_ARENAS = [140, 300]
 TITAN_WAVES = [
-    dict(name="dal suolo", roster=[("skeleton", 6), ("lizard", 2), ("miner", 1), ("worm", 2), ("worm_walk", 2)]),
+    dict(name="dal suolo", roster=[("skeleton", 6), ("lizard", 4), ("miner", 1), ("worm", 2)]),
     dict(name="dal cielo", roster=[("crow", 10), ("jelly", 3), ("skeleton_fly", 3)]),
 ]
 # Lungo tutta la strada non si e' mai soli: ogni `every` colonne di strada nuova
@@ -67,8 +67,8 @@ TITAN_WAVES = [
 # se per `quiet` fotogrammi non c'e' nessuno attorno ne arriva uno comunque (nella
 # traversata solo volanti).
 TITAN_PATROLS = dict(every=14, size=(2, 4), start=12,
-                     pool=["skeleton", "skeleton", "lizard", "miner", "worm", "worm", "worm_walk",
-                           "worm_walk", "crow", "jelly", "skeleton_fly"],
+                     pool=["skeleton", "skeleton", "lizard", "lizard", "lizard", "miner", "worm", "worm",
+                           "crow", "jelly", "skeleton_fly"],
                      quiet=180, flyers=["crow", "crow", "jelly", "skeleton_fly"])
 # Nella traversata pochi nemici, otto sottoterra.
 # (specie, colonna dall'inizio, riga: quella dei piedi per chi cammina, del volo per i volanti)
