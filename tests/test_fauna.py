@@ -72,7 +72,9 @@ class FaunaTests(unittest.TestCase):
         self.assertEqual(g.player.jellies, 0)
 
     def test_worms_walk_towards_you(self):
+        import levels
         g = self.game
+        g.player.x, g.player.y = 128 * goblin.TILE, levels.GROUND * goblin.TILE - g.player.h   # in piano
         w = goblin.Walker(g.player.x + 600, "worm_walk")
         g.skels.append(w)
         x0 = w.x
@@ -284,6 +286,13 @@ class FaunaTests(unittest.TestCase):
             e = g.waves.spawn(kind, p.rect.centerx, g.skels, g.crows, p.rect.top)
             with self.subTest(kind=kind):
                 self.assertGreater(abs(e.rect.centerx - p.rect.centerx), goblin.DW // 2 + 60)
+
+    def test_worms_never_jump(self):
+        for start, target in ((40, 47), (13, 26)):          # un gradino, un lago
+            w, track = self.walker_run("worm_walk", start, target, 300)
+            with self.subTest(start=start):
+                self.assertTrue(w.alive)
+                self.assertEqual(min(b for _, b, _ in track), max(b for _, b, _ in track))
 
 
 if __name__ == "__main__":

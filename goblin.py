@@ -1016,7 +1016,7 @@ class Walker(Skeleton):
         if lv.solid(front, r.bottom - 8):
             # una parete: quanto e' alta?
             h = next((k for k in range(1, 12) if not lv.solid(front, r.bottom - 8 - k * TILE)), 12)
-            if h <= WALKER_STEP and not lv.solid(r.centerx, r.top - h * TILE):
+            if h <= WALKER_STEP and not self.crawls and not lv.solid(r.centerx, r.top - h * TILE):
                 self.vy = -math.sqrt(2 * GRAVITY * (h * TILE + 30))
                 return speed * f
             return self.turn_back()
@@ -1025,7 +1025,7 @@ class Walker(Skeleton):
         below = lv.floor_near(front + f * TILE // 2, r.bottom, WALKER_DROP)
         if below is not None and below > r.bottom:
             return speed * f                  # si scende dal gradino
-        for k in range(1, WALKER_GAP + 1):
+        for k in range(1, WALKER_GAP + 1 if not self.crawls else 1):
             land = lv.floor_near(front + f * k * TILE, r.bottom, 1)
             if land is not None:
                 # un lago o un buco stretto: balzo dall'altra parte
@@ -1033,6 +1033,11 @@ class Walker(Skeleton):
                 air = 2 * 12.0 / GRAVITY
                 return f * max(speed, (k * TILE + r.w) / air + 1)
         return self.turn_back()
+
+    @property
+    def crawls(self):
+        """I vermi strisciano: non saltano ne' gradini ne' laghi."""
+        return self.kind.startswith("worm")
 
     def turn_back(self):
         self.facing = -self.facing
