@@ -42,7 +42,7 @@ Dal menu di pausa si puo' tornare al titolo o uscire.
 
 Ogni satellite e' un'unica ambientazione in tre parti: 4/5 minuti di superficie
 con ondate e insidie, 2/3 minuti di traversata con pochissimi nemici, 2/3 minuti di
-duello contro il Guardiano, aiutato solo da pochi volanti. Regole, nemici e
+duello contro il Guardiano, da solo, in un'arena larga due schermi. Regole, nemici e
 tabelle dei satelliti sono in `STORY.md`.
 
 Oggi e' giocabile **solo Titano**, dall'inizio alla fine: un unico percorso fra

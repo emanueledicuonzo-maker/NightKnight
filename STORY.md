@@ -77,8 +77,9 @@ Ogni satellite dura circa dieci minuti, in tre parti:
    **Pochi nemici, davvero pochi**: la traversata serve a spezzare il ritmo e a
    far sentire il luogo, non a combattere. Non sono prove atletiche.
 3. **Guardiano — 2/3 minuti.** Duello a **un solo round** contro il cavaliere
-   che governa il satellite, con arma, stile e potere del suo mondo. Lo aiutano
-   **solo pochi nemici volanti**, niente di terra.
+   che governa il satellite, con arma, stile e potere del suo mondo. **È solo**:
+   nessun altro nemico. L'arena è larga due schermi; Bianca lo attacca in
+   picchiata di tanto in tanto, Nova gli toglie il 30%.
 
 Le tre parti sono **un unico percorso continuo**: la seconda segue la prima
 nella stessa mappa, senza stacchi, e non si puo' iniziare dalla seconda. Le

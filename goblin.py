@@ -102,7 +102,10 @@ BIANCA_CROWD, BIANCA_SORTIE, BIANCA_SPEED, BIANCA_REST = 4, 5, 17, 12 * 60
 DOUBLE_TAP, SPRINT_O2 = 14, 2.5
 # Nova: al decimo colono liberato, una volta per livello, 9T9T scarica il nucleo
 # della tuta: salta, calcio girato, due bagliori, e non resta nessuno sullo schermo.
-NOVA_PRISONERS, NOVA_FRAMES, NOVA_FLASH, NOVA_BLAST, NOVA_BOSS = 10, 110, 46, 64, 0.10
+NOVA_PRISONERS, NOVA_FRAMES, NOVA_FLASH, NOVA_BLAST, NOVA_BOSS = 10, 110, 46, 64, 0.30
+# Nel duello Bianca attacca da sola il Guardiano: una picchiata ogni tanto.
+BIANCA_BOSS_HIT, BIANCA_BOSS_REST = 0.02, 6 * 60
+BOSS_FAR, BOSS_STRIDE = 1250, 4      # oltre questa distanza il Guardiano viene avanti
 NOVA_HEIGHT = 260          # quanto sale 9T9T durante la scarica
 NOVA_BEAM = 180            # larghezza della colonna di luce
 # Meduse: ti puntano appena ti vedono e ti si attaccano (al massimo tre); ognuna
@@ -1482,7 +1485,8 @@ class Game:
         self.player.weapon = levels.weapon_cfg(self.weapon_i)
         self.player.gravity_scale = self.cfg["gravity_scale"]
         self.effects = []
-        self.boss = knights.GoldKnight(W - 5 * TILE, knights.knight_cfg(self.ci), self.gfx)
+        self.boss = knights.GoldKnight(self.lv.w - 10 * TILE, knights.knight_cfg(self.ci), self.gfx)
+        self.boss.arena_w = self.lv.w
         self.balls = []
         self.intro = 150
         self.jb.fx("round")
@@ -1665,6 +1669,21 @@ class Game:
         flying = [c for c in self.crows if c.alive and getattr(c, "stuck", None) is None and self.on_screen(c)]
         if not b.sortie and not b.rest and len(flying) > BIANCA_CROWD:
             b.sortie, b.flyers_only = BIANCA_SORTIE, True
+        boss = self.boss
+        if b.target is not None and b.target is boss:
+            if boss.hp <= 0 or getattr(boss, "hidden", False):
+                b.target = None
+            elif pygame.Vector2(boss.rect.center).distance_to((b.x, b.y)) < 60:
+                boss.hp = max(1, boss.hp - max(1, round(boss.max_hp * BIANCA_BOSS_HIT)))
+                boss.flash = 12
+                self.burst_sparks(b.x, b.y, 18, (255, 240, 200))
+                self.jb.fx("boss_hit")
+                b.target, b.rest = None, BIANCA_BOSS_REST
+            return
+        if (boss and boss.hp > 0 and not self.intro and b.target is None and not b.sortie
+                and not b.rest and not getattr(boss, "hidden", False)):
+            b.target = boss                      # nel duello: picchiata sul Guardiano
+            return
         if b.target is not None:
             if not b.target.alive:
                 b.target = None
@@ -1741,10 +1760,14 @@ class Game:
         if near:
             # mai cosi' vicina da lasciare fuori qualcuno che ti sta addosso
             xs = [x for x, _ in near] + [r.centerx]
-            target = max(ZOOM, min(target, VW * ZOOM / (max(xs) - min(xs) + 420)))
+            margin = 760 if self.part == "arena" else 420      # il Guardiano e' grande il doppio
+            fit = VW * ZOOM / (max(xs) - min(xs) + margin)
+            # nel duello ci si allontana quanto serve a tenere in quadro anche il Guardiano
+            target = max(ZOOM_WIDEST if self.part == "arena" else ZOOM, min(target, fit))
         wide = self.looking_down(p) if self.part != "arena" else None
         if wide == ZOOM_STEP and near:
             wide = None                    # in combattimento conta chi ti sta addosso
+        self.peering = bool(wide) and not (self.cable and self.cable.attached)   # si guarda giu' 
         if wide:
             target = min(target, wide)
         self.zoom += (target - self.zoom) * (0.08 if target > self.zoom else (0.06 if wide else 0.035))
@@ -1753,6 +1776,8 @@ class Game:
         fx = r.centerx
         if near:
             fx += (sum(x for x, _ in near) / len(near) - r.centerx) * 0.5
+            half = W / self.zoom / 2 - 220            # NightKnight resta sempre in quadro
+            fx = max(r.centerx - half, min(r.centerx + half, fx))
         self.focus_x = fx if self.focus_x is None else self.focus_x + (fx - self.focus_x) * 0.1
 
     def drop_ahead(self, p):
@@ -1923,14 +1948,6 @@ class Game:
             self.jb.fx("door")
             self.next_part()
             return
-        # Nel duello il Guardiano e' aiutato solo da pochi volanti
-        if self.part == "arena" and self.boss and self.boss.hp > 0 and not self.intro:
-            self.arena_flyer_t = getattr(self, "arena_flyer_t", 300) - 1
-            if self.arena_flyer_t <= 0 and sum(c.alive for c in self.crows) < levels.TITAN_ARENA_FLYERS_MAX:
-                self.arena_flyer_t = 420
-                side = random.choice((-1, 1))
-                x = self.cam - 80 if side < 0 else self.cam + DW + 20
-                self.crows.append(Flyer(x, random.randrange(VIEW_Y + 40, VIEW_Y + 240), random.choice(levels.TITAN_ARENA_FLYERS)))
         if self.part == "surface":
             stages = levels.TITAN_STAGES
             moved = False
@@ -2043,6 +2060,11 @@ class Game:
                     return
             else:
                 bs.update(self.lv, p, self.boss_spawn)
+                gap = p.rect.centerx - bs.rect.centerx
+                if abs(gap) > BOSS_FAR and not bs.hidden:
+                    # mai fuori scena a colpire da dove non si vede: se e' lontano avanza
+                    bs.x += BOSS_STRIDE * (1 if gap > 0 else -1)
+                    bs.facing = 1 if gap > 0 else -1
                 br = bs.rect
                 abox, adm = p.attack_box()
                 if abox and abox.colliderect(br) and bs.hit(adm):
@@ -2314,7 +2336,7 @@ class Game:
         fy = max(0, min(VH, p.rect.bottom - camy))
         vx = max(0, min(DW - cw, int(fx - VW / 2 * k)))
         # avvicinandosi i piedi restano dove sono; allontanandosi la vista scende
-        bias = 0 if (self.cable and self.cable.attached) else DROP_BIAS
+        bias = DROP_BIAS if getattr(self, "peering", False) else 0
         vy = int(fy * (1 - k) + max(0, k - 1) * VH * bias)
         vy = max(-camy, min(self.lv.h - ch - camy, vy))
         return vx, vy, cw, ch

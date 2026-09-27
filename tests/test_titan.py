@@ -168,6 +168,34 @@ class TitanTests(unittest.TestCase):
         g.start_part("surface")
         g.state = "play"
 
+    def test_the_duel_is_one_on_one_in_a_wide_arena(self):
+        g = self.game
+        g.start_part("arena")
+        g.state = "play"
+        self.assertGreaterEqual(g.lv.cols, 60)
+        for _ in range(900):
+            g.update()
+            g.player.hp, g.player.invuln = goblin.PLAYER_HP, 5
+            if g.boss.hp <= 1:
+                break
+        self.assertEqual(g.crows, [])                          # nessun volante in aiuto
+        self.assertEqual(g.skels, [])
+        g.start_part("surface")
+        g.state = "play"
+
+    def test_bianca_dives_on_the_guardian(self):
+        g = self.game
+        g.start_part("arena")
+        g.state = "play"
+        g.intro = 0
+        hp = g.boss.hp
+        for _ in range(240):
+            g.update()
+            g.player.hp, g.player.invuln = goblin.PLAYER_HP, 5
+        self.assertLess(g.boss.hp, hp)
+        g.start_part("surface")
+        g.state = "play"
+
     def test_titan_render_all_phases(self):
         g = self.game
         for age in (0, titan.Geyser.REST, titan.Geyser.REST + titan.Geyser.WARNING):

@@ -153,6 +153,7 @@ class Projectile:
 
 
 class GoldKnight:
+    arena_w = W            # larghezza dell'arena: la imposta il gioco
     w, h = 78, 198
     ox, oy = 33, 18
 
@@ -201,7 +202,7 @@ class GoldKnight:
             self.y = r.bottom // TILE * TILE - self.h; self.vy = 0; self.on_ground = True
         elif self.vy < 0 and (lv.solid(r.left + 2, r.top) or lv.solid(r.right - 3, r.top)):
             self.y = (r.top // TILE + 1) * TILE; self.vy = 0
-        self.x = max(TILE + 4, min(self.x, W - TILE - self.w - 4))
+        self.x = max(TILE + 4, min(self.x, self.arena_w - TILE - self.w - 4))
 
     # ---- colpi
     def active(self):
@@ -282,7 +283,7 @@ class GoldKnight:
                     self.hidden = False
                     side = -1 if random.random() < 0.7 else 1      # di solito alle spalle
                     self.x = player.rect.centerx + side * player.facing * 170 - self.w / 2
-                    self.x = max(TILE + 4, min(self.x, W - TILE - self.w - 4))
+                    self.x = max(TILE + 4, min(self.x, self.arena_w - TILE - self.w - 4))
                     self.facing = 1 if player.rect.centerx > self.rect.centerx else -1
                 self.vx = 0
             elif m["kind"] == "move" and name == "backflip":

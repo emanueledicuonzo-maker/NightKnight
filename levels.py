@@ -85,9 +85,7 @@ def _stages():
             (p + 150, GROUND), (p + 206, GROUND), (p + 270, GROUND)]
 
 
-# Nel duello, di tanto in tanto, un volante in aiuto al Guardiano (mai piu' di due).
-TITAN_ARENA_FLYERS = ["crow", "jelly", "skeleton_fly"]
-TITAN_ARENA_FLYERS_MAX = 2
+# Nel duello il Guardiano e' solo: nessun altro nemico.
 
 
 # Rilievi della superficie: (prima colonna, [(larghezza, altezza), ...]) a gradini di
@@ -306,8 +304,9 @@ def gen_surface(c=None):
 
 
 def gen_arena(c=None):
-    """L'arena del duello: uno schermo di terreno fra due pareti invisibili."""
-    cols = 30
+    """L'arena del duello: due schermi di terreno fra due pareti invisibili, per
+    avere spazio da tenere il Guardiano a distanza."""
+    cols = 60
     g = _grid(cols)
     _rock(g, 0, cols, 0)
     for r in range(GROUND):

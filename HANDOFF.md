@@ -64,7 +64,11 @@ after the Guardian an end screen says so):
    one reached; waves already behind stay done. `tests/test_labyrinth.py` plays every
    passage with the game's physics, cables included.
 3. **Duel** — one round against the Guardian of Titan (2x NightKnight's height,
-   halberd and a hook thrown on a chain), helped by at most two flyers.
+   halberd and a hook thrown on a chain), alone, in an arena two screens wide
+   (60 columns); if he drifts more than 1250 px away he walks back into view.
+   Bianca dives on him every 6 s (2%), V takes 5%, Nova 30%. Today he is
+   beatable mostly from afar with stones: the owner accepts it for Titan, but
+   the next Guardian needs a reason to fight up close (to be designed).
 
 Player kit: sword (Z, 3 slashes/s, counts 2, reach 240 px; pressed in rhythm it
 chains a 3-slash combo: the second is a backhand, the third lunges forward and
