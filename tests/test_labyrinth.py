@@ -193,10 +193,11 @@ class LabyrinthTests(unittest.TestCase):
 
     def test_handles_hang_above_the_launch_points(self):
         cables = levels.TITAN_CABLES
-        for group, launch in ((cables[1], 3), (cables[2], levels.TITAN_TOWER)):
-            for col, top, length in group[:1]:
-                lowest = (top - length) / TILE                  # l'impugnatura nel punto piu' basso
-                self.assertGreater(lowest, launch + 1.5)
+        for group, launch in ((cables[0], 4), (cables[1], 3), (cables[2], levels.TITAN_TOWER)):
+            col, top, length = group[0]
+            lowest = (top - length) / TILE                  # l'impugnatura nel punto piu' basso
+            with self.subTest(col=col):
+                self.assertGreaterEqual(lowest, launch + 4.5)  # sopra la testa: si salta per prenderla
 
 
 if __name__ == "__main__":

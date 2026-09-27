@@ -107,12 +107,13 @@ NOVA_PRISONERS, NOVA_FRAMES, NOVA_FLASH, NOVA_BLAST, NOVA_BOSS = 10, 110, 46, 64
 BIANCA_BOSS_HIT, BIANCA_BOSS_REST = 0.02, 6 * 60
 BOSS_FAR, BOSS_STRIDE = 1250, 4      # oltre questa distanza il Guardiano viene avanti
 NOVA_HEIGHT = 260          # quanto sale 9T9T durante la scarica
+GEYSER_COLUMN = 400        # altezza della colonna di vapore in eruzione
 NOVA_BEAM = 180            # larghezza della colonna di luce
 # Meduse: ti puntano appena ti vedono e ti si attaccano (al massimo tre); ognuna
 # rallenta e toglie un po' di vita finche' un colpo non la stacca.
 # I camminatori sul terreno: gradini da saltare, da scendere, laghi da scavalcare.
 WALKER_STEP, WALKER_DROP, WALKER_GAP, WALKER_TURN = 3, 4, 4, 90
-WORM_MOUND, WORM_SINK = 45, 18    # il cumulo di terra del verme: piu' largo di lui, e affonda nel suolo
+WORM_MOUND, WORM_SINK, WORM_FLAT = 45, 18, 2    # il cumulo di terra del verme: piu' largo di lui, e affonda nel suolo
 BURROW_RUMBLE, BURROW_OUT = 40, 130     # il verme alla Tremors: preavviso e tempo fuori
 JELLY_SPEED, JELLY_MAX, JELLY_SLOW, JELLY_DRAIN, JELLY_EVERY = 4.2, 3, 0.22, 3, 50
 LAND_FRAMES, HURT_FRAMES = 10, 22
@@ -162,6 +163,12 @@ class Gfx:
             art = assets.pieces(name, n, h, ref)
             if art:
                 titan.ART[key] = art
+        # i soffi del criovulcano: filo, pennacchio, colonna (alta come il getto che fa male)
+        if all(assets.has(f"geyser_steam_{i}") for i in (1, 2, 3)):
+            raw = [pygame.image.load(os.path.join(assets.DIR, f"geyser_steam_{i}.png")).convert_alpha() for i in (1, 2, 3)]
+            k = GEYSER_COLUMN / raw[2].get_height()
+            titan.ART["steam"] = [pygame.transform.smoothscale(im, (int(im.get_width() * k), int(im.get_height() * k)))
+                                  for im in raw]
         # Il cavo fra due gru della colonia, l'impugnatura, il gancio del Guardiano
         pylon = assets.pieces("cable_pylon", 2, athletics.FLOOR - athletics.Rope.ANCHOR_Y + 30, 0)
         handle = assets.pieces("cable_pylon", 2, 64, 1)
@@ -1449,6 +1456,17 @@ class Game:
         if self.part == "arena":
             self.start_round()
 
+    def flat_ground(self, x, feet):
+        """Terreno vero per un verme: il suolo base (niente colline, gradini o cengie),
+        in piano per WORM_FLAT tessere da ogni lato, senza laghi."""
+        if self.part == "surface" and x < levels.TITAN_PASS_START * TILE and feet != GROUND * TILE:
+            return False
+        for d in range(-WORM_FLAT, WORM_FLAT + 1):
+            cx = x + d * TILE
+            if not self.lv.solid(cx, feet + 2) or self.lv.solid(cx, feet - 2) or self.lv.tile_at(cx, feet + 2) == "~":
+                return False
+        return True
+
     def make_walker(self, x, kind):
         """Un camminatore dei rinforzi, appoggiato sul suolo che c'e' dove entra
         (colline e montagne comprese), il piu' vicino all'altezza di NightKnight."""
@@ -1459,7 +1477,7 @@ class Game:
         # NightKnight (mai verso di lui, per non comparire sullo schermo) finche'
         # c'e' un suolo a una quota vicina alla sua
         x0, step = w.x, away
-        for i in range(16):
+        for i in range(40 if kind.startswith("worm") else 16):
             feet = self.lv.floor_near(x0 + w.w / 2 + i * step, feet_y, 4)
             if feet is None:
                 continue
@@ -1468,10 +1486,14 @@ class Game:
             # suolo pieno sotto tutto il corpo (per il verme, sotto tutto il cumulo di terra)
             half = r.w // 2 + (WORM_MOUND if kind.startswith("worm") else -6)
             support = all(self.lv.solid(r.centerx + dx, r.bottom + 2) for dx in (-half, 0, half))
+            if kind.startswith("worm"):
+                support = support and self.flat_ground(r.centerx, r.bottom)
             if support and not any(self.lv.solid(px, py) for px in (r.left + 2, r.centerx, r.right - 3)
                                    for py in (r.top + 2, r.centery, r.bottom - 3)):
                 w.on_ground = True
                 return w
+        if kind.startswith("worm"):
+            return None                       # niente terreno in piano li' vicino: niente verme
         w.x = x0
         feet = self.lv.floor_near(w.rect.centerx, feet_y, 20)
         if feet is not None:

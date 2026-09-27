@@ -259,6 +259,8 @@ class FaunaTests(unittest.TestCase):
         for col in (16, 17, 55, 56):
             with self.subTest(col=col):
                 w = g.make_walker(col * T, "worm")
+                if w is None:
+                    continue
                 self.assertNotEqual(g.lv.tile_at(w.rect.centerx, w.rect.bottom + 2), "~")
                 self.assertTrue(g.lv.solid(w.rect.centerx, w.rect.bottom + 2))
 
@@ -287,6 +289,8 @@ class FaunaTests(unittest.TestCase):
         p = g.player
         for kind in ("skeleton", "worm", "crow", "jelly", "lizard") * 6:
             e = g.waves.spawn(kind, p.rect.centerx, g.skels, g.crows, p.rect.top)
+            if e is None:
+                continue
             with self.subTest(kind=kind):
                 self.assertGreater(abs(e.rect.centerx - p.rect.centerx), goblin.DW // 2 + 60)
 
@@ -334,6 +338,22 @@ class FaunaTests(unittest.TestCase):
         self.assertEqual(max(combos), goblin.COMBO_MAX)
         self.assertEqual(sorted(set(combos)), [1, 2, 3])
         self.assertGreater(p.x, x0 + 40)                           # il terzo fa un passo avanti
+
+    def test_worms_emerge_only_on_flat_base_ground(self):
+        import levels
+        g = self.game
+        T = goblin.TILE
+        hts = levels.surface_heights()
+        p = g.player
+        for col in range(20, 420, 3):
+            p.x, p.y = (col - 18) * T, (levels.GROUND - hts[col - 18]) * T - p.h
+            w = g.make_walker(col * T, "worm")
+            if w is None:
+                continue                                  # niente posto in piano: niente verme
+            c = w.rect.centerx // T
+            with self.subTest(col=col):
+                self.assertEqual(w.rect.bottom, levels.GROUND * T)
+                self.assertTrue(all(hts[k] == 0 for k in range(c - 2, c + 3)))
 
 
 if __name__ == "__main__":

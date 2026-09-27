@@ -172,8 +172,13 @@ TITAN_PASS_ROPE = TITAN_PASS_START + 83      # colonna del cavo sopra il lago de
 # Le impugnature stanno piu' in alto del punto da cui si salta: si salta verso
 # l'alto per prenderle. Lunghezze un po' diverse: ogni cavo oscilla col suo ritmo,
 # e il salto si fa cercando il momento in cui si allineano.
-ROPE_TOP, ROPE_MID, ROPE_HIGH = 656, 880, 1050
-TITAN_TOWER = 7              # la torre da cui si parte per il triplo
+# Ogni impugnatura, nel punto piu' basso, sta ROPE_ABOVE sopra i piedi di chi salta
+# dal punto di lancio: sopra la testa, la si prende solo saltando.
+ROPE_ABOVE = 320
+TITAN_TOWER = 5              # la torre da cui si parte per il triplo
+_SPIRE, _STEP = 4, 3         # l'ultima guglia e lo scalino del doppio cavo
+ROPE_TOP, ROPE_MID, ROPE_HIGH = (_SPIRE * 64 + ROPE_ABOVE + 500, _STEP * 64 + ROPE_ABOVE + 470,
+                                 TITAN_TOWER * 64 + ROPE_ABOVE + 480)
 TITAN_CABLES = [
     [(83, ROPE_TOP, 500)],                                     # il lago delle guglie
     [(173, ROPE_MID, 470), (189, ROPE_MID, 530)],              # il doppio cavo

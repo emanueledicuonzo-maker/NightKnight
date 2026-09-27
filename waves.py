@@ -102,7 +102,9 @@ class WaveDirector:
             alive = sum(1 for e in w.members if e.alive)
             if w.queue and w.timer <= 0 and alive < w.alive_max:
                 w.timer = w.every
-                w.members.append(self.spawn(w.queue.pop(), cx, walkers, flyers, player.rect.top))
+                e = self.spawn(w.queue.pop(), cx, walkers, flyers, player.rect.top)
+                if e is not None:
+                    w.members.append(e)
             if not w.queue and not any(e.alive for e in w.members):
                 w.state = "done"
                 event = ("clear", w)
@@ -123,5 +125,6 @@ class WaveDirector:
             self.side = 1 if self.rnd.random() < 0.85 else -1
         x = cx + self.side * (SPAWN_AWAY + self.rnd.randrange(SPAWN_SPREAD))
         e = self.make_walker(x, kind)
-        walkers.append(e)
+        if e is not None:
+            walkers.append(e)
         return e

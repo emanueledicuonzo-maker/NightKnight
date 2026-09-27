@@ -6,8 +6,11 @@ import pygame
 
 # Disegni caricati dal gioco (goblin.Gfx): senza, si disegna tutto in codice.
 ART = {}
-_jets = {}         # colonne del getto gia' scalate
+# Il getto del criovulcano: vapore gelido cartoon (contorno, ombra, luce) e fango.
+JET_H, JET_PUFFS = 330, 26
+JET_INK, JET_SHADE, JET_LIGHT, JET_MUD = (40, 30, 34), (170, 196, 206), (236, 244, 244), (120, 104, 92)
 _flips = {}
+_steam = {}        # soffi di vapore gia' scalati
 
 
 def _flipped(img):
@@ -56,7 +59,7 @@ class Geyser:
 
     @property
     def hitbox(self):
-        return pygame.Rect(self.x - 55, self.floor - 330, 110, 330)
+        return pygame.Rect(self.x - 60, self.floor - 400, 120, 400)
 
     def update(self, player):
         self.previous_phase = self.phase
@@ -64,7 +67,10 @@ class Geyser:
             self.started = True
         if self.started:
             self.age += 1
-        return self.phase == "eruption" and self.hitbox.colliderect(player.hurtbox())
+        tick = self.age % self.PERIOD - self.REST - self.WARNING
+        # quando la colonna si stacca e sale (ultimo 20%) non fa piu' male
+        return (self.phase == "eruption" and tick < self.ERUPTION * 0.8
+                and self.hitbox.colliderect(player.hurtbox()))
 
     def draw(self, screen, cam):
         if "geyser" in ART:
@@ -103,59 +109,65 @@ class Geyser:
 
 
     def draw_art(self, screen, cam):
-        """Cono del criovulcano (spento o incrinato e acceso) e, in eruzione, la
-        colonna disegnata: sale, sta al massimo, ricade."""
+        """Il cono disegnato e, sopra, i soffi di vapore disegnati: un filo a riposo,
+        il pennacchio che cresce durante l'avviso, la colonna in eruzione."""
         x, floor = int(self.x - cam), self.floor
-        if not -200 < x < screen.get_width() + 200:
+        if not -300 < x < screen.get_width() + 300:
             return
         phase = self.phase
         base = ART["geyser"][0 if phase == "rest" else 1]
-        if phase == "eruption":
-            self.draw_jet(screen, x, floor - base.get_height() // 3)
-        elif phase == "warning" and (self.age // 4) % 2:
+        mouth = floor - base.get_height() * 2 // 3 + SINK
+        tick = self.age % self.PERIOD
+        if phase == "warning" and (self.age // 4) % 2:
             x += 2                                # il cono trema prima dell'eruzione
         ground_shadow(screen, x, floor, base.get_width() * 0.9)
         screen.blit(base, (x - base.get_width() // 2, floor - base.get_height() + SINK))
-
-
-    def draw_jet(self, screen, x, mouth):
-        """La colonna che sale dal cratere, ribolle al massimo e ricade; in cima
-        spruzza gocce di fango gelato che ricadono ad arco, alla base schizza."""
-        k = (self.age % self.PERIOD - self.REST - self.WARNING) / self.ERUPTION
-        if k < 0.2:
-            grow = 1 - (1 - k / 0.2) ** 3                 # sale di scatto e rallenta
-        elif k > 0.75:
-            grow = 1 - ((k - 0.75) / 0.25) ** 2           # ricade
+        if "steam" not in ART:
+            if phase == "eruption":
+                self.draw_jet(screen, x, mouth)
+            return
+        wisp, plume, column = ART["steam"]
+        if phase == "rest":
+            # due fili sfasati che salgono e svaniscono: un soffio continuo
+            for off in (0, 0.5):
+                k = (self.age / 140 + off) % 1
+                steam(screen, wisp, x + math.sin(self.age / 30 + off * 6) * 6, mouth - k * 40,
+                      0.8 + k * 0.5, 1.0, int(200 * math.sin(k * math.pi)))
+        elif phase == "warning":
+            k = (tick - self.REST) / self.WARNING
+            steam(screen, plume, x + math.sin(self.age / 12) * 5, mouth, 0.35 + 0.65 * k, 0.3 + 0.7 * k,
+                  int(120 + 110 * k))
         else:
-            grow = 1 + 0.05 * math.sin(self.age * 0.55)   # ribolle
-        full = ART["geyser_jet"][1]
-        h = max(8, int(full.get_height() * grow) // 4 * 4)
-        w = max(8, int(full.get_width() * (0.8 + 0.2 * min(1, grow)) + 6 * math.sin(self.age * 0.8)) // 4 * 4)
-        key = (id(full), w, h)
-        if key not in _jets:
-            _jets[key] = pygame.transform.smoothscale(full, (w, h))
-        jet = _jets[key]
-        top = mouth - h
-        screen.blit(jet, (x - w // 2, top))
-        # gocce che partono dalla cima e ricadono ad arco, con il contorno del cartoon
-        for i in range(16):
-            life = ((self.age * 2.2 + i * 29) % 70) / 70
-            side = 1 if i % 2 else -1
-            spread = 50 + (i % 5) * 22
-            gx = x + side * (10 + life * spread)
-            gy = top + 20 - 110 * life + 300 * life * life
-            if gy > mouth + 4 or grow < 0.3:
-                continue
-            vx, vy = side * spread, -110 + 600 * life              # la scia segue il volo
-            tail = (gx - vx * 0.08, gy - vy * 0.08)
-            pygame.draw.line(screen, (60, 50, 50), tail, (gx, gy), 5)
-            pygame.draw.line(screen, (236, 232, 222) if i % 3 else (240, 214, 170), tail, (gx, gy), 3)
-        # schizzi alla base
-        for i in range(6):
-            life = ((self.age * 3 + i * 17) % 30) / 30
-            sx = x + (i - 2.5) * 22 * (0.6 + life)
-            sy = mouth - 6 - math.sin(life * math.pi) * 26
-            pygame.draw.circle(screen, (232, 222, 204), (int(sx), int(sy)), int(6 * (1 - life)) + 2)
+            k = (tick - self.REST - self.WARNING) / self.ERUPTION
+            if k < 0.1:                           # esce di scatto
+                sx, sy, lift, a = 0.6 + 4 * k, k / 0.1, 0, 255
+            elif k > 0.8:                         # si stacca, sale e svanisce
+                q = (k - 0.8) / 0.2
+                sx, sy, lift, a = 1 + 0.3 * q, 1 + 0.2 * q, q * 180, int(255 * (1 - q))
+            else:                                 # pulsa e ondeggia
+                sx = 1 + 0.06 * math.sin(self.age * 0.7)
+                sy, lift, a = 1 + 0.05 * math.sin(self.age * 0.45), 0, 255
+            cx = x + math.sin(self.age * 0.3) * 4
+            steam(screen, column, cx, mouth - lift, sx, sy, a)
+            if k > 0.1:                           # sbuffi che si staccano in cima e salgono
+                q = (self.age % 50) / 50
+                steam(screen, plume, cx, mouth - lift - column.get_height() * sy * 0.55 - q * 90,
+                      0.5 + q * 0.4, 0.5 + q * 0.4, int(170 * (1 - q) * (a / 255)))
+
+
+def steam(screen, img, cx, bottom, sx, sy, alpha):
+    """Un soffio di vapore, scalato (in passi, per non ricalcolarlo sempre) e
+    appoggiato col fondo su `bottom`, trasparente quanto `alpha`."""
+    if alpha <= 4 or sy <= 0.02:
+        return
+    w = max(4, int(img.get_width() * sx) // 6 * 6)
+    h = max(4, int(img.get_height() * sy) // 6 * 6)
+    key = (id(img), w, h)
+    if key not in _steam:
+        _steam[key] = pygame.transform.smoothscale(img, (w, h))
+    s = _steam[key]
+    s.set_alpha(min(255, alpha))
+    screen.blit(s, (int(cx - w / 2), int(bottom - h)))
 
 
 class Spento:
