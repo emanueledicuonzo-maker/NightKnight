@@ -31,7 +31,9 @@ LAKE_LEVEL = 22
 OXYGEN_MAX = 100
 OXYGEN_DRAIN = OXYGEN_MAX / (100 * 60)     # circa cento secondi di riserva all'aperto
 OXYGEN_REFILL = 1.2
-CHILL_FRAMES = 50      # il metano sta un po' sotto il bordo del terreno
+CHILL_FRAMES = 120     # l'azoto gela la tuta: due secondi lenti
+CHILL_SPEED, CHILL_JUMP = 0.25, 0.78    # velocita' e slancio del salto mentre si e' gelati
+GEYSER_LAUNCH = (9, -21)                # il criovulcano sbalza via chi ci finisce dentro
 BURST_FRAMES = 70    # durata del volo di Bianca durante la raffica
 ROCK_N = 4           # la roccia delle pareti copre 4x4 tessere
 TITAN_N = 6          # il terreno di Titano copre 6x6 tessere
@@ -465,7 +467,7 @@ class Player(Entity):
         speed_limit = SPRINT_MAX if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] else RUN_MAX
         if self.chill:
             self.chill -= 1
-            speed_limit *= 0.45
+            speed_limit *= CHILL_SPEED
         speed_limit *= 1 - JELLY_SLOW * self.jellies
         if not self.on_ground:
             speed_limit = max(speed_limit, abs(self.vx))
@@ -561,6 +563,8 @@ class Player(Entity):
             return True
         if self.on_ground or self.coyote:
             self.vy = JUMP_V - max(0, abs(self.vx) - RUN_MAX) * 0.7
+            if self.chill:
+                self.vy *= CHILL_JUMP              # gelati si salta meno
             self.on_ground = False
             self.coyote = self.jump_buffer = 0
             return True
@@ -1427,7 +1431,11 @@ class Game:
         r = p.rect
         for geyser in self.geysers:
             if geyser.update(p):
+                hit = not p.invuln
                 self.hurt_player(25, geyser.x)
+                if hit:
+                    p.vx = GEYSER_LAUNCH[0] * (1 if p.rect.centerx > geyser.x else -1)
+                    p.vy = GEYSER_LAUNCH[1]
             if geyser.phase != geyser.previous_phase and abs(geyser.x - p.x) < W:
                 self.jb.fx({"warning": "geyser_warn", "eruption": "geyser"}.get(geyser.phase, "none"))
             if self.state != "play":

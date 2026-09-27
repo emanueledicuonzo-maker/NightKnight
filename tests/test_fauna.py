@@ -108,6 +108,34 @@ class FaunaTests(unittest.TestCase):
         g.update()
         self.assertTrue(w.alive)
 
+    def test_nitrogen_is_a_real_obstacle(self):
+        from collections import defaultdict
+        g = self.game
+        p = g.player
+        free = goblin.Player(p.x, p.y)
+        free.on_ground = True
+        free.do_jump()
+        p.on_ground, p.chill = True, goblin.CHILL_FRAMES
+        p.do_jump()
+        self.assertGreater(p.vy, free.vy)                       # salto piu' corto
+        p.on_ground, p.vy, p.vx = True, 0, 0
+        keys = defaultdict(bool, {pygame.K_RIGHT: True})
+        for _ in range(40):
+            p.update(keys, g.lv)
+        self.assertLessEqual(p.vx, goblin.RUN_MAX * goblin.CHILL_SPEED + 0.01)
+        self.assertGreaterEqual(goblin.CHILL_FRAMES, 120)
+
+    def test_the_cryovolcano_throws_you_off(self):
+        g = self.game
+        p = g.player
+        geyser = g.geysers[0]
+        geyser.started, geyser.age = True, geyser.REST + geyser.WARNING + 20
+        p.x, p.y = geyser.x - p.w / 2 + 10, geyser.floor - p.h
+        p.on_ground, p.invuln = True, 0
+        g.update()
+        self.assertLess(p.vy, -15)
+        self.assertEqual(geyser.ERUPTION, 180)
+
 
 if __name__ == "__main__":
     unittest.main()

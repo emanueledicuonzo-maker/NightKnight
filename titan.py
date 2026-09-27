@@ -12,7 +12,7 @@ class Geyser:
     """Criovulcano: fango gelido d'acqua e ammoniaca che erompe a ciclo (su Titano
     e' un'ipotesi di Cassini; i geyser veri sono su Encelado)."""
     # Un ciclo inizia sempre con un lungo riposo: nessun getto a sorpresa.
-    REST, WARNING, ERUPTION = 180, 90, 90
+    REST, WARNING, ERUPTION = 180, 90, 180
     PERIOD = REST + WARNING + ERUPTION
 
     def __init__(self, x, floor):
@@ -30,7 +30,7 @@ class Geyser:
 
     @property
     def hitbox(self):
-        return pygame.Rect(self.x - 32, self.floor - 310, 64, 310)
+        return pygame.Rect(self.x - 55, self.floor - 330, 110, 330)
 
     def update(self, player):
         self.previous_phase = self.phase
@@ -151,9 +151,9 @@ class OxygenStation:
 class GasVent:
     """Condotta rotta della colonia: a ciclo soffia un getto di azoto criogenico
     di lato, rasoterra. Chi ci passa dentro gela e rallenta: si salta o si aspetta."""
-    REST, ACTIVE = 260, 170
+    REST, ACTIVE = 240, 300
     PERIOD = REST + ACTIVE
-    REACH = 300              # lunghezza del getto
+    REACH = 450              # lunghezza del getto: 7 tessere
     MOUTH = 70               # altezza della bocca sopra il suolo
 
     def __init__(self, x, floor, facing=-1):
@@ -197,14 +197,14 @@ class GasVent:
         # il getto: sbuffi che partono dalla bocca e si allargano, sempre piu' trasparenti
         grow = min(1, k / 18)
         jet = pygame.Surface((self.REACH + 120, 220), pygame.SRCALPHA)
-        for i in range(60):
+        for i in range(90):
             life = ((self.age * (1.1 + (i % 5) * 0.15) + i * 23) % 60) / 60
             if life > grow:
                 continue
             cx = 40 + life * self.REACH
             cy = 110 + math.sin(i * 1.7 + self.age * 0.08) * (8 + life * 34)
             rad = int(10 + life * 36)
-            pygame.draw.circle(jet, (214, 238, 248, int(72 * (1 - life))), (int(cx), int(cy)), rad)
+            pygame.draw.circle(jet, (214, 238, 248, int(92 * (1 - life))), (int(cx), int(cy)), rad)
         if self.facing < 0:
             jet = pygame.transform.flip(jet, True, False)
         mouth = x + self.facing * 40
