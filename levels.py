@@ -59,21 +59,29 @@ def _grid(cols):
 # sua fauna: corvi, meduse, minatori, lucertole criogeniche e vermi di silicio.
 TITAN_ARENAS = [140, 300]
 TITAN_WAVES = [
-    dict(name="dal suolo", roster=[("skeleton", 8), ("lizard", 2), ("miner", 2), ("worm", 2), ("worm_walk", 2)]),
-    dict(name="dal cielo", roster=[("crow", 12), ("jelly", 4), ("skeleton_fly", 4)]),
+    dict(name="dal suolo", roster=[("skeleton", 6), ("lizard", 2), ("miner", 1), ("worm", 2), ("worm_walk", 2)]),
+    dict(name="dal cielo", roster=[("crow", 10), ("jelly", 3), ("skeleton_fly", 3)]),
 ]
 # Lungo tutta la strada non si e' mai soli: ogni `every` colonne di strada nuova
 # arriva un gruppetto di 2-4 nemici della fauna di Titano (i vermi sono i piu' comuni).
-TITAN_PATROLS = dict(every=11, size=(2, 4), start=12,
+TITAN_PATROLS = dict(every=14, size=(2, 4), start=12,
                      pool=["skeleton", "skeleton", "lizard", "miner", "worm", "worm", "worm_walk",
                            "worm_walk", "crow", "jelly", "skeleton_fly"])
 # Nella traversata pochi nemici, otto sottoterra.
 # (specie, colonna dall'inizio, riga: quella dei piedi per chi cammina, del volo per i volanti)
 TITAN_PASS_FOES = [("lizard", 26, GROUND - 4), ("crow", 32, GROUND - 20),
-                   ("skeleton", 92, GROUND + 10), ("jelly", 100, GROUND + 2), ("burrower", 108, GROUND + 10),
-                   ("worm", 122, GROUND + 10), ("lizard", 129, GROUND + 10), ("miner", 134, GROUND + 10),
-                   ("skeleton", 138, GROUND + 10), ("burrower", 142, GROUND + 10),
-                   ("jelly", 180, GROUND - 6), ("crow", 236, GROUND - 18), ("skeleton", 290, GROUND)]
+                   ("skeleton", 92, GROUND + 10), ("burrower", 108, GROUND + 10), ("worm", 113, GROUND + 10),
+                   ("worm", 122, GROUND + 10), ("miner", 134, GROUND + 10), ("burrower", 142, GROUND + 10),
+                   ("jelly", 180, GROUND - 6), ("crow", 236, GROUND - 18)]
+# Le tappe: perdendo una vita si riparte dall'ultima raggiunta, (colonna, riga dei
+# piedi). In superficie prima delle arene, nella traversata a ogni tratto nuovo.
+def _stages():
+    p = TITAN_PASS_START
+    return [(2, GROUND), (70, GROUND), (132, GROUND), (216, GROUND), (292, GROUND), (360, GROUND),
+            (p + 1, GROUND), (p + 50, GROUND - LEDGES[2]), (p + 104, CAVE_FLOOR),
+            (p + 150, GROUND), (p + 206, GROUND), (p + 270, GROUND)]
+
+
 # Nel duello, di tanto in tanto, un volante in aiuto al Guardiano (mai piu' di due).
 TITAN_ARENA_FLYERS = ["crow", "jelly", "skeleton_fly"]
 TITAN_ARENA_FLYERS_MAX = 2
@@ -266,3 +274,6 @@ def gen_arena(c=None):
     for r in range(GROUND):
         g[r][0] = "S"; g[r][cols - 1] = "S"
     return g
+
+
+TITAN_STAGES = _stages()

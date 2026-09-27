@@ -167,6 +167,27 @@ class TraversalTests(unittest.TestCase):
             g.hit_enemy(goblin.Walker(500, "skeleton"), 0.1)
             fx.assert_called_with("hit")
 
+    def test_a_lost_life_restarts_from_the_last_stage(self):
+        g = self.game
+        p = g.player
+        col, row = levels.TITAN_STAGES[3]
+        p.x, p.y = (col + 2) * TILE, row * TILE - p.h
+        g.update()
+        self.assertEqual(g.stage, 3)
+        g.lose_life()
+        self.assertLess(abs(g.player.rect.centerx - (col * TILE + TILE / 2)), TILE)
+        self.assertEqual(g.waves.waves[0].state, "done")          # la prima ondata e' alle spalle
+        self.assertEqual(g.saved["checkpoint"]["stage"], 3)
+        g.continue_game()
+        self.assertEqual(g.stage, 3)
+
+    def test_every_stage_stands_on_solid_ground(self):
+        g = self.game
+        for col, row in levels.TITAN_STAGES:
+            with self.subTest(col=col):
+                self.assertTrue(g.lv.solid(col * TILE + 32, row * TILE + 2))
+                self.assertFalse(g.lv.solid(col * TILE + 32, row * TILE - 2))
+
 
 if __name__ == "__main__":
     unittest.main()

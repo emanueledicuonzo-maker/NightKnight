@@ -36,7 +36,7 @@ after the Guardian an end screen says so):
 1. **Surface** — one continuous map (`levels.gen_surface()`, 432 columns): two
    waves (one on the ground, one of flyers) that start when the knight enters
    their zone and never lock the way (`waves.py`), and all along the way a group
-   of 2-4 enemies every 11 columns of new ground (`TITAN_PATROLS`, worms most
+   of 2-4 enemies every 14 columns of new ground (`TITAN_PATROLS`, worms most
    common); methane lakes, cryovolcanoes (3 s eruptions that throw you off),
    nitrogen vents (5 s horizontal jets that push you back, frost you blue: 25%
    speed for 2 s, shorter jumps), 3 oxygen stations, 30 prisoners (5 Light each).
@@ -55,7 +55,9 @@ after the Guardian an end screen says so):
    by letting go of the middle rope high in its swing. 320 columns, 13 enemies
    (8 underground; the Tremors-like burrowing worms live only there), 10
    prisoners, 1 station. Ladders are 3 tiles wide.
-   Dying here restarts from the traversal. `tests/test_labyrinth.py` plays every
+   Twelve restart stages (`levels.TITAN_STAGES`, six on the surface before each
+   arena, six in the traversal): a lost life or Continue restarts from the last
+   one reached; waves already behind stay done. `tests/test_labyrinth.py` plays every
    passage with the game's physics, cables included.
 3. **Duel** — one round against the Guardian of Titan (2x NightKnight's height,
    halberd and a hook thrown on a chain), helped by at most two flyers.

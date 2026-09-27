@@ -1086,6 +1086,7 @@ class Game:
         self.luce, self.freed = 0, set()      # Luce di Bianca e prigionieri gia' liberati
         self.sparks, self.shake = [], 0       # scintille dei colpi e scossa dello schermo
         self.reached_pass = False             # su Titano: arrivati alla traversata
+        self.stage = 0                        # ultima tappa raggiunta (levels.TITAN_STAGES)
         pygame.display.set_caption("NightKnight")
         self.clock = pygame.time.Clock()
         self.gfx = Gfx()
@@ -1122,7 +1123,7 @@ class Game:
             self.saved["checkpoint"] = {
                 "cemetery": 0, "part": self.part, "lives": self.lives, "score": self.score,
                 "luce": self.luce, "freed": sorted(list(f) for f in self.freed),
-                "pass": self.reached_pass,
+                "pass": self.reached_pass, "stage": self.stage,
             }
         self.save_error = progress.save(self.saved, self.save_path)
 
@@ -1132,6 +1133,8 @@ class Game:
             self.ci, self.lives, self.score = 0, cp["lives"], cp["score"]
             self.luce = max(0, min(LUCE_MAX, int(cp.get("luce", 0))))
             self.reached_pass = cp.get("pass") is True
+            stage = cp.get("stage", 0)
+            self.stage = stage if type(stage) is int and 0 <= stage < len(levels.TITAN_STAGES) else 0
             self.freed = {tuple(f) for f in cp.get("freed", []) if isinstance(f, list) and len(f) == 3}
             self.start_part(cp["part"])
 
@@ -1173,6 +1176,7 @@ class Game:
         self.score = 0
         self.luce, self.freed = 0, set()
         self.reached_pass = False
+        self.stage = 0
         self.lives = 3
         self.ci = 0
         self.start_part(part)
@@ -1180,6 +1184,7 @@ class Game:
     def start_part(self, part):
         if part != "surface":
             self.reached_pass = False
+            self.stage = 0
         c = levels.cfg(self.ci)
         self.cfg = c
         self.part = part
@@ -1243,11 +1248,16 @@ class Game:
             self.waves = waves.WaveDirector(levels.TITAN_ARENAS, levels.TITAN_WAVES, Walker, Flyer, seed=self.ci,
                                             flyer_y=(VIEW_Y + 40, VIEW_Y + 260),
                                             patrols=levels.TITAN_PATROLS, patrol_end=levels.TITAN_PASS_START * TILE)
-            if self.reached_pass:
-                # si era gia' arrivati alla traversata: si riparte da li', ondate superate
-                for w in self.waves.waves:
+            # si riparte dall'ultima tappa: le ondate gia' passate restano superate
+            col, row = levels.TITAN_STAGES[self.stage]
+            p.x, p.y = col * TILE + (TILE - p.w) / 2, row * TILE - p.h
+            for w in self.waves.waves:
+                if w.x1 < col * TILE:
                     w.state = "done"
-                p.x = (levels.TITAN_PASS_START + 1) * TILE
+            self.waves.next_patrol = max(self.waves.next_patrol, (col + levels.TITAN_PATROLS["every"]) * TILE)
+            self.camy = self.camy_target = max(0, p.rect.bottom - FEET_IN_VIEW)
+            self.bianca = Bianca(p)
+            self.dark = 1.0 if row > levels.CAVE_TOP else 0.0
         if self.part == "arena":
             self.start_round()
 
@@ -1537,11 +1547,17 @@ class Game:
                 side = random.choice((-1, 1))
                 x = self.cam - 80 if side < 0 else self.cam + DW + 20
                 self.crows.append(Flyer(x, random.randrange(VIEW_Y + 40, VIEW_Y + 240), random.choice(levels.TITAN_ARENA_FLYERS)))
-        if (self.part == "surface" and not self.reached_pass
-                and p.x > levels.TITAN_PASS_START * TILE):
-            self.reached_pass = True
-            self.jb.play("trials")
-            self.save_progress(checkpoint=True)
+        if self.part == "surface":
+            stages = levels.TITAN_STAGES
+            moved = False
+            while self.stage + 1 < len(stages) and p.rect.centerx > stages[self.stage + 1][0] * TILE:
+                self.stage += 1                     # nuova tappa: da qui si riparte
+                moved = True
+            if not self.reached_pass and p.x > levels.TITAN_PASS_START * TILE:
+                self.reached_pass = True
+                self.jb.play("trials")
+            if moved:
+                self.save_progress(checkpoint=True)
         if self.waves:
             event = self.waves.update(p, self.skels, self.crows)
             if event:

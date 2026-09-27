@@ -82,11 +82,12 @@ che pesano di piu' e una sensazione dei colpi da gioco d'azione moderno.
 ## Progressi
 
 `savegame.json` conserva il record e un checkpoint locale all'inizio di ogni
-sezione. **Continua riparte dall'inizio della sezione**, con vite, punteggio,
-arma e Luce del checkpoint; posizione e round in corso non vengono salvati.
+sezione e a ogni **tappa**: sei in superficie e sei nella traversata. Perdendo
+una vita si riparte dall'ultima tappa raggiunta, e **Continua** fa lo stesso, con
+vite, punteggio, arma, Luce e prigionieri liberati; le ondate gia' alle spalle
+restano superate.
 Una vita persa aggiorna il checkpoint. Game over e completamento cancellano
 il checkpoint, conservando il record. Nuova partita sostituisce il checkpoint.
-Arrivati alla traversata, una vita persa fa ripartire da li'.
 Se il file non e' scrivibile viene mostrato un avviso; si puo' comunque giocare.
 
 ## Asset
