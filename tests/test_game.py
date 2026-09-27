@@ -85,13 +85,13 @@ class GameTests(unittest.TestCase):
         self.assertEqual(g.player.albedo, 50)
         self.assertEqual(g.lives, 2)
 
-    def test_gameover_clears_checkpoint_keeps_record(self):
+    def test_gameover_keeps_a_continue_and_the_record(self):
         g = self.game
         g.score = 999
         g.lives = 1
         g.lose_life()
         saved = progress.load(g.save_path)
-        self.assertIsNone(saved["checkpoint"])
+        self.assertEqual((saved["checkpoint"]["lives"], saved["checkpoint"]["score"]), (3, 0))
         self.assertGreaterEqual(saved["high_score"], 999)
 
     def test_new_round_resets_combat_state(self):

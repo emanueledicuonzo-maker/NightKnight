@@ -1303,6 +1303,8 @@ class Game:
     def menu_items(self):
         if self.paused:
             return ["RIPRENDI", "TORNA AL TITOLO", "ESCI"]
+        if self.state == "gameover":
+            return ["CONTINUA", "NUOVA PARTITA"]
         return (["CONTINUA"] if self.saved["checkpoint"] else []) + ["NUOVA PARTITA", "ESCI"]
 
     def menu_key(self, k):
@@ -2027,9 +2029,15 @@ class Game:
         self.lives -= 1
         if self.lives <= 0:
             self.state = "gameover"
+            self.menu_index = 0
             self.hi = max(self.hi, self.score)
             self.jb.stop()
-            self.save_progress(clear=True)
+            # si puo' continuare dall'ultima tappa con tre vite, ma il punteggio
+            # riparte da zero: questo e' il salvataggio che "Continua" riprende
+            lives, score = self.lives, self.score
+            self.lives, self.score = 3, 0
+            self.save_progress(checkpoint=True)
+            self.lives, self.score = lives, score
         else:
             self.rounds = [0, 0]
             self.spawn()
@@ -2068,13 +2076,13 @@ class Game:
             elif k == pygame.K_ESCAPE:
                 self.state = "title"
             return
-        if self.state in ("gameover", "end"):
+        if self.state == "gameover":
+            self.menu_key(k)                  # CONTINUA dall'ultima tappa, o NUOVA PARTITA
+            return
+        if self.state == "end":
             if k == pygame.K_RETURN:
-                if self.state == "end":
-                    self.state = "title"
-                    self.menu_index = 0
-                else:
-                    self.new_game()
+                self.state = "title"
+                self.menu_index = 0
             return
         if self.state in ("card", "victory"):
             if k == pygame.K_RETURN:
@@ -2493,7 +2501,7 @@ class Game:
         elif self.state == "gameover":
             ov = pygame.Surface((W, H), pygame.SRCALPHA); ov.fill((0, 0, 0, 170)); s.blit(ov, (0, 0))
             self.draw_center("GAME OVER", 380, (230, 40, 40), 16)
-            self.draw_center("INVIO: RIPROVA", 600, (238, 222, 190), 6)
+            self.draw_menu(600)
         if self.paused:
             ov = pygame.Surface((W, H), pygame.SRCALPHA)
             ov.fill((0, 0, 0, 195))

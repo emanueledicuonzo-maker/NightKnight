@@ -154,6 +154,9 @@ class TraversalTests(unittest.TestCase):
         g.lives = 1
         g.lose_life()                             # game over, poi "riprova"
         g.state = "gameover"
+        g.key(pygame.K_DOWN)                      # NUOVA PARTITA
+        g.key(pygame.K_RETURN)
+        self.assertEqual(g.state, "weapon_select")
         g.key(pygame.K_RETURN)
         self.assertEqual(g.part, "surface")
         self.assertFalse(any(s.liberated for s in g.spenti))
@@ -187,6 +190,25 @@ class TraversalTests(unittest.TestCase):
             with self.subTest(col=col):
                 self.assertTrue(g.lv.solid(col * TILE + 32, row * TILE + 2))
                 self.assertFalse(g.lv.solid(col * TILE + 32, row * TILE - 2))
+
+    def test_continue_after_game_over_keeps_the_stage(self):
+        g = self.game
+        p = g.player
+        col, row = levels.TITAN_STAGES[4]
+        p.x, p.y = (col + 2) * TILE, row * TILE - p.h
+        g.update()
+        g.freed = {(0, "surface", 1), (0, "surface", 2)}
+        g.score = 5000
+        g.lives = 1
+        g.lose_life()
+        self.assertEqual(g.state, "gameover")
+        self.assertEqual(g.menu_items()[g.menu_index], "CONTINUA")
+        g.key(pygame.K_RETURN)
+        self.assertEqual(g.lives, 3)
+        self.assertEqual(g.score, 0)                                  # il prezzo del continua
+        self.assertEqual(g.stage, 4)
+        self.assertEqual(len(g.freed), 2)
+        self.assertEqual(g.part, "surface")
 
 
 if __name__ == "__main__":
