@@ -113,6 +113,21 @@ class Gfx:
             color = tuple(int(a + (b - a) * min(1, k * 2.2)) for a, b in zip(top, low))
             pygame.draw.line(self.titan_lake, color + (255,), (0, y), (TILE, y))
         # Vignettatura: bordi dello schermo appena piu' scuri
+        # Insidie di Titano disegnate: criovulcano (cono e colonna), condotta dell'azoto
+        for key, name, n, h, ref in (("geyser", "geyser", 2, 118, 0), ("geyser_jet", "geyser_jet", 3, 340, 1),
+                                     ("vent", "gas_vent", 2, 112, 0)):
+            art = assets.pieces(name, n, h, ref)
+            if art:
+                titan.ART[key] = art
+        # Il cavo fra due gru della colonia, l'impugnatura, il gancio del Guardiano
+        pylon = assets.pieces("cable_pylon", 2, athletics.FLOOR - athletics.Rope.ANCHOR_Y + 30, 0)
+        handle = assets.pieces("cable_pylon", 2, 64, 1)
+        if pylon and handle:
+            athletics.ART.update(pylon=pylon[0], handle=handle[1])
+        hook = assets.pieces("hook", 2, 70, 0)
+        link = assets.pieces("hook", 2, 22, 1)
+        if hook and link:
+            knights.ART.update(hook=hook[0], link=pygame.transform.rotate(link[1], 90))
         # Buio delle gallerie e luce della visiera (un alone che sfuma al buio).
         self.darkness = pygame.Surface((W, H), pygame.SRCALPHA)
         self.visor_light = pygame.Surface((VISOR * 2, VISOR * 2), pygame.SRCALPHA)
@@ -141,6 +156,15 @@ class Gfx:
         for y in range(8, TILE, 16):
             pygame.draw.rect(self.titan_ladder, (22, 18, 16), (12, y - 2, TILE - 24, 8))
             pygame.draw.rect(self.titan_ladder, (140, 132, 122), (14, y, TILE - 28, 4))
+        # La scala disegnata: una striscia che si ripete in altezza (per riga)
+        self.ladder_strip = None
+        if assets.has("ladder"):
+            img = pygame.image.load(os.path.join(assets.DIR, "ladder.png")).convert_alpha()
+            img = img.subsurface(img.get_bounding_rect()).copy()
+            w = TILE - 10
+            h = max(TILE, round(img.get_height() * w / img.get_width() / TILE) * TILE)
+            self.ladder_strip = pygame.Surface((TILE, h), pygame.SRCALPHA)
+            self.ladder_strip.blit(pygame.transform.smoothscale(img, (w, h)), (5, 0))
         # Portello stagno dell'uscita, la capsula d'atterraggio, la stazione d'ossigeno
         self.airlock = assets.load("portello", TILE * 5, int(PH * 1.5), by_height=True)
         self.capsule = assets.load("capsula", TILE * 5, int(PH * 1.7), by_height=True)
@@ -203,6 +227,9 @@ class Gfx:
 
     def titan_tile(self, ch, c, r):
         if ch == "H":
+            if self.ladder_strip:
+                y = (r * TILE) % self.ladder_strip.get_height()
+                return self.ladder_strip.subsurface((0, y, TILE, TILE))
             return self.titan_ladder
         if self.titan_ground is None or ch not in "#D":
             return None
@@ -1037,7 +1064,7 @@ class Game:
             elif ch == "o":
                 self.stations.append(titan.OxygenStation((c + .5) * TILE, (r + 1) * TILE))
             elif ch == "c":
-                self.vents.append(titan.GasVent((c + .5) * TILE, (r + 1) * TILE))
+                self.vents.append(titan.GasVent((c + .5) * TILE, (r + 1) * TILE, levels.VENT_FACING.get(c, -1)))
             elif ch == "u":
                 spento = titan.Spento((c + .5) * TILE, (r + 1) * TILE)
                 if (self.ci, self.part, int(spento.x)) in self.freed:

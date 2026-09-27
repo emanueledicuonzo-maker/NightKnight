@@ -8,11 +8,14 @@ import levels
 
 
 TILE = 64
+ART = {}           # pilone e impugnatura disegnati (caricati dal gioco)
 FLOOR = levels.GROUND * TILE
 
 
 class Rope:
-    def __init__(self, x, y=FLOOR - 656, length=500):
+    ANCHOR_Y = FLOOR - 656
+
+    def __init__(self, x, y=ANCHOR_Y, length=500):
         self.anchor = pymunk.Vec2d(x, y)
         self.space = pymunk.Space()
         self.space.gravity = (0, 2700)
@@ -31,16 +34,27 @@ class Rope:
         a = (int(self.anchor.x) - cam, int(self.anchor.y))
         b = (int(self.body.position.x) - cam, int(self.body.position.y))
         left, right = a[0] - 5*TILE, a[0] + 5*TILE      # portale del cavo, sopra le rive
-        for x in (left, right):
-            pygame.draw.line(screen, (36, 32, 28), (x, FLOOR), (x, a[1]-12), 18)
-            pygame.draw.line(screen, (108, 95, 73), (x-3, FLOOR), (x-3, a[1]-12), 4)
+        pylon = ART.get("pylon")
         pygame.draw.line(screen, (36, 32, 28), (left-12, a[1]), (right+12, a[1]), 20)
         pygame.draw.line(screen, (108, 95, 73), (left-12, a[1]-5), (right+12, a[1]-5), 4)
+        for x, flip in ((left, False), (right, True)):
+            if pylon:
+                # due gru della colonia, i bracci rivolti verso il cavo
+                img = pygame.transform.flip(pylon, True, False) if flip else pylon
+                foot = int(pylon.get_width() * 0.22)
+                screen.blit(img, (x + foot - img.get_width() if flip else x - foot, FLOOR - img.get_height()))
+            else:
+                pygame.draw.line(screen, (36, 32, 28), (x, FLOOR), (x, a[1]-12), 18)
+                pygame.draw.line(screen, (108, 95, 73), (x-3, FLOOR), (x-3, a[1]-12), 4)
         pygame.draw.line(screen, (32, 39, 28), a, b, 9)
         pygame.draw.line(screen, (124, 130, 88), a, b, 4)
         # impugnatura ben visibile: e' li' che ci si aggrappa saltando
-        pygame.draw.circle(screen, (24, 18, 14), b, 17)
-        pygame.draw.circle(screen, (236, 190, 96), b, 13, 5)
+        handle = ART.get("handle")
+        if handle:
+            screen.blit(handle, (b[0] - handle.get_width() // 2, b[1] - handle.get_height() // 3))
+        else:
+            pygame.draw.circle(screen, (24, 18, 14), b, 17)
+            pygame.draw.circle(screen, (236, 190, 96), b, 13, 5)
 
 
 class Cable:

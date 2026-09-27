@@ -116,6 +116,9 @@ def _ladder(g, c, h):
 
 TITAN_PASS_START = 216       # dove finiscono le ondate e comincia la traversata
 TITAN_PASS_ROPE = TITAN_PASS_START + 83      # colonna del cavo sopra il lago delle guglie
+# Da che parte soffiano gli sfiati d'azoto (colonna assoluta -> verso): verso chi
+# arriva; sulla cengia media si arriva da destra.
+VENT_FACING = {TITAN_PASS_START + 34: 1}
 # Il labirinto di Titano (il "labyrinth terrain" visto da Cassini: altopiani
 # sciolti dalla pioggia di metano in gole, guglie e pozzi). Altezze in tessere
 # sopra il suolo; le gallerie stanno sotto la crosta.

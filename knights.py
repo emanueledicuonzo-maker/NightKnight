@@ -10,6 +10,7 @@ import levels
 
 TILE = 64
 GROUND = levels.GROUND
+ART = {}           # gancio e maglia della catena disegnati (caricati dal gioco)
 GRAVITY = 0.9
 MAX_FALL = 22
 W = 1920
@@ -107,6 +108,18 @@ class Projectile:
     def draw(self, s, gfx, cam):
         r = self.rect.move(-cam, 0)
         c = self.color
+        if self.kind == "hook" and "hook" in ART:
+            # la catena, maglia dopo maglia, e il gancio in punta
+            y = r.centery
+            x0 = self.origin - cam
+            link = ART["link"]
+            step = link.get_width() - 6
+            for i in range(0, abs(r.centerx - x0), step):
+                cx = x0 + i * (1 if r.centerx > x0 else -1)
+                s.blit(link, (cx - link.get_width() // 2, y - link.get_height() // 2))
+            hook = ART["hook"] if self.d > 0 else pygame.transform.flip(ART["hook"], True, False)
+            s.blit(hook, (r.centerx - hook.get_width() // 2, y - hook.get_height() // 2))
+            return
         if self.kind == "hook":
             y = r.centery
             x0 = self.origin - cam

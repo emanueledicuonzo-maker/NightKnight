@@ -126,6 +126,22 @@ def _figures(img, n, rows):
     return out
 
 
+def pieces(name, n, h, ref=0, rows=1):
+    """Gli n oggetti di un'immagine (fotogrammi o oggetti diversi affiancati),
+    separati per sagoma e scalati tutti insieme: l'oggetto `ref` diventa alto h."""
+    key = ("pieces", name, n, h, ref, rows)
+    if key in _cache:
+        return _cache[key]
+    path = os.path.join(DIR, name + ".png")
+    crops = _figures(pygame.image.load(path).convert_alpha(), n, rows) if os.path.exists(path) else None
+    if crops:
+        k = h / crops[ref].get_height()
+        crops = [pygame.transform.smoothscale(c, (max(1, int(c.get_width() * k)), max(1, int(c.get_height() * k))))
+                 for c in crops]
+    _cache[key] = crops
+    return crops
+
+
 def frames(names, h):
     """Fotogrammi separati della stessa figura, scalati con un unico fattore
     (il piu' alto diventa alto h), cosi' il corpo non cambia misura fra una posa e l'altra."""

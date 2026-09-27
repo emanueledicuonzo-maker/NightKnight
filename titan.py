@@ -1,10 +1,16 @@
-"""Primo incontro di Titano: criogeyser immaginari e Spenti da liberare."""
+"""Insidie e presenze di Titano: criovulcani, sfiati di azoto, Spenti da liberare,
+stazioni d'ossigeno."""
 import math
 
 import pygame
 
+# Disegni caricati dal gioco (goblin.Gfx): senza, si disegna tutto in codice.
+ART = {}
+
 
 class Geyser:
+    """Criovulcano: fango gelido d'acqua e ammoniaca che erompe a ciclo (su Titano
+    e' un'ipotesi di Cassini; i geyser veri sono su Encelado)."""
     # Un ciclo inizia sempre con un lungo riposo: nessun getto a sorpresa.
     REST, WARNING, ERUPTION = 180, 90, 90
     PERIOD = REST + WARNING + ERUPTION
@@ -35,6 +41,8 @@ class Geyser:
         return self.phase == "eruption" and self.hitbox.colliderect(player.hurtbox())
 
     def draw(self, screen, cam):
+        if "geyser" in ART:
+            return self.draw_art(screen, cam)
         x, floor = int(self.x - cam), self.floor
         if not -120 < x < screen.get_width() + 120:
             return
@@ -66,6 +74,24 @@ class Geyser:
                 pygame.draw.line(plume, (255, 227, 177, 175),
                                  (int(100+dx), 350-travel), (int(100+dx), 344-travel), 2)
         screen.blit(plume, (x - 100, floor - 352))
+
+
+    def draw_art(self, screen, cam):
+        """Cono del criovulcano (spento o incrinato e acceso) e, in eruzione, la
+        colonna disegnata: sale, sta al massimo, ricade."""
+        x, floor = int(self.x - cam), self.floor
+        if not -200 < x < screen.get_width() + 200:
+            return
+        phase = self.phase
+        base = ART["geyser"][0 if phase == "rest" else 1]
+        if phase == "eruption":
+            k = (self.age % self.PERIOD - self.REST - self.WARNING) / self.ERUPTION
+            jet = ART["geyser_jet"][0 if k < 0.18 else (1 if k < 0.78 else 2)]
+            wobble = int(math.sin(self.age * 0.9) * 4)
+            screen.blit(jet, (x - jet.get_width() // 2 + wobble, floor - base.get_height() // 3 - jet.get_height()))
+        elif phase == "warning" and (self.age // 4) % 2:
+            x += 2                                # il cono trema prima dell'eruzione
+        screen.blit(base, (x - base.get_width() // 2, floor - base.get_height()))
 
 
 class Spento:
@@ -123,13 +149,15 @@ class OxygenStation:
 
 
 class GasVent:
-    """Sfiato di gas criogenico: a ciclo rilascia una nube gelata che rallenta."""
+    """Condotta rotta della colonia: a ciclo soffia un getto di azoto criogenico
+    di lato, rasoterra. Chi ci passa dentro gela e rallenta: si salta o si aspetta."""
     REST, ACTIVE = 260, 170
     PERIOD = REST + ACTIVE
-    RADIUS = 150
+    REACH = 300              # lunghezza del getto
+    MOUTH = 70               # altezza della bocca sopra il suolo
 
-    def __init__(self, x, floor):
-        self.x, self.floor = x, floor
+    def __init__(self, x, floor, facing=-1):
+        self.x, self.floor, self.facing = x, floor, facing
         self.age = 0
         self.started = False
 
@@ -137,30 +165,47 @@ class GasVent:
     def active(self):
         return self.age % self.PERIOD >= self.REST
 
+    @property
+    def hitbox(self):
+        y = self.floor - self.MOUTH - 55
+        return pygame.Rect(self.x if self.facing > 0 else self.x - self.REACH, y, self.REACH, 110)
+
     def update(self, player):
         if abs(player.rect.centerx - self.x) < 900:
             self.started = True
         if self.started:
             self.age += 1
-        center = pygame.Vector2(self.x, self.floor - 90)
-        return self.active and center.distance_to(player.rect.center) < self.RADIUS
+        k = self.age % self.PERIOD - self.REST
+        return self.active and k > 12 and self.hitbox.colliderect(player.rect)
 
     def draw(self, screen, cam):
         x, f = int(self.x - cam), self.floor
-        if not -250 < x < screen.get_width() + 250:
+        if not -450 < x < screen.get_width() + 450:
             return
-        pygame.draw.ellipse(screen, (20, 16, 14), (x - 34, f - 14, 68, 18))
-        pygame.draw.ellipse(screen, (120, 170, 190), (x - 26, f - 11, 52, 12), 3)
-        if not self.active:
+        k = (self.age % self.PERIOD - self.REST) if self.active else -1
+        if "vent" in ART:
+            pipe = ART["vent"][1 if k >= 0 and (k // 6) % 3 else 0]
+            if self.facing < 0:
+                pipe = pygame.transform.flip(pipe, True, False)
+            w = ART["vent"][0].get_width()
+            px = x - w // 2 if self.facing > 0 else x + w // 2 - pipe.get_width()
+            screen.blit(pipe, (px, f - pipe.get_height()))
+        else:
+            pygame.draw.ellipse(screen, (20, 16, 14), (x - 34, f - 14, 68, 18))
+        if k < 0:
             return
-        k = min(1, (self.age % self.PERIOD - self.REST) / 30)
-        cloud = pygame.Surface((340, 280), pygame.SRCALPHA)
-        for i in range(70):
-            # sbuffi che salgono dallo sfiato e si allargano, sempre piu' trasparenti
-            life = ((self.age * (0.6 + (i % 5) * 0.12) + i * 23) % 120) / 120
-            spread = 20 + life * 130
-            cx = 170 + math.sin(i * 1.7 + self.age * 0.015) * spread
-            cy = 260 - life * 230
-            rad = int(10 + life * 34)
-            pygame.draw.circle(cloud, (214, 238, 248, int(26 * k * (1 - life))), (int(cx), int(cy)), rad)
-        screen.blit(cloud, (x - 170, f - 270))
+        # il getto: sbuffi che partono dalla bocca e si allargano, sempre piu' trasparenti
+        grow = min(1, k / 18)
+        jet = pygame.Surface((self.REACH + 120, 220), pygame.SRCALPHA)
+        for i in range(60):
+            life = ((self.age * (1.1 + (i % 5) * 0.15) + i * 23) % 60) / 60
+            if life > grow:
+                continue
+            cx = 40 + life * self.REACH
+            cy = 110 + math.sin(i * 1.7 + self.age * 0.08) * (8 + life * 34)
+            rad = int(10 + life * 36)
+            pygame.draw.circle(jet, (214, 238, 248, int(72 * (1 - life))), (int(cx), int(cy)), rad)
+        if self.facing < 0:
+            jet = pygame.transform.flip(jet, True, False)
+        mouth = x + self.facing * 40
+        screen.blit(jet, (mouth - 40 if self.facing > 0 else mouth - jet.get_width() + 40, f - self.MOUTH - 110))
