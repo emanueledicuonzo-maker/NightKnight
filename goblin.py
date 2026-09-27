@@ -74,6 +74,10 @@ CLIMB = 5
 COYOTE_FRAMES = 6
 JUMP_BUFFER_FRAMES = 7
 PLAYER_HP = 100
+# Meduse: ti puntano appena ti vedono e ti si attaccano (al massimo tre); ognuna
+# rallenta e toglie un po' di vita finche' un colpo non la stacca.
+BURROW_RUMBLE, BURROW_OUT = 40, 130     # il verme alla Tremors: preavviso e tempo fuori
+JELLY_SPEED, JELLY_MAX, JELLY_SLOW, JELLY_DRAIN, JELLY_EVERY = 4.2, 3, 0.22, 3, 50
 LAND_FRAMES, HURT_FRAMES = 10, 22
 SOLID = set("#DS")
 
@@ -423,6 +427,7 @@ class Player(Entity):
         self.weapon = levels.weapon_cfg(0)
         self.gravity_scale = 1.0
         self.t = 0
+        self.jellies = 0          # meduse attaccate addosso
         self.land_t = self.hurt_t = 0
         self.hanging = None       # appeso al cavo: -1 gambe indietro, 0 dritto, 1 gambe avanti
 
@@ -461,6 +466,7 @@ class Player(Entity):
         if self.chill:
             self.chill -= 1
             speed_limit *= 0.45
+        speed_limit *= 1 - JELLY_SLOW * self.jellies
         if not self.on_ground:
             speed_limit = max(speed_limit, abs(self.vx))
         r = self.rect
@@ -760,7 +766,10 @@ WALKERS = {
     "skeleton_3x": dict(frames="skeleton_3x_{}", h=PH * 3, box=(170, 528), hp=4, speed=1.3, dmg=55, reach=220, pts=4000),
     "miner":       dict(frames="miner_mutant_{}", h=PH, box=(80, 176), hp=4, speed=2.0, dmg=35, reach=95, pts=500),
     "lizard":      dict(frames="lizard_cryo_{}", h=80, box=(170, 70), hp=1, speed=1.4, dmg=25, reach=60, pts=400, lunge=True),
-    "worm":        dict(frames="worm_silicon_{}", h=230, box=(100, 200), hp=1, speed=0, dmg=30, reach=120, pts=600),
+    "worm":        dict(frames="worm_silicon_{}", h=230, box=(100, 200), hp=1, speed=1.5, dmg=30, reach=120, pts=600),
+    # alla Tremors: corre sottoterra (si vede solo il suolo che trema) e sbuca sotto i piedi
+    "burrower":    dict(frames="worm_silicon_{}", h=260, box=(110, 230), hp=1, speed=3.4, dmg=35, reach=120, pts=800,
+                        burrow=True),
 }
 FLYERS = {
     "crow":         dict(frames="crow_{}", hp=1, dmg=0),
@@ -823,6 +832,7 @@ class Walker(Skeleton):
         self.scale = random.choice((0.92, 0.97, 1.0, 1.04, 1.08))
         self.pace = random.uniform(0.85, 1.15)
         self.flash = 0
+        self.under, self.rumble, self.up_t, self.out_t = True, 0, 0, 0
 
     def attack_box(self):
         if 0 < self.hit_t <= 12:
@@ -830,11 +840,52 @@ class Walker(Skeleton):
             return pygame.Rect(r.right if self.facing > 0 else r.left - reach, r.top + r.h // 4, reach, r.h // 2)
         return None
 
+    @property
+    def hidden(self):
+        """Il verme sottoterra non si vede e non si colpisce."""
+        return self.spec.get("burrow") and self.under
+
+    def burrow(self, lv, player):
+        """Sotto la crosta insegue NightKnight (solo sul suo stesso suolo), trema
+        sotto i suoi piedi per un attimo, poi sbuca; resta fuori un po' e torna giu'."""
+        self.t += 1
+        if self.frozen:
+            self.frozen -= 1
+            return
+        r = self.rect
+        dist = player.rect.centerx - r.centerx
+        same_floor = abs(player.rect.bottom - r.bottom) < 70 and player.on_ground
+        if self.under:
+            if self.rumble:
+                self.rumble -= 1
+                if not self.rumble:
+                    self.under, self.up_t, self.out_t = False, 0, 0
+                return
+            if abs(dist) < 30 and same_floor:
+                self.rumble = BURROW_RUMBLE
+                return
+            self.facing = 1 if dist > 0 else -1
+            ahead = r.right + 2 if self.facing > 0 else r.left - 3
+            if abs(dist) > 8 and lv.solid(ahead, r.bottom + 2):
+                self.x += min(abs(dist), self.spec["speed"] * self.pace) * self.facing
+            return
+        self.up_t += 1
+        self.out_t += 1
+        self.facing = 1 if dist > 0 else -1
+        if self.hit_t:
+            self.hit_t -= 1
+        elif abs(dist) < self.spec["reach"] + 60 and self.up_t > 12:
+            self.hit_t = 30
+        if self.out_t > BURROW_OUT:
+            self.under, self.out_t = True, 0
+
     def update(self, lv, player):
         spec = self.spec
         if lv.drowned(self.rect):         # finito in un lago di metano
             self.alive = False
             return
+        if spec.get("burrow"):
+            return self.burrow(lv, player)
         if spec["speed"] == 0:                 # il verme resta dove emerge
             self.t += 1
             dist = player.x - self.x
@@ -869,7 +920,38 @@ class Walker(Skeleton):
         self.vx = speed * self.facing if lv.solid(ahead, r.bottom + 2) else 0
         self.move(lv)
 
+    def draw_tremor(self, s, cam):
+        """Il verme sotto la crosta: sassolini che saltano e polvere che si alza."""
+        r = self.rect
+        k = 2.2 if self.rumble else 1
+        for i in range(int(10 * k)):
+            ph = (self.t * 3 + i * 37) % 30
+            x = r.centerx - cam + math.sin(i * 2.3 + self.t * 0.3) * 45 * k
+            y = r.bottom - ph * (1.0 if i % 2 else 2.0) * k
+            pygame.draw.circle(s, (24, 14, 10), (int(x), int(y)), 6 + i % 3)
+            pygame.draw.circle(s, (120, 74, 44) if i % 2 else (196, 140, 90), (int(x), int(y)), 4 + i % 3)
+        # la crosta si solleva in una gobba che segue il verme
+        hump = pygame.Rect(0, 0, int(120 * k), int(18 * k))
+        hump.midbottom = (r.centerx - cam, r.bottom + 4)
+        pygame.draw.ellipse(s, (24, 14, 10), hump.inflate(6, 6))
+        pygame.draw.ellipse(s, (150, 86, 44), hump)
+        if self.rumble:
+            pygame.draw.line(s, (24, 14, 10), (r.centerx - cam - 50, r.bottom - 2), (r.centerx - cam + 50, r.bottom - 4), 4)
+
     def draw(self, s, gfx, cam):
+        if self.spec.get("burrow"):
+            if self.under:
+                return self.draw_tremor(s, cam)
+            if self.up_t < 12 or self.out_t > BURROW_OUT - 12:
+                # sbuca (o rientra): se ne vede solo la parte fuori dal suolo
+                k = min(self.up_t, BURROW_OUT - self.out_t) / 12
+                img = gfx.sized(gfx.foes[self.kind][1], self.scale)
+                if self.facing < 0:
+                    img = assets.flip(img)
+                h = int(img.get_height() * max(0.05, k))
+                r = self.rect
+                s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - h), (0, 0, img.get_width(), h))
+                return
         frames = gfx.foes[self.kind]
         attacking = 0 < self.hit_t <= 18 or self.lunge_t
         img = frames[1] if (attacking or (self.spec["speed"] and (self.t // 10) % 2)) else frames[0]
@@ -901,17 +983,26 @@ class Flyer(Crow):
         self.harmless = spec["dmg"] == 0
         self.state = "dive"
         self.cawed = kind == "crow"
+        self.stuck = None          # medusa attaccata: posizione rispetto a NightKnight
 
     def update(self, lv, player):
         if self.spec.get("drift"):
-            # la medusa galleggia nell'aria densa e scende piano verso di te
             self.t += 1
+            if self.stuck is not None:
+                # attaccata alla tuta: segue NightKnight dove l'ha preso
+                self.x = player.rect.centerx + self.stuck[0] - self.w / 2
+                self.y = player.rect.top + self.stuck[1]
+                return
             if self.frozen:
                 self.frozen -= 1
                 return
-            self.facing = 1 if player.x > self.x else -1
-            self.x += 1.2 * self.facing
-            self.y += ((player.y - 80) - self.y) * 0.01 + math.sin(self.t / 25) * 1.2
+            # appena ti vede ti punta dritta addosso, pulsando nell'aria densa
+            to = pygame.Vector2(player.rect.center) - self.rect.center
+            if to.length() > 1:
+                step = to.normalize() * JELLY_SPEED * (0.75 + 0.35 * abs(math.sin(self.t / 9)))
+                self.x += step.x
+                self.y += step.y
+            self.facing = 1 if to.x > 0 else -1
             return
         super().update(lv, player)
         if self.state == "away" and self.t > 60:
@@ -1174,6 +1265,11 @@ class Game:
         if p.hp == 0:
             self.die()
 
+    def shake_off(self, n):
+        """Un fendente o un calcio stacca una medusa di dosso; il calcio girato tutte."""
+        for c in [c for c in self.crows if c.alive and getattr(c, "stuck", None) is not None][:n]:
+            self.hit_enemy(c, 999, pts=c.spec.get("pts", 150))
+
     def luce_burst(self):
         """Bianca scarica tutta la Luce in una raffica: abbatte ogni volante sullo
         schermo e toglie al Guardiano il 5% della vita per ogni unita' da 25."""
@@ -1218,7 +1314,7 @@ class Game:
         NightKnight insieme ai nemici che ha addosso."""
         r = p.rect
         near = [e.rect.center for e in self.skels + self.crows
-                if e.alive and getattr(e, "state", "") not in ("away", "wait")
+                if e.alive and getattr(e, "state", "") not in ("away", "wait") and not getattr(e, "hidden", False)
                 and abs(e.rect.centerx - r.centerx) < FIGHT_RANGE[0]
                 and abs(e.rect.centery - r.centery) < FIGHT_RANGE[1]]
         if self.part == "arena":
@@ -1388,6 +1484,8 @@ class Game:
                     self.score += 1000 * wave.total // 10
         for k in self.skels:
             k.update(self.lv, p)
+            if getattr(k, "rumble", 0) and abs(k.x - p.x) < 300:
+                self.shake = max(self.shake, 3)          # il suolo trema sotto i piedi
         for cr in self.crows:
             cr.update(self.lv, p)
             if getattr(cr, "cawed", False):
@@ -1395,6 +1493,14 @@ class Game:
                 self.jb.fx("caw")
         for b in self.balls:
             b.update(self.lv, self.cam)
+        # meduse addosso: tolgono vita a poco a poco
+        stuck = [c for c in self.crows if c.alive and getattr(c, "stuck", None) is not None]
+        p.jellies = len(stuck)
+        if stuck and self.frame % JELLY_EVERY == 0:
+            p.hp = max(0, p.hp - JELLY_DRAIN * len(stuck))
+            self.burst_sparks(p.rect.centerx, p.rect.centery, 4, (180, 220, 255))
+            if p.hp == 0:
+                self.die(); return
         # lancio della lancia / hadouken / albedo
         # colpi del giocatore sui nemici
         enemies = [(k, k.spec["pts"]) for k in self.skels] + [(c, c.spec.get("pts", 150)) for c in self.crows]
@@ -1410,7 +1516,15 @@ class Game:
                 continue
             if not e.alive:
                 continue
+            if getattr(e, "stuck", None) is not None or getattr(e, "hidden", False):
+                continue
             if p.hurtbox().colliderect(er):
+                if getattr(e, "spec", {}).get("drift") and not self.intro:
+                    if p.jellies < JELLY_MAX:
+                        e.stuck = (random.randint(-40, 40), random.randint(10, 90))
+                        p.jellies += 1
+                        self.jb.fx("hurt")
+                    continue
                 if isinstance(e, Crow) and getattr(e, "harmless", True):
                     # il corvo disturba: spinge, fa sbagliare il colpo, ma non toglie vita
                     if not p.invuln:
@@ -1431,7 +1545,7 @@ class Game:
         for b in self.balls:
             if b.owner == "player" and b.alive:
                 for e, pts in enemies:
-                    if e.alive and getattr(b, "hit_rect", b.rect).colliderect(e.rect):
+                    if e.alive and not getattr(e, "hidden", False) and getattr(b, "hit_rect", b.rect).colliderect(e.rect):
                         self.hit_enemy(e, b.dmg, pts=pts)
                         b.alive = False
                         break
@@ -1563,6 +1677,7 @@ class Game:
         elif k == pygame.K_z:
             if p.start_attack("throw"):
                 self.jb.fx("sword")
+                self.shake_off(1)
         elif k == pygame.K_x:
             if p.start_attack("punch"):
                 self.balls.append(Stone(p))
@@ -1573,6 +1688,7 @@ class Game:
             spin = not p.on_ground and abs(p.vx) > SPIN_MIN_SPEED
             if p.start_attack("spin" if spin else "kick"):
                 self.jb.fx("sword" if spin else "swing")
+                self.shake_off(JELLY_MAX if spin else 1)
         elif k == pygame.K_v:
             self.luce_burst()
 
@@ -1863,7 +1979,8 @@ class Game:
         for k in self.skels:
             k.draw(s, self.gfx, cam)
         for cr in self.crows:
-            cr.draw(s, self.gfx, cam)
+            if getattr(cr, "stuck", None) is None:
+                cr.draw(s, self.gfx, cam)
         if self.boss:
             self.boss.draw(s, cam)
         for b in self.balls:
@@ -1880,6 +1997,9 @@ class Game:
                     s.blit(fallen, (p.rect.centerx - fallen.get_width() // 2 - cam, p.rect.bottom - fallen.get_height() + 10))
         else:
             p.draw(s, self.gfx, cam)
+        for cr in self.crows:            # le meduse attaccate stanno sopra la tuta
+            if getattr(cr, "stuck", None) is not None:
+                cr.draw(s, self.gfx, cam)
         for e in self.effects:
             fonts.draw_text(s, e.text, int(e.x) - cam, int(e.y), e.color, 4)
         for x, y, vx, vy, life, color in self.sparks:
