@@ -5,6 +5,7 @@ import os
 import argparse
 import random
 
+import numpy
 import pygame
 
 import assets
@@ -45,6 +46,12 @@ CAM_TOP, CAM_BOTTOM = 70, 150
 # (li' serve vedere); nel duello resta un po' piu' vicina per tutto lo scontro.
 ZOOM_FIGHT, ZOOM_DUEL = 1.75, 1.6
 FIGHT_RANGE = (520, 320)     # distanza (orizzontale, verticale) dei nemici che fanno avvicinare
+# Piani di parallasse sopra il cielo: (immagine, velocita', spostamento in giu',
+# foschia steso sopra). Il primo piano, davanti al mondo, corre piu' del terreno.
+PARALLAX = (("hills_far", 0.07, 0, 70), ("hills_01", 0.16, 0, 45),
+            ("colony_ruins", 0.28, 90, 30), ("hills_02", 0.42, 0, 0))
+FOG_COLOR = (196, 112, 58)
+FOREGROUND_SPEED, FOREGROUND_SINK = 1.35, 230
 CROWD = 6                    # con piu' nemici vicini di cosi' la telecamera resta larga      # margini oltre i quali la telecamera insegue un salto o una caduta
 GRAVITY = 0.75
 MAX_FALL = 18
@@ -104,6 +111,10 @@ class Gfx:
             color = tuple(int(a + (b - a) * min(1, k * 2.2)) for a, b in zip(top, low))
             pygame.draw.line(self.titan_lake, color + (255,), (0, y), (TILE, y))
         # Vignettatura: bordi dello schermo appena piu' scuri
+        # Primo piano all'aperto: solo le sagome che salgono dal basso (quelle
+        # appese in alto servono sottoterra).
+        fg = assets.load("foreground", W, H, exact=True)
+        self.foreground_low = fg.subsurface((0, H * 55 // 100, W, H * 45 // 100)).copy()
         self.vignette = pygame.Surface((W, H), pygame.SRCALPHA)
         for i in range(60):
             a = int(90 * (1 - i / 60) ** 2)
@@ -220,11 +231,33 @@ class Gfx:
             self.bg_cache[key] = strip
         return self.bg_cache[key]
 
+    def layer(self, name):
+        """Piano di parallasse a tutto schermo."""
+        return self.background(name, None)
+
+    def fogged(self, img, fogs, top=0):
+        """L'immagine con sopra, gia' stesa, la foschia dei piani davanti a lei
+        (piu' densa verso l'orizzonte): a schermo costa come un'immagine sola."""
+        key = ("fogged", id(img), fogs, top)
+        if key not in self.bg_cache:
+            y = (numpy.arange(img.get_height()) + top) / H
+            profile = 0.35 + 0.65 * numpy.exp(-((y - 0.58) / 0.18) ** 2)
+            keep = numpy.ones_like(profile)
+            for alpha in fogs:
+                keep *= 1 - alpha / 255 * profile
+            out = img.copy()
+            rgb = pygame.surfarray.pixels3d(out)
+            rgb[:] = (rgb * keep[None, :, None] + numpy.array(FOG_COLOR) * (1 - keep[None, :, None])).astype("uint8")
+            del rgb
+            self.bg_cache[key] = out
+        return self.bg_cache[key]
+
     def background(self, kind, num=1):
         """Fondale disegnato del satellite (sky_01, hills_01...)."""
         key = (kind, num)
         if key not in self.bg_cache:
-            self.bg_cache[key] = assets.load(f"{kind}_{num:02d}", W, H, exact=True)
+            name = kind if num is None else f"{kind}_{num:02d}"
+            self.bg_cache[key] = assets.load(name, W, H, exact=True)
         return self.bg_cache[key]
 
 
@@ -1518,23 +1551,56 @@ class Game:
             fonts.draw_text(s, t, W // 2 - fonts.text_width(t, 12) // 2, 380, col, scale=12)
 
     def draw_world(self):
-        """Cielo e fondali, a piena risoluzione dietro la vista del mondo."""
+        """Cielo e fondali, a piena risoluzione dietro la vista del mondo: dal piu'
+        lontano al piu' vicino, ognuno scorre piu' in fretta del precedente e fra
+        l'uno e l'altro la foschia di Titano schiarisce le distanze."""
         s, cam, lv = self.screen, self.cam, self.lv
-        # Il cielo non si ripete: e' appena piu' largo dello schermo e scorre
-        # pochissimo, cosi' Saturno resta uno solo.
         # In verticale i piani lontani si spostano meno di quelli vicini.
         lift = (VIEW_Y - self.camy) * ZOOM
         s.fill((34, 16, 8))
+        # Il cielo non si ripete: e' appena piu' largo dello schermo e scorre
+        # pochissimo, cosi' Saturno resta uno solo.
+        fogs = tuple(fog for *_, fog in PARALLAX)
         sky = self.gfx.wide_sky(1, SKY_PAN)
+        sky = self.gfx.fogged(sky, fogs, H - sky.get_height())
         off = -min(SKY_PAN, int(cam * SKY_PAN / max(1, lv.cols * TILE - W, W)))
         s.blit(sky, (off, H - sky.get_height() + int(lift * 0.04)))
-        # Due piani di rocce; ognuno si ripete alternando una copia specchiata,
-        # cosi' i bordi combaciano senza cuciture.
-        for layer, speed in ((self.gfx.mirrored(self.gfx.background("hills")), 0.16),
-                             (self.gfx.mirrored(self.gfx.background("hills", 2)), 0.42)):
+        # Ogni piano si ripete alternando una copia specchiata: niente cuciture.
+        for i, (name, speed, dy, _) in enumerate(PARALLAX):
+            layer = self.gfx.mirrored(self.gfx.fogged(self.gfx.layer(name), fogs[i:], dy))
             off = -(int(cam * speed) % layer.get_width())
             for x in range(off, W, layer.get_width()):
-                s.blit(layer, (x, int(lift * speed)))
+                s.blit(layer, (x, dy + int(lift * speed)))
+        # Sotto la crosta non c'e' cielo: dietro le gallerie si vede la caverna.
+        vx, vy, cw, ch = self.view_rect()
+        ground = int((GROUND * TILE + TILE - self.camy - vy) * H / ch)
+        if ground < H:
+            cave = self.gfx.mirrored(self.gfx.layer("cave_bg"))
+            off = -(int(cam * 0.3) % cave.get_width())
+            clip = s.get_clip()
+            s.set_clip((0, max(0, ground), W, H))
+            for x in range(off, W, cave.get_width()):
+                s.blit(cave, (x, ground - H // 3))
+            s.set_clip(clip)
+
+    def draw_foreground(self, s):
+        """Il piano piu' vicino, davanti a tutto: sagome scure che passano veloci."""
+        fg = self.gfx.mirrored(self.gfx.foreground_low)
+        lift = (VIEW_Y - self.camy) * ZOOM
+        off = -(int(self.cam * ZOOM * FOREGROUND_SPEED) % fg.get_width())
+        y = H - fg.get_height() + FOREGROUND_SINK + int(lift * FOREGROUND_SPEED)
+        for x in range(off, W, fg.get_width()):
+            s.blit(fg, (x, y))
+
+    def view_rect(self):
+        """La parte della vista del mondo che finisce sullo schermo: con lo zoom
+        e' piu' piccola, ancorata ai piedi di NightKnight e ai nemici che ha addosso."""
+        p = self.player
+        k = ZOOM / self.zoom
+        cw, ch = int(VW * k), int(VH * k)
+        fx = max(0, min(VW, (self.focus_x if self.focus_x is not None else p.rect.centerx) - self.cam))
+        fy = max(0, min(VH, p.rect.bottom - int(self.camy)))
+        return (max(0, min(VW - cw, int(fx * (1 - k)))), max(0, min(VH - ch, int(fy * (1 - k)))), cw, ch)
 
     def draw_tiles(self):
         """Terreno, laghi di metano, scale e portello: disegnati nella vista del mondo."""
@@ -1688,17 +1754,11 @@ class Game:
             pygame.draw.line(s, color, (int(x) - cam, int(y)), (int(x - vx * 1.5) - cam, int(y - vy * 1.5)), 3)
         # la vista del mondo si ingrandisce sopra cielo e fondali
         self.screen = s = screen
-        # Zoom ancorato ai piedi: il suolo resta dov'e' e la scena si stringe
-        # attorno a NightKnight e ai nemici che ha addosso.
-        k = ZOOM / self.zoom
-        cw, ch = int(VW * k), int(VH * k)
-        fx = max(0, min(VW, (self.focus_x if self.focus_x is not None else p.rect.centerx) - cam))
-        fy = max(0, min(VH, p.rect.bottom - camy))
-        vx = max(0, min(VW - cw, int(fx * (1 - k))))
-        vy = max(0, min(VH - ch, int(fy * (1 - k))))
+        vx, vy, cw, ch = self.view_rect()
         view = self.world_surf.subsurface((vx, camy + vy, cw, ch))
         jolt = (random.randint(-self.shake, self.shake), random.randint(-self.shake, self.shake)) if self.shake else (0, 0)
         s.blit(pygame.transform.smoothscale(view, (W, H)), jolt)
+        self.draw_foreground(s)
         self.draw_drizzle(s)
         s.blit(self.gfx.vignette, (0, 0))
         self.draw_hud()
