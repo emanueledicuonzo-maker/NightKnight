@@ -93,6 +93,8 @@ JUMP_BUFFER_FRAMES = 7
 PLAYER_HP = 100
 # Meduse: ti puntano appena ti vedono e ti si attaccano (al massimo tre); ognuna
 # rallenta e toglie un po' di vita finche' un colpo non la stacca.
+# I camminatori sul terreno: gradini da saltare, da scendere, laghi da scavalcare.
+WALKER_STEP, WALKER_DROP, WALKER_GAP, WALKER_TURN = 3, 4, 4, 90
 BURROW_RUMBLE, BURROW_OUT = 40, 130     # il verme alla Tremors: preavviso e tempo fuori
 JELLY_SPEED, JELLY_MAX, JELLY_SLOW, JELLY_DRAIN, JELLY_EVERY = 4.2, 3, 0.22, 3, 50
 LAND_FRAMES, HURT_FRAMES = 10, 22
@@ -537,6 +539,14 @@ class Player(Entity):
             self.attack = None
             if ladder_below and not on_ladder:
                 self.y += 8
+            # ci si aggrappa al centro della scala, non a un fianco
+            ry = r.centery if on_ladder else r.bottom + 2
+            c0 = c1 = r.centerx // TILE
+            while lv.tile_at((c0 - 1) * TILE, ry) == "H":
+                c0 -= 1
+            while lv.tile_at((c1 + 1) * TILE, ry) == "H":
+                c1 += 1
+            self.x = (c0 + c1 + 1) * TILE / 2 - self.w / 2
         if self.climbing:
             if not (on_ladder or ladder_below):
                 self.climbing = False
@@ -554,10 +564,6 @@ class Player(Entity):
                     self.y -= CLIMB
                 elif down:
                     self.y += CLIMB
-                if left and not right:
-                    self.x -= 2; self.facing = -1
-                elif right and not left:
-                    self.x += 2; self.facing = 1
                 self.anim += 0.5 if (up or down) else 0
                 self.move(lv, gravity=False)
                 if self.on_ground and down:
@@ -903,6 +909,8 @@ class Walker(Skeleton):
         self.pace = random.uniform(0.85, 1.15)
         self.flash = 0
         self.under, self.rumble, self.up_t, self.out_t = True, 0, 0, 0
+        self.turn = 0
+        self.leap = 0.0
 
     def attack_box(self):
         if 0 < self.hit_t <= 12:
@@ -982,13 +990,49 @@ class Walker(Skeleton):
             self.move(lv)
             return
         dist = player.x - self.x
-        self.facing = 1 if dist > 0 else -1
+        if self.turn:
+            self.turn -= 1                    # torna indietro da un ostacolo che non passa
+        else:
+            self.facing = 1 if dist > 0 else -1
         if abs(dist) < spec["reach"] + 30 and abs(player.rect.bottom - self.rect.bottom) < 100:
             self.hit_t = 24
-        r = self.rect
-        ahead = r.right + 2 if self.facing > 0 else r.left - 3
-        self.vx = speed * self.facing if lv.solid(ahead, r.bottom + 2) else 0
+        if self.on_ground:
+            self.vx = self.leap = self.terrain(lv, speed)
+        else:
+            self.vx = self.leap                # in salto si continua a spingere in avanti
         self.move(lv)
+
+    def terrain(self, lv, speed):
+        """Davanti a un gradino o a un lago non si resta fermi: un gradino fino a
+        WALKER_STEP tessere si salta, uno piu' basso si scende, un lago o un buco
+        stretto si scavalca con un balzo; altrimenti si torna indietro."""
+        r, f = self.rect, self.facing
+        front = r.right + 2 if f > 0 else r.left - 3
+        if lv.solid(front, r.bottom - 8):
+            # una parete: quanto e' alta?
+            h = next((k for k in range(1, 12) if not lv.solid(front, r.bottom - 8 - k * TILE)), 12)
+            if h <= WALKER_STEP and not lv.solid(r.centerx, r.top - h * TILE):
+                self.vy = -math.sqrt(2 * GRAVITY * (h * TILE + 30))
+                return speed * f
+            return self.turn_back()
+        if lv.solid(front, r.bottom + 2):
+            return speed * f                  # si cammina
+        below = lv.floor_near(front + f * TILE // 2, r.bottom, WALKER_DROP)
+        if below is not None and below > r.bottom:
+            return speed * f                  # si scende dal gradino
+        for k in range(1, WALKER_GAP + 1):
+            land = lv.floor_near(front + f * k * TILE, r.bottom, 1)
+            if land is not None:
+                # un lago o un buco stretto: balzo dall'altra parte
+                self.vy = -12.0
+                air = 2 * 12.0 / GRAVITY
+                return f * max(speed, (k * TILE + r.w) / air + 1)
+        return self.turn_back()
+
+    def turn_back(self):
+        self.facing = -self.facing
+        self.turn = WALKER_TURN
+        return 0
 
     def draw_tremor(self, s, cam):
         """Il verme sotto la roccia: il suolo si crepa e la polvere si alza appena."""

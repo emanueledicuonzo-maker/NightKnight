@@ -142,7 +142,7 @@ def gen_titan_surface():
     g[top(1)][1] = "P"                      # la capsula con cui NightKnight e' arrivato
     for col in (3, 186, 378):               # stazioni d'ossigeno: poche, vanno pianificate
         g[top(col)][col] = "o"
-    for col in (90, 290, 358, 374):         # condotte d'azoto
+    for col in (140, 298, 366):             # condotte d'azoto: il getto non passa su criovulcani ne' laghi
         g[top(col)][col] = "c"
     return g
 
@@ -282,7 +282,7 @@ def gen_titan_pass():
     _rock(g, 253, 268, 5)
     # prigionieri, ossigeno, gas, criovulcani, uscita
     floor, cave = GROUND - 1, CAVE_FLOOR - 1
-    for c, r in ((30, floor), (18, GROUND - l2 - 1), (54, GROUND - l3 - 1), (89, cave), (94, cave),
+    for c, r in ((30, GROUND - l1 - 1), (18, GROUND - l2 - 1), (54, GROUND - l3 - 1), (89, cave), (94, cave),
                  (129, cave), (152, floor), (202, GROUND - 4), (212, GROUND - 12), (262, GROUND - 6)):
         g[r][c] = "u"
     for c, r in ((149, floor),):             # una sola stazione nella traversata

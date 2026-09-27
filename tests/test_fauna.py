@@ -214,6 +214,67 @@ class FaunaTests(unittest.TestCase):
                 self.assertFalse(any(g.lv.solid(x, y) for x in (r.left + 4, r.right - 4)
                                      for y in (r.top + 4, r.centery, r.bottom - 4)))
 
+    def walker_run(self, kind, col, target_col, frames):
+        import levels
+        g = self.game
+        hts = levels.surface_heights()
+        T = goblin.TILE
+        p = g.player
+        p.x, p.y = target_col * T, (levels.GROUND - hts[target_col]) * T - p.h
+        w = goblin.Walker(col * T, kind)
+        w.y = (levels.GROUND - hts[col]) * T - w.h
+        w.on_ground = True
+        track = []
+        for _ in range(frames):
+            w.update(g.lv, p)
+            track.append((w.rect.centerx, w.rect.bottom, w.facing))
+        return w, track
+
+    def test_walkers_jump_up_steps(self):
+        import levels
+        w, track = self.walker_run("skeleton", 40, 47, 400)
+        self.assertLessEqual(min(b for _, b, _ in track), (levels.GROUND - 6) * goblin.TILE)   # in cima
+
+    def test_walkers_hop_over_a_narrow_lake(self):
+        w, track = self.walker_run("skeleton", 13, 26, 400)
+        self.assertTrue(w.alive)
+        self.assertGreater(w.rect.left, 18 * goblin.TILE)
+
+    def test_walkers_turn_back_at_a_wall_they_cannot_climb(self):
+        w, track = self.walker_run("skeleton", 233, 244, 300)
+        self.assertLess(max(x for x, _, _ in track), 240 * goblin.TILE)
+        self.assertIn(-1, [f for _, _, f in track])
+
+    def test_worms_never_appear_on_a_lake(self):
+        import levels
+        g = self.game
+        T = goblin.TILE
+        p = g.player
+        p.x, p.y = 12 * T, levels.GROUND * T - p.h
+        for col in (16, 17, 55, 56):
+            with self.subTest(col=col):
+                w = g.make_walker(col * T, "worm")
+                self.assertNotEqual(g.lv.tile_at(w.rect.centerx, w.rect.bottom + 2), "~")
+                self.assertTrue(g.lv.solid(w.rect.centerx, w.rect.bottom + 2))
+
+    def test_ladders_are_climbed_from_the_middle(self):
+        from collections import defaultdict
+        import levels
+        g = self.game
+        T = goblin.TILE
+        p = goblin.Player(levels.TITAN_BIG_LADDER * T, levels.GROUND * T - goblin.Player.h)
+        p.on_ground = True
+        p.update(defaultdict(bool, {pygame.K_UP: True}), g.lv)
+        self.assertTrue(p.climbing)
+        self.assertAlmostEqual(p.rect.centerx, (levels.TITAN_BIG_LADDER + 1.5) * T, delta=2)
+
+    def test_no_nitrogen_jet_blows_over_a_cryovolcano(self):
+        g = self.game
+        for v in g.vents:
+            for q in g.geysers:
+                with self.subTest(vent=v.x, geyser=q.x):
+                    self.assertFalse(v.hitbox.inflate(160, 0).colliderect(q.hitbox) and abs(v.floor - q.floor) < 200)
+
 
 if __name__ == "__main__":
     unittest.main()
