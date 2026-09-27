@@ -215,7 +215,7 @@ Volanti e terrestri sono solo creature del satellite, mai scheletri.
 | Lucertole criogeniche | Immobili sulle pareti, poi scattano e congelano |
 | Cinghiali minerari | Caricano in linea retta e sfondano ostacoli fragili |
 | Ragni da condotto | Scendono dai soffitti, lasciano fili che rallentano |
-| Vermi di silicio | Emergono da sabbia, cenere o metallo e sputano schegge. Alcuni **camminano** verso di te; altri, alla *Tremors*, corrono **sottoterra** (si vede solo il suolo che trema) e sbucano sotto i piedi |
+| Vermi di silicio | Emergono da sabbia, cenere o metallo e sputano schegge; alcuni **camminano** verso di te. Nelle gallerie, alla *Tremors*, corrono sotto la roccia (si vede solo il suolo che si crepa) e sbucano sotto i piedi |
 
 | Insidie | Effetto |
 | --- | --- |

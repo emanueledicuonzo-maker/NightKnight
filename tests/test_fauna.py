@@ -73,7 +73,7 @@ class FaunaTests(unittest.TestCase):
 
     def test_worms_walk_towards_you(self):
         g = self.game
-        w = goblin.Walker(g.player.x + 600, "worm")
+        w = goblin.Walker(g.player.x + 600, "worm_walk")
         g.skels.append(w)
         x0 = w.x
         for _ in range(60):
@@ -136,6 +136,49 @@ class FaunaTests(unittest.TestCase):
         g.update()
         self.assertLess(p.vy, -15)
         self.assertEqual(geyser.ERUPTION, 180)
+
+    def test_without_air_you_do_not_die_but_you_are_weak(self):
+        from collections import defaultdict
+        g = self.game
+        p = g.player
+        p.oxygen = 0
+        for _ in range(600):
+            g.update()
+        self.assertEqual(p.hp, goblin.PLAYER_HP)                 # non si muore
+        self.assertEqual(p.power(goblin.SWORD_HIT), 0.5)         # un fendente vale mezzo sasso
+        skeleton = goblin.Walker(p.rect.right + 20, "skeleton")
+        g.skels.append(skeleton)
+        g.hit_enemy(skeleton, p.power(goblin.SWORD_HIT))
+        self.assertTrue(skeleton.alive)                          # ne servono due
+        keys = defaultdict(bool, {pygame.K_RIGHT: True})
+        p.on_ground, p.vx = True, 0
+        for _ in range(40):
+            p.update(keys, g.lv)
+        self.assertLessEqual(p.vx, goblin.RUN_MAX * goblin.BREATHLESS_SPEED + 0.01)
+
+    def test_the_nitrogen_jet_pushes_you_back(self):
+        from collections import defaultdict
+        g = self.game
+        p = g.player
+        v = min((v for v in g.vents if v.floor == g.player.rect.bottom), key=lambda v: v.x)
+        v.started, v.age = True, v.REST + 30
+        from unittest.mock import patch
+        keys = defaultdict(bool, {pygame.K_RIGHT: True})
+        with patch.object(pygame.key, "get_pressed", lambda: keys):
+            p.x, p.y = v.x - 300, v.floor - p.h
+            x0 = p.x
+            for _ in range(60):
+                g.update()
+        self.assertLess(p.x, x0 + 20)                            # camminandoci contro non si passa
+        self.assertGreater(p.chill, 0)
+
+    def test_tremors_only_underground(self):
+        import levels
+        surface = [k for w in levels.TITAN_WAVES for k, _ in w["roster"]] + levels.TITAN_PATROLS["pool"]
+        self.assertNotIn("burrower", surface)
+        for kind, col, row in levels.TITAN_PASS_FOES:
+            if kind == "burrower":
+                self.assertGreater(row, levels.GROUND)
 
 
 if __name__ == "__main__":

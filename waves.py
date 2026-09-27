@@ -92,7 +92,7 @@ class WaveDirector:
             e = self.make_flyer(x, self.rnd.randrange(*self.flyer_y), kind)
             flyers.append(e)
             return e
-        if kind in ("worm", "burrower"):     # i vermi escono dal suolo, non lontano
+        if kind in ("worm", "burrower"):     # questi vermi escono dal suolo, non lontano
             x = cx + self.side * self.rnd.randrange(250, 550)
         else:
             x = cx + self.side * (VIEW_HALF + self.rnd.randrange(20, 260))

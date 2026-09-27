@@ -29,7 +29,11 @@ VW, VH = int(W / ZOOM), int(H / ZOOM)
 LUCE_MAX, LUCE_UNIT, LUCE_PER_PRISONER = 100, 25, 5
 LAKE_LEVEL = 22
 OXYGEN_MAX = 100
-OXYGEN_DRAIN = OXYGEN_MAX / (100 * 60)     # circa cento secondi di riserva all'aperto
+OXYGEN_DRAIN = OXYGEN_MAX / (150 * 60)     # due minuti e mezzo di riserva all'aperto
+# Senz'aria non si muore: si rallenta, si salta meno, si ansima, e ogni colpo
+# (spada, sasso, calcio) vale mezzo sasso finche' non si trova una stazione.
+BREATHLESS_SPEED, BREATHLESS_JUMP, BREATHLESS_HIT = 0.6, 0.8, 0.5
+VENT_PUSH = 3.0        # il getto d'azoto respinge chi prova ad attraversarlo
 OXYGEN_REFILL = 1.2
 CHILL_FRAMES = 120     # l'azoto gela la tuta: due secondi lenti
 CHILL_SPEED, CHILL_JUMP = 0.25, 0.78    # velocita' e slancio del salto mentre si e' gelati
@@ -303,6 +307,16 @@ class Gfx:
             self.bg_cache[key] = strip
         return self.bg_cache[key]
 
+    def frosted(self, img):
+        """La stessa figura coperta di brina azzurra."""
+        key = ("frost", id(img))
+        if key not in self.bg_cache:
+            out = img.copy()
+            out.fill((150, 205, 255, 255), special_flags=pygame.BLEND_RGBA_MULT)
+            out.fill((40, 60, 80, 0), special_flags=pygame.BLEND_RGBA_ADD)
+            self.bg_cache[key] = out
+        return self.bg_cache[key]
+
     def layer(self, name):
         """Piano di parallasse a tutto schermo."""
         return self.background(name, None)
@@ -446,6 +460,14 @@ class Player(Entity):
     def hurtbox(self):
         return self.rect.inflate(-10, -6)
 
+    @property
+    def breathless(self):
+        return self.oxygen <= 0
+
+    def power(self, hits):
+        """Senz'aria ogni colpo vale mezzo sasso."""
+        return BREATHLESS_HIT if self.breathless else hits
+
     def attack_box(self):
         if not self.attack:
             return None, 0
@@ -479,6 +501,8 @@ class Player(Entity):
             self.chill -= 1
             speed_limit *= CHILL_SPEED
         speed_limit *= 1 - JELLY_SLOW * self.jellies
+        if self.breathless:
+            speed_limit *= BREATHLESS_SPEED
         if not self.on_ground:
             speed_limit = max(speed_limit, abs(self.vx))
         r = self.rect
@@ -575,6 +599,8 @@ class Player(Entity):
             self.vy = JUMP_V - max(0, abs(self.vx) - RUN_MAX) * 0.7
             if self.chill:
                 self.vy *= CHILL_JUMP              # gelati si salta meno
+            if self.breathless:
+                self.vy *= BREATHLESS_JUMP
             self.on_ground = False
             self.coyote = self.jump_buffer = 0
             return True
@@ -624,6 +650,8 @@ class Player(Entity):
         if abs(self.vx) > 0.5 and "run" in sheets:
             fr = sheets["run"][side]
             return fr[int(self.run_t) % len(fr)]
+        if self.breathless and "tired" in sheets:
+            return sheets["tired"][side][(self.t // 10) % 4]   # senz'aria ansima piegato
         if "idle" in sheets:
             return sheets["idle"][side][(self.t // 14) % 4]    # respira
         return None
@@ -634,6 +662,8 @@ class Player(Entity):
         img = self.sheet_frame(gfx)
         if img is None:
             img = gfx.player["idle"][0 if self.facing > 0 else 1]
+        if self.chill:
+            img = gfx.frosted(img)                 # gelato dall'azoto: brina sulla tuta
         self.draw_img(s, img, cam)
 
 
@@ -780,8 +810,10 @@ WALKERS = {
     "skeleton_3x": dict(frames="skeleton_3x_{}", h=PH * 3, box=(170, 528), hp=4, speed=1.3, dmg=55, reach=220, pts=4000),
     "miner":       dict(frames="miner_mutant_{}", h=PH, box=(80, 176), hp=4, speed=2.0, dmg=35, reach=95, pts=500),
     "lizard":      dict(frames="lizard_cryo_{}", h=80, box=(170, 70), hp=1, speed=1.4, dmg=25, reach=60, pts=400, lunge=True),
-    "worm":        dict(frames="worm_silicon_{}", h=230, box=(100, 200), hp=1, speed=1.5, dmg=30, reach=120, pts=600),
-    # alla Tremors: corre sottoterra (si vede solo il suolo che trema) e sbuca sotto i piedi
+    "worm":        dict(frames="worm_silicon_{}", h=230, box=(100, 200), hp=1, speed=0, dmg=30, reach=120, pts=600),
+    "worm_walk":   dict(frames="worm_silicon_{}", h=210, box=(100, 180), hp=1, speed=1.5, dmg=30, reach=120, pts=600),
+    # solo nelle gallerie, alla Tremors: corre sotto la roccia (si vede solo il
+    # suolo che trema) e sbuca sotto i piedi
     "burrower":    dict(frames="worm_silicon_{}", h=260, box=(110, 230), hp=1, speed=3.4, dmg=35, reach=120, pts=800,
                         burrow=True),
 }
@@ -935,22 +967,18 @@ class Walker(Skeleton):
         self.move(lv)
 
     def draw_tremor(self, s, cam):
-        """Il verme sotto la crosta: sassolini che saltano e polvere che si alza."""
+        """Il verme sotto la roccia: il suolo si crepa e la polvere si alza appena."""
         r = self.rect
-        k = 2.2 if self.rumble else 1
-        for i in range(int(10 * k)):
-            ph = (self.t * 3 + i * 37) % 30
-            x = r.centerx - cam + math.sin(i * 2.3 + self.t * 0.3) * 45 * k
-            y = r.bottom - ph * (1.0 if i % 2 else 2.0) * k
-            pygame.draw.circle(s, (24, 14, 10), (int(x), int(y)), 6 + i % 3)
-            pygame.draw.circle(s, (120, 74, 44) if i % 2 else (196, 140, 90), (int(x), int(y)), 4 + i % 3)
-        # la crosta si solleva in una gobba che segue il verme
-        hump = pygame.Rect(0, 0, int(120 * k), int(18 * k))
-        hump.midbottom = (r.centerx - cam, r.bottom + 4)
-        pygame.draw.ellipse(s, (24, 14, 10), hump.inflate(6, 6))
-        pygame.draw.ellipse(s, (150, 86, 44), hump)
-        if self.rumble:
-            pygame.draw.line(s, (24, 14, 10), (r.centerx - cam - 50, r.bottom - 2), (r.centerx - cam + 50, r.bottom - 4), 4)
+        k = 1.8 if self.rumble else 1
+        x, y = r.centerx - cam, r.bottom
+        crack = [(x - 50 * k + i * 20 * k, y - 2 - (6 * k if i % 2 else 0)) for i in range(6)]
+        pygame.draw.lines(s, (24, 14, 10), False, crack, 4)
+        for i in range(int(8 * k)):
+            ph = (self.t * 2 + i * 23) % 24
+            px = x + math.sin(i * 2.3 + self.t * 0.25) * 55 * k
+            py = y - 2 - abs(math.sin(ph / 24 * math.pi)) * 14 * k       # saltellano, non volano
+            pygame.draw.circle(s, (24, 14, 10), (int(px), int(py)), 3 + i % 2)
+            pygame.draw.circle(s, (160, 104, 62), (int(px), int(py)), 2 + i % 2)
 
     def draw(self, s, gfx, cam):
         if self.spec.get("burrow"):
@@ -1484,14 +1512,14 @@ class Game:
             p.oxygen = min(OXYGEN_MAX, p.oxygen + OXYGEN_REFILL)
         else:
             p.oxygen = max(0, p.oxygen - OXYGEN_DRAIN)
-            if p.oxygen == 0 and self.frame % 45 == 0:
-                p.hp = max(0, p.hp - 8)             # senz'aria la vita cala piano
-                self.jb.fx("hurt")
-                if p.hp == 0:
-                    self.die(); return
+            if p.oxygen == 0 and self.frame % 90 == 0:
+                self.jb.fx("pant")                  # senz'aria: si ansima, non si muore
         for vent in self.vents:
             if vent.update(p):
+                if not p.chill:
+                    self.jb.fx("freeze")
                 p.chill = CHILL_FRAMES              # il gas gela: si rallenta per un momento
+                p.vx += vent.facing * VENT_PUSH     # e il getto spinge indietro
         if self.state != "play":
             return
         # uscita
@@ -1550,8 +1578,8 @@ class Game:
             er = e.rect
             if abox and abox.colliderect(er) and getattr(e, "swing", None) != p.swing:
                 e.swing = p.swing
-                self.hit_enemy(e, SWORD_HIT if p.attack[0] in ("throw", "spin") else STONE_HIT,
-                               pts=pts, weapon=p.attack[0] == "throw")
+                self.hit_enemy(e, p.power(SWORD_HIT if p.attack[0] in ("throw", "spin") else STONE_HIT),
+                               pts=pts, weapon=p.attack[0] == "throw" and not p.breathless)
                 continue
             if not e.alive:
                 continue
@@ -1571,7 +1599,7 @@ class Game:
                         p.attack = None
                         p.invuln = 20
                 elif p.vy > 0 and r.bottom - er.top < 40:
-                    self.hit_enemy(e, 1, pts=pts)
+                    self.hit_enemy(e, p.power(1), pts=pts)
                     p.vy = -14
                     self.jb.fx("stomp")
                 elif not getattr(e, "frozen", 0):
@@ -1585,7 +1613,7 @@ class Game:
             if b.owner == "player" and b.alive:
                 for e, pts in enemies:
                     if e.alive and not getattr(e, "hidden", False) and getattr(b, "hit_rect", b.rect).colliderect(e.rect):
-                        self.hit_enemy(e, b.dmg, pts=pts)
+                        self.hit_enemy(e, p.power(b.dmg), pts=pts)
                         b.alive = False
                         break
                 if self.boss and b.alive and b.rect.colliderect(self.boss.rect):

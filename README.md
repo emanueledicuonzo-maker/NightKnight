@@ -45,9 +45,11 @@ duello contro il Guardiano, aiutato solo da pochi volanti. Regole, nemici e
 tabelle dei satelliti sono in `STORY.md`.
 
 Oggi e' giocabile **solo Titano**, dall'inizio alla fine: un unico percorso con
-quattro ondate (non bloccano mai, si puo' scappare) e, fra l'una e l'altra,
-gruppetti di nemici continui; laghi di metano, criovulcani, condotte d'azoto,
-poche stazioni d'ossigeno (otto in tutto il livello) e quaranta prigionieri; poi la traversata,
+due ondate, una di terra e una di volanti (non bloccano mai, si puo' scappare), e
+lungo tutta la strada gruppetti di nemici continui; laghi di metano, criovulcani,
+condotte d'azoto che respingono e gelano, solo quattro stazioni d'ossigeno in
+tutto il livello (senz'aria non si muore, ma si rallenta, si ansima e ogni colpo
+vale mezzo sasso) e quaranta prigionieri; poi la traversata,
 un labirinto che non va dritto: una rupe da salire a zig-zag su tre cengie con le
 scale di servizio, la cresta, le guglie dentro un lago di metano e il cavo fra
 due gru, un crepaccio in cui scendere, gallerie buie (si vede solo la luce della

@@ -57,18 +57,16 @@ def _grid(cols):
 # Le quattro ondate di Titano. Partono quando NightKnight entra nella zona e
 # non bloccano mai il passaggio. Titano usa scheletri normali e volanti; la
 # sua fauna: corvi, meduse, minatori, lucertole criogeniche e vermi di silicio.
-TITAN_ARENAS = [22, 130, 240, 350]
+TITAN_ARENAS = [140, 300]
 TITAN_WAVES = [
-    dict(name="primo contatto", roster=[("skeleton", 4), ("miner", 1), ("worm", 1)]),
-    dict(name="lo sciame", roster=[("skeleton", 12), ("lizard", 3), ("miner", 2), ("burrower", 2)], alive=17, every=6),
-    dict(name="dal cielo e dal suolo", roster=[("skeleton_fly", 6), ("worm", 3), ("burrower", 3)]),
-    dict(name="la nube", roster=[("crow", 20), ("jelly", 6), ("skeleton_fly", 4)], alive=12),
+    dict(name="dal suolo", roster=[("skeleton", 8), ("lizard", 2), ("miner", 2), ("worm", 2), ("worm_walk", 2)]),
+    dict(name="dal cielo", roster=[("crow", 12), ("jelly", 4), ("skeleton_fly", 4)]),
 ]
-# Fra un'ondata e l'altra non si e' mai soli: ogni PATROL_EVERY colonne di strada
-# nuova arriva un gruppetto di 2-4 nemici della fauna di Titano.
-TITAN_PATROLS = dict(every=22, size=(2, 4), start=30,
-                     pool=["skeleton", "skeleton", "lizard", "miner", "worm", "burrower",
-                           "crow", "jelly", "skeleton_fly"])
+# Lungo tutta la strada non si e' mai soli: ogni `every` colonne di strada nuova
+# arriva un gruppetto di 2-4 nemici della fauna di Titano (i vermi sono i piu' comuni).
+TITAN_PATROLS = dict(every=11, size=(2, 4), start=12,
+                     pool=["skeleton", "skeleton", "lizard", "miner", "worm", "worm", "worm_walk",
+                           "worm_walk", "crow", "jelly", "skeleton_fly"])
 # Nella traversata pochi nemici, otto sottoterra.
 # (specie, colonna dall'inizio, riga: quella dei piedi per chi cammina, del volo per i volanti)
 TITAN_PASS_FOES = [("lizard", 26, GROUND - 4), ("crow", 32, GROUND - 20),
@@ -99,7 +97,7 @@ def gen_titan_surface():
                 224, 236, 247, 263, 287, 296, 308, 324, 340, 355, 389, 415):
         g[GROUND-1][col] = "u"
     g[GROUND-1][1] = "P"                    # la capsula con cui NightKnight e' arrivato
-    for col in (3, 110, 220, 330):          # stazioni d'ossigeno: poche, vanno pianificate
+    for col in (3, 186, 378):               # stazioni d'ossigeno: poche, vanno pianificate
         g[GROUND-1][col] = "o"
     for col in (95, 270, 358, 374):         # condotte d'azoto
         g[GROUND-1][col] = "c"
@@ -244,7 +242,7 @@ def gen_titan_pass():
     for c, r in ((30, floor), (18, GROUND - l2 - 1), (54, GROUND - l3 - 1), (89, cave), (94, cave),
                  (129, cave), (158, floor), (202, GROUND - 4), (212, GROUND - 12), (262, GROUND - 6)):
         g[r][c] = "u"
-    for c, r in ((50, GROUND - l3 - 1), (110, cave), (206, floor), (285, floor)):
+    for c, r in ((150, floor),):             # una sola stazione nella traversata
         g[r][c] = "o"
     for c, r in ((34, GROUND - l2 - 1), (133, cave), (160, floor)):
         g[r][c] = "c"

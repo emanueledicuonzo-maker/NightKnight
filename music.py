@@ -225,6 +225,14 @@ def sfx(name):
     elif name == "air":           # stazione d'ossigeno: soffio d'aria
         n = L(0.35); t = np.arange(n) / SR
         w = _lowpass(_noise(n, 20), 0.55) * np.sin(np.pi * t / (n / SR)) * 0.18
+    elif name == "freeze":        # azoto sulla tuta: sibilo gelido e scricchiolio
+        n = L(0.7); t = np.arange(n) / SR
+        crackle = (_noise(n, 21) > 0.93).astype(float) * np.exp(-t * 3)
+        w = _lowpass(_noise(n, 22), 0.85) * np.exp(-t * 4) * 0.3 + crackle * 0.25 + _tone(2400, 1800, n) * np.exp(-t * 6) * 0.06
+    elif name == "pant":          # senz'aria: respiro corto e affannato dentro l'elmo
+        n = L(0.9); t = np.arange(n) / SR
+        breath = np.sin(np.pi * np.clip(t / 0.35, 0, 1)) ** 2 + 0.8 * np.sin(np.pi * np.clip((t - 0.45) / 0.35, 0, 1)) ** 2
+        w = _lowpass(_noise(n, 23), 0.35) * breath * 0.35 + _tone(140, 120, n) * breath * 0.05
     elif name == "albedo":        # vecchio nome della raffica
         return sfx("luce")
     elif name == "pickup":
