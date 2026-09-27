@@ -126,6 +126,14 @@ LEDGES = (4, 10, 17)          # le tre cengie della rupe
 CAVE_TOP, CAVE_FLOOR = GROUND + 3, GROUND + 10    # prima riga libera e pavimento delle gallerie
 
 
+# Decorazioni delle gallerie (colonna dall'inizio della traversata, oggetto):
+# 0 stalattite organica appesa al soffitto, 1 stalagmite, 2 puntello di miniera,
+# 3 condotta rotta, 4 lampada da lavoro spenta. MOUTH: l'imbocco dal crepaccio.
+CAVE_PROPS = ((89, 2), (91, 0), (95, 1), (105, 4), (108, 0), (111, 2), (122, 3),
+              (130, 0), (135, 1), (138, 2), (143, 0))
+CAVE_MOUTH = 103
+
+
 def _ledge(g, c0, c1, h):
     """Cengia sottile sospesa, alta h tessere, da c0 a c1 esclusa."""
     for c in range(c0, c1):

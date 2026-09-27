@@ -156,6 +156,15 @@ class Gfx:
         for y in range(8, TILE, 16):
             pygame.draw.rect(self.titan_ladder, (22, 18, 16), (12, y - 2, TILE - 24, 8))
             pygame.draw.rect(self.titan_ladder, (140, 132, 122), (14, y, TILE - 28, 4))
+        # Roccia delle gallerie, decorazioni e imbocco
+        self.cave_rock = None
+        if assets.has("cave_rock"):
+            img = pygame.image.load(os.path.join(assets.DIR, "cave_rock.png")).convert()
+            self.cave_rock = pygame.transform.smoothscale(img, (TILE * ROCK_N, TILE * ROCK_N))
+        # stalattiti e stalagmiti piu' piccole del puntello, che va da pavimento a soffitto
+        self.cave_props = [pygame.transform.smoothscale_by(img, k) for img, k in
+                           zip(assets.pieces("cave_props", 5, 7 * TILE - 20, 2) or [], (0.5, 0.6, 1, 0.7, 0.8))]
+        self.cave_mouth = assets.load("cave_mouth", 10 * TILE, 9 * TILE) if assets.has("cave_mouth") else None
         # La scala disegnata: una striscia che si ripete in altezza (per riga)
         self.ladder_strip = None
         if assets.has("ladder"):
@@ -233,6 +242,9 @@ class Gfx:
             return self.titan_ladder
         if self.titan_ground is None or ch not in "#D":
             return None
+        if ch == "D" and r > GROUND + 2 and self.cave_rock:
+            # sotto la crosta: la roccia scura delle gallerie
+            return self.cave_rock.subsurface(((c % ROCK_N) * TILE, (r % ROCK_N) * TILE, TILE, TILE))
         if ch == "D" and r < GROUND:
             # sopra il livello del suolo e' parete o cumulo: roccia a strati
             return self.titan_rock.subsurface(((c % ROCK_N) * TILE, (r % ROCK_N) * TILE, TILE, TILE))
@@ -1714,6 +1726,7 @@ class Game:
                         pygame.draw.line(s, (236, 168, 96), (c * TILE - cam + ph, y + 3 + i * 7),
                                          (c * TILE - cam + min(TILE, ph + 22 - i * 6), y + 3 + i * 7), 2)
         s.blit(self.gfx.haze, (0, GROUND * TILE - 75))
+        self.draw_cave_props(s, cam, lv)
         for c in cols:
             x = c * TILE - cam
             for r in rows:
@@ -1726,6 +1739,28 @@ class Game:
                 elif ch in "EP":
                     img = self.gfx.airlock if ch == "E" else self.gfx.capsule
                     s.blit(img, (x + TILE // 2 - img.get_width() // 2, y + TILE - img.get_height()))
+
+    def draw_cave_props(self, s, cam, lv):
+        """Stalattiti, stalagmiti, puntelli e rottami della colonia nelle gallerie."""
+        if lv.kind != "surface":
+            return
+        x0 = levels.TITAN_PASS_START * TILE - cam
+        mouth = self.gfx.cave_mouth
+        if mouth:
+            x = x0 + levels.CAVE_MOUTH * TILE
+            if -mouth.get_width() < x < VW + mouth.get_width():
+                s.blit(mouth, (x - mouth.get_width() // 2, levels.CAVE_FLOOR * TILE - mouth.get_height() + 12))
+        for col, kind in levels.CAVE_PROPS:
+            if kind >= len(self.gfx.cave_props):
+                continue
+            img = self.gfx.cave_props[kind]
+            x = x0 + col * TILE + TILE // 2 - img.get_width() // 2
+            if not -img.get_width() < x < VW:
+                continue
+            if kind == 0:              # appesa al soffitto
+                s.blit(img, (x, levels.CAVE_TOP * TILE - 10))
+            else:
+                s.blit(img, (x, levels.CAVE_FLOOR * TILE - img.get_height() + 6))
 
     def draw_drizzle(self, s):
         """Pioviggine di metano: gocce lente e pesanti, in diagonale, davanti a tutto."""
