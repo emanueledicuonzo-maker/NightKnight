@@ -33,18 +33,26 @@ must stay readable when scaled up 2x.
 Only **Titan**, start to finish (the other eleven satellites are not built yet;
 after the Guardian an end screen says so):
 
-1. **Surface** — one continuous map (`levels.gen_surface()`): four waves that
-   start when NightKnight enters their zone and never lock the way
-   (`waves.py`); methane lakes, geysers, cryogenic gas vents, oxygen stations,
-   fifteen prisoners (5 Light each).
+1. **Surface** — one continuous map (`levels.gen_surface()`, 432 columns): four
+   waves that start when NightKnight enters their zone and never lock the way
+   (`waves.py`), and between them a group of 2-4 enemies every 22 columns of new
+   ground (`TITAN_PATROLS`); methane lakes, cryovolcanoes (3 s eruptions that
+   throw you off), nitrogen vents (5 s horizontal jets: 25% speed for 2 s,
+   shorter jumps), 4 oxygen stations, 30 prisoners (5 Light each).
 2. **Traversal** — same map, after column `TITAN_PASS_START`: a small labyrinth
    (`levels.gen_titan_pass()`, modelled on Titan's real "labyrinth terrain"): a
    cliff climbed zig-zag on three ledges joined by service ladders, the crest,
    spires stepping down into a methane lake, the cable between two cranes, a
    crevasse (the far side is a wall too high to climb), dark galleries lit only
-   by the visor (dead end with prisoner and oxygen to the left, a low passage, a
-   methane pool and a nitrogen vent to the right), a shaft with a ladder up to
-   the airlock. Three enemies. Dying here restarts from the traversal.
+   by the visor (dead end with two prisoners to the left, a low passage, a
+   methane pool and a nitrogen vent to the right), a shaft back to the surface;
+   then the **double cable** (two ropes in a row between two rock steps: the
+   first alone cannot carry you across), a tower and the **triple cable**
+   anchored high over the big lake: the far shore is a 5-tile step reached only
+   by letting go of the middle rope high in its swing. 320 columns, 13 enemies
+   (8 underground), 10 prisoners, 4 stations. Ladders are 3 tiles wide.
+   Dying here restarts from the traversal. `tests/test_labyrinth.py` plays every
+   passage with the game's physics, cables included.
 3. **Duel** — one round against the Guardian of Titan (2x NightKnight's height,
    halberd and a hook thrown on a chain), helped by at most two flyers.
 

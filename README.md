@@ -45,13 +45,16 @@ duello contro il Guardiano, aiutato solo da pochi volanti. Regole, nemici e
 tabelle dei satelliti sono in `STORY.md`.
 
 Oggi e' giocabile **solo Titano**, dall'inizio alla fine: un unico percorso con
-quattro ondate (non bloccano mai, si puo' scappare), laghi di metano, criovulcani,
-condotte d'azoto, stazioni d'ossigeno e quindici prigionieri; poi la traversata,
+quattro ondate (non bloccano mai, si puo' scappare) e, fra l'una e l'altra,
+gruppetti di nemici continui; laghi di metano, criovulcani, condotte d'azoto,
+poche stazioni d'ossigeno (otto in tutto il livello) e quaranta prigionieri; poi la traversata,
 un labirinto che non va dritto: una rupe da salire a zig-zag su tre cengie con le
 scale di servizio, la cresta, le guglie dentro un lago di metano e il cavo fra
 due gru, un crepaccio in cui scendere, gallerie buie (si vede solo la luce della
-visiera) con un vicolo cieco, un passaggio basso e una pozza di metano, e un pozzo
-con la scala che risale al portello; infine il duello a un round col Guardiano, alto il doppio di NightKnight, con
+visiera) con un vicolo cieco, un passaggio basso e una pozza di metano, un pozzo
+che risale in superficie, il doppio cavo e il triplo cavo agganciato in alto su
+un lago largo (dall'altra parte si arriva solo lasciando il cavo dall'alto);
+infine il duello a un round col Guardiano, alto il doppio di NightKnight, con
 alabarda e gancio. Gli altri undici satelliti arriveranno.
 
 **Bianca** segue NightKnight e non muore. Ogni prigioniero liberato da' 5 Luce;

@@ -197,7 +197,7 @@ Volanti e terrestri sono solo creature del satellite, mai scheletri.
 | Corvi necrofagi | Sciami veloci che puntano NightKnight, spingono e interrompono i colpi |
 | Pipistrelli del vuoto | Escono da crepe e attaccano in picchiata |
 | Arpie di ferraglia | Lanciano rottami dall'alto |
-| Meduse atmosferiche | Fluttuano lente; se ti toccano **ti si appiccicano**: ti rallentano e ti tolgono un po' di vita alla volta finché non te le levi di dosso (un colpo, o la raffica di Bianca) |
+| Meduse atmosferiche | Appena ti vedono ti puntano dritte addosso e **ti si appiccicano** (fino a tre): ti rallentano e ti tolgono un po' di vita alla volta finché non te le levi di dosso (un fendente o un calcio ne stacca una, il calcio girato tutte, o la raffica di Bianca) |
 | Droni becchino | Seguono il giocatore e sparano impulsi deboli |
 | Falene ossee | Volo erratico, oscurano per un momento la visuale |
 | Angeli corrosi | Volanti più grossi, con attacco verticale lento |
@@ -215,7 +215,7 @@ Volanti e terrestri sono solo creature del satellite, mai scheletri.
 | Lucertole criogeniche | Immobili sulle pareti, poi scattano e congelano |
 | Cinghiali minerari | Caricano in linea retta e sfondano ostacoli fragili |
 | Ragni da condotto | Scendono dai soffitti, lasciano fili che rallentano |
-| Vermi di silicio | Emergono da sabbia, cenere o metallo e sputano schegge |
+| Vermi di silicio | Emergono da sabbia, cenere o metallo e sputano schegge. Alcuni **camminano** verso di te; altri, alla *Tremors*, corrono **sottoterra** (si vede solo il suolo che trema) e sbucano sotto i piedi |
 
 | Insidie | Effetto |
 | --- | --- |
