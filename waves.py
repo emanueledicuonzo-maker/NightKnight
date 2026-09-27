@@ -32,8 +32,13 @@ class WaveDirector:
     """Le ondate di una superficie. Ognuna parte quando NightKnight entra nella
     sua zona e vive per conto suo: non blocca e non aspetta le altre."""
 
-    def __init__(self, arenas, specs, make_walker, make_flyer, seed=0, flyer_y=(150, 420)):
+    def __init__(self, arenas, specs, make_walker, make_flyer, seed=0, flyer_y=(150, 420),
+                 patrols=None, patrol_end=None):
         rnd = random.Random(seed)
+        # gruppetti fra un'ondata e l'altra: uno ogni `every` colonne di strada nuova
+        self.patrols = patrols
+        self.patrol_end = patrol_end
+        self.next_patrol = patrols["start"] * TILE if patrols else None
         self.waves = [Wave(col * TILE, spec, rnd) for col, spec in zip(arenas, specs)]
         self.make_walker, self.make_flyer = make_walker, make_flyer
         self.rnd = rnd
@@ -44,10 +49,22 @@ class WaveDirector:
         """Le ondate non chiudono mai il passaggio."""
         return None
 
+    def patrol(self, cx, walkers, flyers):
+        """Strada nuova e nessuna ondata in corso: arriva un gruppetto."""
+        spec = self.patrols
+        if not spec or cx < self.next_patrol or (self.patrol_end and cx > self.patrol_end):
+            return
+        self.next_patrol = cx + spec["every"] * TILE
+        if any(w.state == "fighting" for w in self.waves) or any(w.x0 - 240 < cx < w.x1 for w in self.waves):
+            return
+        for _ in range(self.rnd.randint(*spec["size"])):
+            self.spawn(self.rnd.choice(spec["pool"]), cx, walkers, flyers)
+
     def update(self, player, walkers, flyers):
         """Aggiorna tutte le ondate; restituisce l'ultimo evento ("start"/"clear", onda) o None."""
         event = None
         cx = player.rect.centerx
+        self.patrol(cx, walkers, flyers)
         for w in self.waves:
             if w.state == "waiting" and w.x0 + 240 < cx:
                 w.state = "fighting"

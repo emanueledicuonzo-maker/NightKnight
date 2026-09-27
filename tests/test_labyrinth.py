@@ -7,6 +7,7 @@ import unittest
 
 import pygame
 
+import athletics
 import goblin
 import levels
 
@@ -129,10 +130,61 @@ class LabyrinthTests(unittest.TestCase):
                 self.assertEqual(self.feet(p)[0], G - levels.CAVE_FLOOR)
                 self.assertTrue(self.feet(p)[1] > beyond if direction > 0 else self.feet(p)[1] < beyond)
 
-    def test_the_shaft_climbs_back_to_the_exit(self):
+    def test_the_shaft_climbs_back_to_the_surface(self):
         p = self.climb(self.stand(146, G - levels.CAVE_FLOOR), frames=400)
         self.assertEqual(self.feet(p)[0], 0)
-        self.assertEqual(self.lv.exit[0] - X0, 156)
+        self.assertEqual(self.lv.exit[0] - X0, 316)
+
+    def swing(self, start, h, wait, releases):
+        """Si aspetta il momento, si salta verso i cavi tenendo la destra, e da
+        ogni cavo si lascia quando l'impugnatura ha superato releases[i] della
+        lunghezza nel verso giusto. Restituisce (esito, cavi presi, colonna, altezza)."""
+        x0 = X0 * TILE
+        cables = athletics.Cables([[athletics.Cable(x0 + col * TILE + TILE // 2, athletics.FLOOR - top, length)
+                                    for col, top, length in group] for group in levels.TITAN_CABLES])
+        p = self.stand(start, h)
+        idle = defaultdict(bool)
+        keys = defaultdict(bool, {pygame.K_RIGHT: True, pygame.K_SPACE: True})
+        for _ in range(wait):
+            cables.update_player(p, idle, self.lv)
+        for _ in range(6):
+            cables.update_player(p, keys, self.lv)
+        p.do_jump()
+        grabs = []
+        for frame in range(1200):
+            cables.update_player(p, keys, self.lv)
+            c = cables.current
+            if c:
+                i = cables.all.index(c)
+                if not grabs or grabs[-1] != i:
+                    grabs.append(i)
+                body, anchor = c.rope.body, c.rope.anchor
+                if body.velocity.x > 0 and body.position.x - anchor.x > releases[len(grabs) - 1] * c.rope.length:
+                    c.release(p)
+            if self.lv.drowned(p.rect):
+                return "annegato", grabs, None, None
+            if p.on_ground and frame > 10:
+                h, col = self.feet(p)
+                return "a terra", grabs, col, h
+        return "appeso", grabs, None, None
+
+    def test_the_double_cable_needs_both_cables(self):
+        outcome, grabs, col, h = self.swing(165, 3, 60, (0.85, 0.5))
+        self.assertEqual((outcome, grabs), ("a terra", [1, 2]))
+        self.assertGreaterEqual(col, 201)
+        self.assertEqual(h, 3)
+        for wait in range(0, 170, 10):                   # col primo soltanto non si arriva
+            with self.subTest(wait=wait):
+                result = self.swing(165, 3, wait, (0.95, 0.95))
+                self.assertFalse(result[0] == "a terra" and result[1] == [1])
+
+    def test_the_triple_cable_is_crossed_only_from_high_up(self):
+        outcome, grabs, col, h = self.swing(213, 11, 140, (0.65, 0.85, 0.5))
+        self.assertEqual((outcome, grabs), ("a terra", [3, 4, 5]))
+        self.assertGreaterEqual(col, 253)
+        self.assertEqual(h, 5)                                     # sullo scalino alto
+        outcome, grabs, _, _ = self.swing(213, 11, 140, (0.65, 0.35, 0.5))
+        self.assertEqual(outcome, "annegato")                      # lasciato in basso, in acqua
 
 
 if __name__ == "__main__":

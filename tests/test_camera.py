@@ -29,6 +29,7 @@ class CameraTests(unittest.TestCase):
         g.state = "play"
         for w in g.waves.waves:
             w.state = "done"
+        g.waves.patrols = None           # niente gruppetti: il test sceglie i nemici
         return g
 
     def test_camera_rests_on_the_surface_at_the_old_height(self):

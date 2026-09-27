@@ -57,16 +57,25 @@ def _grid(cols):
 # Le quattro ondate di Titano. Partono quando NightKnight entra nella zona e
 # non bloccano mai il passaggio. Titano usa scheletri normali e volanti; la
 # sua fauna: corvi, meduse, minatori, lucertole criogeniche e vermi di silicio.
-TITAN_ARENAS = [22, 72, 124, 176]
+TITAN_ARENAS = [22, 130, 240, 350]
 TITAN_WAVES = [
-    dict(name="primo contatto", roster=[("skeleton", 3), ("miner", 1)]),
-    dict(name="lo sciame", roster=[("skeleton", 12), ("lizard", 3), ("miner", 2)], alive=17, every=6),
-    dict(name="dal cielo e dal suolo", roster=[("skeleton_fly", 6), ("worm", 3)]),
+    dict(name="primo contatto", roster=[("skeleton", 4), ("miner", 1), ("worm", 1)]),
+    dict(name="lo sciame", roster=[("skeleton", 12), ("lizard", 3), ("miner", 2), ("burrower", 2)], alive=17, every=6),
+    dict(name="dal cielo e dal suolo", roster=[("skeleton_fly", 6), ("worm", 3), ("burrower", 3)]),
     dict(name="la nube", roster=[("crow", 20), ("jelly", 6), ("skeleton_fly", 4)], alive=12),
 ]
-# Nella traversata pochissimi nemici.
+# Fra un'ondata e l'altra non si e' mai soli: ogni PATROL_EVERY colonne di strada
+# nuova arriva un gruppetto di 2-4 nemici della fauna di Titano.
+TITAN_PATROLS = dict(every=22, size=(2, 4), start=30,
+                     pool=["skeleton", "skeleton", "lizard", "miner", "worm", "burrower",
+                           "crow", "jelly", "skeleton_fly"])
+# Nella traversata pochi nemici, otto sottoterra.
 # (specie, colonna dall'inizio, riga: quella dei piedi per chi cammina, del volo per i volanti)
-TITAN_PASS_FOES = [("lizard", 26, GROUND - 4), ("crow", 32, GROUND - 20), ("skeleton", 136, GROUND + 10)]
+TITAN_PASS_FOES = [("lizard", 26, GROUND - 4), ("crow", 32, GROUND - 20),
+                   ("skeleton", 92, GROUND + 10), ("jelly", 100, GROUND + 2), ("burrower", 108, GROUND + 10),
+                   ("worm", 122, GROUND + 10), ("lizard", 129, GROUND + 10), ("miner", 134, GROUND + 10),
+                   ("skeleton", 138, GROUND + 10), ("burrower", 142, GROUND + 10),
+                   ("jelly", 180, GROUND - 6), ("crow", 236, GROUND - 18), ("skeleton", 290, GROUND)]
 # Nel duello, di tanto in tanto, un volante in aiuto al Guardiano (mai piu' di due).
 TITAN_ARENA_FLYERS = ["crow", "jelly", "skeleton_fly"]
 TITAN_ARENA_FLYERS_MAX = 2
@@ -74,22 +83,25 @@ TITAN_ARENA_FLYERS_MAX = 2
 
 def gen_titan_surface():
     """Esplorazione e quattro arene: fra un'ondata e l'altra laghi di metano,
-    geyser e prigionieri; le rive restano libere per la rincorsa."""
-    cols = 216
+    criovulcani e prigionieri; le rive restano libere per la rincorsa."""
+    cols = 432
     g = _grid(cols)
     _rock(g, 0, cols, 0)
-    lakes = ((16, 18), (55, 57), (66, 69), (107, 109), (118, 121), (159, 161), (169, 172), (208, 210))
+    lakes = ((16, 18), (55, 57), (66, 69), (100, 103), (118, 121), (150, 152), (165, 168), (190, 193),
+             (205, 207), (228, 231), (258, 260), (276, 279), (300, 302), (318, 321), (345, 347),
+             (368, 371), (395, 398), (420, 422))
     for start, end in lakes:
         _lake(g, start, end)
-    # q = geyser (due dentro l'arena dello sciame); u = prigioniero
-    for col in (10, 61, 82, 94, 113, 165, 212):
+    # q = criovulcano; u = prigioniero (trenta)
+    for col in (10, 61, 82, 94, 113, 145, 172, 198, 214, 250, 283, 310, 335, 380, 412, 426):
         g[GROUND-1][col] = "q"
-    for col in (6, 13, 20, 53, 59, 71, 104, 111, 122, 152, 157, 167, 174, 206, 213):
+    for col in (6, 13, 20, 34, 47, 53, 59, 71, 88, 104, 111, 125, 138, 157, 170, 184, 197, 211,
+                224, 236, 247, 263, 287, 296, 308, 324, 340, 355, 389, 415):
         g[GROUND-1][col] = "u"
     g[GROUND-1][1] = "P"                    # la capsula con cui NightKnight e' arrivato
-    for col in (3, 64, 115, 163):           # stazioni d'ossigeno fra un'ondata e l'altra
+    for col in (3, 110, 220, 330):          # stazioni d'ossigeno: poche, vanno pianificate
         g[GROUND-1][col] = "o"
-    for col in (184, 198):                  # gas criogenico nell'ultima ondata
+    for col in (95, 270, 358, 374):         # condotte d'azoto
         g[GROUND-1][col] = "c"
     return g
 
@@ -114,8 +126,16 @@ def _ladder(g, c, h):
         g[r][c] = "H"
 
 
-TITAN_PASS_START = 216       # dove finiscono le ondate e comincia la traversata
+TITAN_PASS_START = 432       # dove finiscono le ondate e comincia la traversata
 TITAN_PASS_ROPE = TITAN_PASS_START + 83      # colonna del cavo sopra il lago delle guglie
+# I cavi, a gruppi sotto lo stesso portale: (colonna dall'inizio della traversata,
+# altezza dell'aggancio sopra il suolo in pixel, lunghezza del cavo).
+ROPE_TOP, ROPE_MID, ROPE_HIGH = 656, 820, 1050
+TITAN_CABLES = [
+    [(83, ROPE_TOP, 500)],                                     # il lago delle guglie
+    [(173, ROPE_MID, 500), (189, ROPE_MID, 500)],              # il doppio cavo
+    [(217, ROPE_HIGH, 500), (230, ROPE_HIGH, 500), (243, ROPE_HIGH, 500)],   # il triplo, dall'alto
+]
 # Da che parte soffiano gli sfiati d'azoto (colonna assoluta -> verso): verso chi
 # arriva; sulla cengia media si arriva da destra.
 VENT_FACING = {TITAN_PASS_START + 34: 1}
@@ -154,9 +174,11 @@ def _dig(g, c0, c1, r0, r1):
             g[r][c] = "."
 
 
-def _ladder_rows(g, c, r0, r1):
+def _ladder_rows(g, c, r0, r1, width=3):
+    """Scala di servizio larga `width` tessere, da c verso destra."""
     for r in range(r0, r1):
-        g[r][c] = "H"
+        for cc in range(c, c + width):
+            g[r][cc] = "H"
 
 
 def gen_titan_pass():
@@ -166,23 +188,26 @@ def gen_titan_pass():
     2. la cresta in cima, poi le guglie che scendono dentro il lago di metano
        e il cavo per l'ultima campata;
     3. il crepaccio: oltre la riva una parete troppo alta, si scende a salti;
-    4. le gallerie: a sinistra un vicolo cieco con prigioniero e ossigeno, a
-       destra un passaggio basso, una pozza di metano, il gas; una scala risale
-       al portello in superficie.
+    4. le gallerie: a sinistra un vicolo cieco con due prigionieri, a destra un
+       passaggio basso, una pozza di metano, l'azoto; un pozzo risale in superficie;
+    5. il doppio cavo: due cavi di fila sopra un lago, da uno all'altro in volo;
+    6. la torre e il triplo cavo, agganciato in alto sopra il lago grande: la
+       riva di la' e' uno scalino alto, lo si raggiunge solo lasciando l'ultimo
+       cavo dall'alto; poi l'ultimo tratto fino al portello.
     Con la gravita' di Titano si salta alto circa 5 tessere e lontano quasi 6."""
-    cols = 160
+    cols = 320
     g = _grid(cols)
     _rock(g, 0, cols, 0)
     l1, l2, l3 = LEDGES
     # 1. la rupe
     _rock(g, 12, 14, 2)                                   # gradino per la prima cengia
-    _ledge(g, 15, 43, l1)                                 # cengia bassa, verso destra
-    _ladder_rows(g, 41, GROUND - l2, GROUND - l1)         # scala a destra
-    _ledge(g, 15, 41, l2)                                 # cengia media, si torna a sinistra
+    _ledge(g, 15, 44, l1)                                 # cengia bassa, verso destra
+    _ladder_rows(g, 40, GROUND - l2, GROUND - l1)         # scala a destra
+    _ledge(g, 15, 40, l2)                                 # cengia media, si torna a sinistra
     for c in (27, 28):                                    # un buco da saltare
         g[GROUND - l2][c] = "."
     _ladder_rows(g, 15, GROUND - l3, GROUND - l2)         # scala a sinistra
-    _ledge(g, 16, 44, l3)                                 # cengia alta, di nuovo a destra
+    _ledge(g, 18, 44, l3)                                 # cengia alta, di nuovo a destra
     _rock(g, 44, 63, l3)                                  # la massa della rupe e la cresta
     # 2. le guglie nel lago e il cavo
     _lake(g, 63, 87)
@@ -195,28 +220,36 @@ def gen_titan_pass():
     _rock(g, 103, 111, 8)
     # 4. le gallerie sotto la crosta
     _dig(g, 87, 97, CAVE_TOP, CAVE_FLOOR)                 # vicolo cieco a sinistra
-    _dig(g, 103, 148, CAVE_TOP, CAVE_FLOOR)               # la galleria verso l'uscita
+    _dig(g, 103, 148, CAVE_TOP, CAVE_FLOOR)               # la galleria verso il pozzo
     for c in range(114, 121):                             # passaggio basso
         for r in range(CAVE_TOP, CAVE_FLOOR - 3):
             g[r][c] = "D"
     _lake(g, 124, 127, top=CAVE_FLOOR)                    # pozza di metano
-    for c in (145, 146, 147):                             # pozzo verso la superficie
-        for r in range(GROUND, CAVE_TOP):
-            g[r][c] = "."
-    _ladder_rows(g, 146, GROUND, CAVE_FLOOR)
+    _dig(g, 145, 148, GROUND, CAVE_TOP)                   # pozzo verso la superficie
+    _ladder_rows(g, 145, GROUND, CAVE_FLOOR)
     for c in range(cols):                                 # pavimento delle gallerie
         if g[CAVE_FLOOR][c] == "D" and g[CAVE_FLOOR - 1][c] in ".H":
             g[CAVE_FLOOR][c] = "#"
-    # prigionieri, ossigeno, gas, geyser, uscita
+    # 5. il doppio cavo, fra due scalini di roccia da cui lanciarsi e su cui atterrare
+    _rock(g, 162, 167, 3)
+    _lake(g, 167, 201)
+    _rock(g, 201, 204, 3)
+    # 6. la torre, il triplo cavo sul lago grande, lo scalino della riva di la'
+    _pillar(g, 210, 215, 11)
+    _ladder_rows(g, 207, GROUND - 11, GROUND)
+    _lake(g, 215, 253)
+    _rock(g, 253, 268, 5)
+    # prigionieri, ossigeno, gas, criovulcani, uscita
     floor, cave = GROUND - 1, CAVE_FLOOR - 1
-    for c, r in ((30, floor), (18, GROUND - l2 - 1), (54, GROUND - l3 - 1),
-                 (89, cave), (129, cave)):
+    for c, r in ((30, floor), (18, GROUND - l2 - 1), (54, GROUND - l3 - 1), (89, cave), (94, cave),
+                 (129, cave), (158, floor), (202, GROUND - 4), (212, GROUND - 12), (262, GROUND - 6)):
         g[r][c] = "u"
-    for c, r in ((5, floor), (50, GROUND - l3 - 1), (92, cave), (140, cave)):
+    for c, r in ((50, GROUND - l3 - 1), (110, cave), (206, floor), (285, floor)):
         g[r][c] = "o"
-    for c, r in ((34, GROUND - l2 - 1), (133, cave)):
+    for c, r in ((34, GROUND - l2 - 1), (133, cave), (160, floor)):
         g[r][c] = "c"
-    g[floor][91] = "q"
+    for c in (91, 153):
+        g[floor][c] = "q"
     g[floor][cols - 4] = "E"
     return g
 

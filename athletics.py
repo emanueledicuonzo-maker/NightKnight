@@ -1,4 +1,5 @@
-"""Il cavo sopra i laghi: una corda fisica a cui aggrapparsi (E) per attraversare."""
+"""I cavi sopra i laghi: corde fisiche a cui aggrapparsi per attraversare.
+Stanno a gruppi (uno, due o tre di fila) sotto un portale di due gru della colonia."""
 import math
 
 import pygame
@@ -10,6 +11,7 @@ import levels
 TILE = 64
 ART = {}           # pilone e impugnatura disegnati (caricati dal gioco)
 FLOOR = levels.GROUND * TILE
+_pylons = {}       # gru scalate all'altezza di ogni portale
 
 
 class Rope:
@@ -17,6 +19,7 @@ class Rope:
 
     def __init__(self, x, y=ANCHOR_Y, length=500):
         self.anchor = pymunk.Vec2d(x, y)
+        self.length = length
         self.space = pymunk.Space()
         self.space.gravity = (0, 2700)
         self.space.damping = 0.999
@@ -33,19 +36,6 @@ class Rope:
     def draw(self, screen, cam):
         a = (int(self.anchor.x) - cam, int(self.anchor.y))
         b = (int(self.body.position.x) - cam, int(self.body.position.y))
-        left, right = a[0] - 5*TILE, a[0] + 5*TILE      # portale del cavo, sopra le rive
-        pylon = ART.get("pylon")
-        pygame.draw.line(screen, (36, 32, 28), (left-12, a[1]), (right+12, a[1]), 20)
-        pygame.draw.line(screen, (108, 95, 73), (left-12, a[1]-5), (right+12, a[1]-5), 4)
-        for x, flip in ((left, False), (right, True)):
-            if pylon:
-                # due gru della colonia, i bracci rivolti verso il cavo
-                img = pygame.transform.flip(pylon, True, False) if flip else pylon
-                foot = int(pylon.get_width() * 0.22)
-                screen.blit(img, (x + foot - img.get_width() if flip else x - foot, FLOOR - img.get_height()))
-            else:
-                pygame.draw.line(screen, (36, 32, 28), (x, FLOOR), (x, a[1]-12), 18)
-                pygame.draw.line(screen, (108, 95, 73), (x-3, FLOOR), (x-3, a[1]-12), 4)
         pygame.draw.line(screen, (32, 39, 28), a, b, 9)
         pygame.draw.line(screen, (124, 130, 88), a, b, 4)
         # impugnatura ben visibile: e' li' che ci si aggrappa saltando
@@ -57,23 +47,51 @@ class Rope:
             pygame.draw.circle(screen, (236, 190, 96), b, 13, 5)
 
 
+def draw_portal(screen, cam, left, right, top):
+    """Due gru della colonia ai lati del gruppo di cavi e una trave che le unisce."""
+    left, right, top = left - cam, right - cam, int(top)
+    pygame.draw.line(screen, (36, 32, 28), (left - 12, top), (right + 12, top), 20)
+    pygame.draw.line(screen, (108, 95, 73), (left - 12, top - 5), (right + 12, top - 5), 4)
+    source = ART.get("pylon")
+    for x, flip in ((left, False), (right, True)):
+        if source:
+            h = FLOOR - top + 30
+            if h not in _pylons:
+                k = h / source.get_height()
+                _pylons[h] = pygame.transform.smoothscale(source, (int(source.get_width() * k), h))
+            img = pygame.transform.flip(_pylons[h], True, False) if flip else _pylons[h]
+            foot = int(img.get_width() * 0.22)
+            screen.blit(img, (x + foot - img.get_width() if flip else x - foot, FLOOR - img.get_height()))
+        else:
+            pygame.draw.line(screen, (36, 32, 28), (x, FLOOR), (x, top - 12), 18)
+            pygame.draw.line(screen, (108, 95, 73), (x - 3, FLOOR), (x - 3, top - 12), 4)
+
+
 class Cable:
-    def __init__(self, x):
-        self.rope = Rope(x)
+    """Un cavo solo: la corda, la presa, il lancio quando si lascia."""
+
+    def __init__(self, x, y=Rope.ANCHOR_Y, length=500):
+        self.rope = Rope(x, y, length)
         self.attached = False
         self.regrab = 0
+
+    def reach(self, p):
+        hand = pymunk.Vec2d(p.rect.centerx, p.y + 45)
+        return hand.get_distance(self.rope.body.position)
 
     def interact(self, p, lv):
         if self.attached:
             self.release(p)
             return
-        hand = pymunk.Vec2d(p.rect.centerx, p.y + 45)
-        if hand.get_distance(self.rope.body.position) < 140:
-            self.attached = True
-            p.attack = None
-            p.climbing = False
-            p.on_ground = False
-            p.coyote = p.jump_buffer = 0
+        if self.reach(p) < 140:
+            self.grab(p)
+
+    def grab(self, p):
+        self.attached = True
+        p.attack = None
+        p.climbing = False
+        p.on_ground = False
+        p.coyote = p.jump_buffer = 0
 
     def release(self, p):
         self.attached = False
@@ -83,27 +101,76 @@ class Cable:
         p.on_ground = False
         p.coyote = p.jump_buffer = 0
 
+    def hold(self, p):
+        body = self.rope.body
+        p.x = body.position.x - p.w / 2
+        p.y = body.position.y - 45
+        p.facing = 1 if body.velocity.x >= 0 else -1
+        # posa: gambe indietro o avanti secondo da che parte oscilla
+        swing = (body.position.x - self.rope.anchor.x) / self.rope.length * p.facing
+        p.hanging = -1 if swing < -0.2 else (1 if swing > 0.2 else 0)
+        p.vx = p.vy = 0
+        p.on_ground = False
+        p.jumped = False
+
+    def update_player(self, p, keys, lv):
+        Cables([[self]]).update_player(p, keys, lv)
+
+    def draw(self, screen, cam):
+        a = self.rope.anchor
+        draw_portal(screen, cam, a.x - 5 * TILE, a.x + 5 * TILE, a.y)
+        self.rope.draw(screen, cam)
+
+
+class Cables:
+    """Tutti i cavi del livello, a gruppi: al massimo uno in mano alla volta; in
+    salto basta toccare l'impugnatura di uno qualunque per aggrapparsi."""
+
+    def __init__(self, groups):
+        self.groups = groups
+        self.all = [c for group in groups for c in group]
+
+    @property
+    def attached(self):
+        return any(c.attached for c in self.all)
+
+    @property
+    def current(self):
+        return next((c for c in self.all if c.attached), None)
+
+    def interact(self, p, lv):
+        if self.current:
+            self.current.release(p)
+            return
+        near = min(self.all, key=lambda c: c.reach(p))
+        near.interact(p, lv)
+
+    def release(self, p):
+        if self.current:
+            self.current.release(p)
+
     def update_player(self, p, keys, lv):
         steering = int(keys[pygame.K_RIGHT] or keys[pygame.K_d]) - int(keys[pygame.K_LEFT] or keys[pygame.K_a])
-        self.rope.update(steering if self.attached else 0)
-        self.regrab = max(0, self.regrab - 1)
-        if not self.attached and not p.on_ground and not self.regrab:
-            # in salto, toccare il capo del cavo basta per aggrapparsi
-            hand = pymunk.Vec2d(p.rect.centerx, p.y + 45)
-            if hand.get_distance(self.rope.body.position) < 110:
-                self.interact(p, lv)
-        if self.attached:
-            p.x = self.rope.body.position.x - p.w / 2
-            p.y = self.rope.body.position.y - 45
-            p.facing = 1 if self.rope.body.velocity.x >= 0 else -1
-            # posa: gambe indietro o avanti secondo da che parte oscilla
-            swing = (self.rope.body.position.x - self.rope.anchor.x) / 500 * p.facing
-            p.hanging = -1 if swing < -0.2 else (1 if swing > 0.2 else 0)
-            p.vx = p.vy = 0
-            p.on_ground = False
-            p.jumped = False
+        for c in self.all:
+            c.rope.update(steering if c.attached else 0)
+            c.regrab = max(0, c.regrab - 1)
+        if not self.attached and not p.on_ground:
+            for c in self.all:
+                if not c.regrab and c.reach(p) < 110:
+                    c.grab(p)
+                    break
+        if self.current:
+            self.current.hold(p)
             return
         p.update(keys, lv)
 
+    def draw_portals(self, screen, cam):
+        """Le gru, dietro la roccia: si disegnano prima del terreno."""
+        for group in self.groups:
+            xs = [c.rope.anchor.x for c in group]
+            draw_portal(screen, cam, min(xs) - 5 * TILE, max(xs) + 5 * TILE, min(c.rope.anchor.y for c in group))
+
     def draw(self, screen, cam):
-        self.rope.draw(screen, cam)
+        """Cavi e impugnature, davanti."""
+        for c in self.all:
+            c.rope.draw(screen, cam)

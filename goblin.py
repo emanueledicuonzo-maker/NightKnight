@@ -35,6 +35,7 @@ CHILL_FRAMES = 120     # l'azoto gela la tuta: due secondi lenti
 CHILL_SPEED, CHILL_JUMP = 0.25, 0.78    # velocita' e slancio del salto mentre si e' gelati
 GEYSER_LAUNCH = (9, -21)                # il criovulcano sbalza via chi ci finisce dentro
 BURST_FRAMES = 70    # durata del volo di Bianca durante la raffica
+LADDER_W = 3         # le scale di servizio sono larghe tre tessere
 ROCK_N = 4           # la roccia delle pareti copre 4x4 tessere
 TITAN_N = 6          # il terreno di Titano copre 6x6 tessere
 ROWS = levels.ROWS
@@ -181,11 +182,13 @@ class Gfx:
         self.ladder_strip = None
         if assets.has("ladder"):
             img = pygame.image.load(os.path.join(assets.DIR, "ladder.png")).convert_alpha()
-            img = img.subsurface(img.get_bounding_rect()).copy()
-            w = TILE - 10
+            # ritaglio sui pixel ben visibili: il fondo ha un velo quasi trasparente
+            box = pygame.mask.from_surface(img, 127).get_bounding_rects()
+            img = img.subsurface(box[0].unionall(box[1:])).copy()
+            w = LADDER_W * TILE - 16
             h = max(TILE, round(img.get_height() * w / img.get_width() / TILE) * TILE)
-            self.ladder_strip = pygame.Surface((TILE, h), pygame.SRCALPHA)
-            self.ladder_strip.blit(pygame.transform.smoothscale(img, (w, h)), (5, 0))
+            self.ladder_strip = pygame.Surface((LADDER_W * TILE, h), pygame.SRCALPHA)
+            self.ladder_strip.blit(pygame.transform.smoothscale(img, (w, h)), (8, 0))
         # Portello stagno dell'uscita, la capsula d'atterraggio, la stazione d'ossigeno
         self.airlock = assets.load("portello", TILE * 5, int(PH * 1.5), by_height=True)
         self.capsule = assets.load("capsula", TILE * 5, int(PH * 1.7), by_height=True)
@@ -246,11 +249,12 @@ class Gfx:
             self.bg_cache["title"] = bg
         return self.bg_cache["title"]
 
-    def titan_tile(self, ch, c, r):
+    def titan_tile(self, ch, c, r, part=0):
         if ch == "H":
             if self.ladder_strip:
+                # la scala e' larga LADDER_W tessere: part dice quale striscia di lei
                 y = (r * TILE) % self.ladder_strip.get_height()
-                return self.ladder_strip.subsurface((0, y, TILE, TILE))
+                return self.ladder_strip.subsurface((part % LADDER_W * TILE, y, TILE, TILE))
             return self.titan_ladder
         if self.titan_ground is None or ch not in "#D":
             return None
@@ -1193,7 +1197,9 @@ class Game:
         self.intro = 0
         self.cable = None
         if self.part == "surface":
-            self.cable = athletics.Cable(levels.TITAN_PASS_ROPE * TILE)
+            x0 = levels.TITAN_PASS_START * TILE
+            self.cable = athletics.Cables([[athletics.Cable(x0 + col * TILE + TILE // 2, athletics.FLOOR - top, length)
+                                            for col, top, length in group] for group in levels.TITAN_CABLES])
             for kind, col, row in levels.TITAN_PASS_FOES:
                 col += levels.TITAN_PASS_START
                 if kind in FLYERS:
@@ -1207,7 +1213,8 @@ class Game:
         self.waves = None
         if self.part == "surface":
             self.waves = waves.WaveDirector(levels.TITAN_ARENAS, levels.TITAN_WAVES, Walker, Flyer, seed=self.ci,
-                                            flyer_y=(VIEW_Y + 40, VIEW_Y + 260))
+                                            flyer_y=(VIEW_Y + 40, VIEW_Y + 260),
+                                            patrols=levels.TITAN_PATROLS, patrol_end=levels.TITAN_PASS_START * TILE)
             if self.reached_pass:
                 # si era gia' arrivati alla traversata: si riparte da li', ondate superate
                 for w in self.waves.waves:
@@ -1887,7 +1894,10 @@ class Game:
                 ch = lv.g[r][c]
                 y = r * TILE
                 if ch in self.gfx.tiles:
-                    s.blit(self.gfx.titan_tile(ch, c, r), (x, y))
+                    part = 0
+                    while ch == "H" and part < LADDER_W and lv.at(c - part - 1, r) == "H":
+                        part += 1
+                    s.blit(self.gfx.titan_tile(ch, c, r, part), (x, y))
                     if ch in "#D":
                         self.rock_edges(s, lv, c, r, x, y)
                 elif ch in "EP":
@@ -2001,6 +2011,8 @@ class Game:
         _, vy, _, ch = self.view_rect()
         self.world_surf.fill((0, 0, 0, 0), (0, camy + vy, DW, ch))
         self.screen = s = self.world_surf
+        if self.cable:
+            self.cable.draw_portals(s, self.cam)
         self.draw_tiles()
         cam = self.cam
         for spento in self.spenti:

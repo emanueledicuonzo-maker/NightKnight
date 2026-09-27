@@ -46,13 +46,14 @@ class TraversalTests(unittest.TestCase):
         p.y = (levels.GROUND - 4) * TILE - p.h
         p.do_jump()
         keys = defaultdict(bool, {pygame.K_RIGHT: True, pygame.K_SPACE: True})
+        cable = g.cable.all[0]
         grabbed = False
         for _ in range(240):
             g.cable.update_player(p, keys, g.lv)
             if not grabbed:
                 g.cable.interact(p, g.lv)
-                grabbed = g.cable.attached
-            elif g.cable.rope.body.position.x > g.cable.rope.anchor.x + 120:
+                grabbed = cable.attached
+            elif cable.rope.body.position.x > cable.rope.anchor.x + 120:
                 g.cable.release(p)
                 break
         self.assertTrue(grabbed)

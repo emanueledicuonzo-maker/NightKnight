@@ -29,6 +29,7 @@ class FaunaTests(unittest.TestCase):
         g.player.x = 30 * goblin.TILE
         for w in g.waves.waves:
             w.state = "done"
+        g.waves.patrols = None           # niente gruppetti: il test sceglie i nemici
 
     def jelly(self, dx=500, dy=-200):
         p = self.game.player
