@@ -346,9 +346,9 @@ TITAN_STAGES = _stages()
 
 
 def _cave_worms():
-    """Le gallerie sono piene di vermi: uno ogni poche colonne dove il pavimento e'
-    in piano (niente pozze, gradini, passaggi bassi, oggetti), e ogni tanto uno che
-    corre sotto la roccia alla Tremors."""
+    """Le gallerie sono piene di vermi che strisciano: uno ogni poche colonne dove il
+    pavimento e' in piano (niente pozze, gradini, passaggi bassi, oggetti), e ogni
+    tanto uno che corre sotto la roccia alla Tremors."""
     g = gen_titan_pass()
     free = lambda c: (g[CAVE_FLOOR][c] == "#" and g[CAVE_FLOOR - 1][c] == "."
                       and all(g[r][c] == "." for r in range(CAVE_TOP, CAVE_FLOOR)))
@@ -356,9 +356,9 @@ def _cave_worms():
     for c in range(106, 144 + CAVE_EXTRA):
         if c - last < 4 or not all(free(k) for k in range(c - 2, c + 3)):
             continue
-        out.append(("burrower" if len(out) % 5 == 4 else "worm", c, CAVE_FLOOR))
+        out.append(("burrower" if len(out) % 5 == 4 else "crawler", c, CAVE_FLOOR))
         last = c
     return out
 
 
-TITAN_PASS_FOES = [f for f in TITAN_PASS_FOES if f[0] not in ("worm", "burrower")] + _cave_worms()
+TITAN_PASS_FOES = [f for f in TITAN_PASS_FOES if f[0] not in ("worm", "burrower", "crawler")] + _cave_worms()

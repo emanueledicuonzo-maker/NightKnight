@@ -355,6 +355,23 @@ class FaunaTests(unittest.TestCase):
                 self.assertEqual(w.rect.bottom, levels.GROUND * T)
                 self.assertTrue(all(hts[k] == 0 for k in range(c - 2, c + 3)))
 
+    def test_crawlers_come_at_you_in_the_galleries_without_jumping(self):
+        import levels
+        g = self.game
+        T = goblin.TILE
+        x0 = levels.TITAN_PASS_START
+        p = g.player
+        p.x, p.y = (x0 + 150) * T, levels.CAVE_FLOOR * T - p.h
+        w = goblin.Walker((x0 + 156) * T, "crawler")
+        w.y, w.on_ground = levels.CAVE_FLOOR * T - w.h, True
+        start, bottoms = w.x, set()
+        for _ in range(120):
+            w.update(g.lv, p)
+            bottoms.add(w.rect.bottom)
+        self.assertLess(w.x, start - 60)                     # viene incontro
+        self.assertEqual(bottoms, {levels.CAVE_FLOOR * T})   # sempre a terra
+        self.assertEqual(len(g.gfx.foes["crawler"]), 4)
+
 
 if __name__ == "__main__":
     unittest.main()

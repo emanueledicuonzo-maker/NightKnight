@@ -219,7 +219,7 @@ class LabyrinthTests(unittest.TestCase):
         self.assertEqual(len(levels.ROPE_SPEEDS), sum(len(g) for g in levels.TITAN_CABLES))
 
     def test_the_galleries_are_long_and_full_of_worms(self):
-        worms = [f for f in levels.TITAN_PASS_FOES if f[0] in ("worm", "burrower")]
+        worms = [f for f in levels.TITAN_PASS_FOES if f[0] in ("worm", "burrower", "crawler")]
         self.assertGreaterEqual(len(worms), 15)
         self.assertGreaterEqual(levels.CAVE_EXTRA, 135)
         for kind, col, row in worms:

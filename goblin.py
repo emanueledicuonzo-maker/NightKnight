@@ -115,7 +115,8 @@ NOVA_BEAM = 180            # larghezza della colonna di luce
 # rallenta e toglie un po' di vita finche' un colpo non la stacca.
 # I camminatori sul terreno: gradini da saltare, da scendere, laghi da scavalcare.
 WALKER_STEP, WALKER_DROP, WALKER_GAP, WALKER_TURN = 3, 4, 4, 90
-WORM_MOUND, WORM_SINK, WORM_FLAT = 45, 18, 2    # il cumulo di terra del verme: piu' largo di lui, e affonda nel suolo
+WORM_MOUND, WORM_SINK, WORM_FLAT = 45, 18, 2
+CRAWL_SENSE = 10 * TILE     # il verme che striscia ti viene incontro da questa distanza    # il cumulo di terra del verme: piu' largo di lui, e affonda nel suolo
 BURROW_RUMBLE, BURROW_OUT = 40, 130     # il verme alla Tremors: preavviso e tempo fuori
 JELLY_SPEED, JELLY_MAX, JELLY_SLOW, JELLY_DRAIN, JELLY_EVERY = 4.2, 3, 0.22, 3, 50
 LAND_FRAMES, HURT_FRAMES = 10, 22
@@ -273,7 +274,12 @@ class Gfx:
         self.bianca = [assets.load(f"bianca_chick_{i + 1}", 150, 105, by_height=True) for i in range(2)]
         # Nemici: due fotogrammi per specie, stessa scala per entrambi.
         self.foes = {kind: assets.frames([spec["frames"].format(i) for i in (1, 2)], spec.get("h", 10 * PS))
-                     for table in (WALKERS, FLYERS) for kind, spec in table.items()}
+                     for table in (WALKERS, FLYERS) for kind, spec in table.items() if "frames" in spec}
+        for kind, spec in WALKERS.items():
+            if "sheet" in spec:
+                # disegnati rivolti a sinistra: si girano a destra, come tutti gli altri
+                fr = assets.pieces(spec["sheet"], 4, spec["h"], 0) or self.foes["worm"]
+                self.foes[kind] = [pygame.transform.flip(f, True, False) for f in fr]
         self.skeleton, self.crow = self.foes["skeleton"], self.foes["crow"]
         # il verme resta dov'e': quando attacca sputa schegge ma non si solleva
         for kind in ("worm", "burrower"):
@@ -958,6 +964,8 @@ WALKERS = {
     "miner":       dict(frames="miner_mutant_{}", h=PH, box=(80, 176), hp=4, speed=2.0, dmg=35, reach=95, pts=500),
     "lizard":      dict(frames="lizard_cryo_{}", h=80, box=(170, 70), hp=1, speed=1.4, dmg=25, reach=60, pts=400, lunge=True),
     "worm":        dict(frames="worm_silicon_{}", h=230, box=(100, 200), hp=1, speed=0, dmg=30, reach=120, pts=600),
+    # nelle gallerie: il verme che striscia (quattro fotogrammi), basso e lungo
+    "crawler":     dict(sheet="worm_crawl_sheet", h=90, box=(240, 70), hp=1, speed=1.4, dmg=30, reach=70, pts=600),
     # solo nelle gallerie, alla Tremors: corre sotto la roccia (si vede solo il
     # suolo che trema) e sbuca sotto i piedi
     "burrower":    dict(frames="worm_silicon_{}", h=260, box=(110, 230), hp=1, speed=3.4, dmg=35, reach=120, pts=800,
@@ -1106,8 +1114,13 @@ class Walker(Skeleton):
             self.move(lv)
             return
         dist = player.x - self.x
+        far = self.kind == "crawler" and (abs(dist) > CRAWL_SENSE or abs(player.rect.bottom - self.rect.bottom) > 200)
         if self.turn:
             self.turn -= 1                    # torna indietro da un ostacolo che non passa
+        elif far:
+            if self.t % 200 == 0:
+                self.facing = -self.facing    # lontano da te striscia avanti e indietro
+            speed *= 0.5
         else:
             self.facing = 1 if dist > 0 else -1
         if abs(dist) < spec["reach"] + 30 and abs(player.rect.bottom - self.rect.bottom) < 100:
@@ -1148,7 +1161,7 @@ class Walker(Skeleton):
     @property
     def crawls(self):
         """Chi non salta ne' gradini ne' laghi."""
-        return self.kind.startswith("worm")
+        return self.kind.startswith("worm") or self.kind == "crawler"
 
     def turn_back(self):
         self.facing = -self.facing
@@ -1197,7 +1210,10 @@ class Walker(Skeleton):
             s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height() + WORM_SINK))
             return
         attacking = 0 < self.hit_t <= 18 or self.lunge_t
-        img = frames[1] if (attacking or (self.spec["speed"] and (self.t // 10) % 2)) else frames[0]
+        if len(frames) == 4:
+            img = frames[(self.t // 9) % 4]           # striscia: il corpo si inarca e si distende
+        else:
+            img = frames[1] if (attacking or (self.spec["speed"] and (self.t // 10) % 2)) else frames[0]
         img = gfx.sized(img, self.scale)
         if self.facing < 0:
             img = assets.flip(img)

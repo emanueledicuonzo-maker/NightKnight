@@ -49,6 +49,8 @@ STYLE: match the attached character's dark 2D cartoon style exactly: bold clean 
 | `geyser.png`, `geyser_jet.png` | criovulcano: cono (spento, incrinato) e colonna in 3 fasi |
 | `gas_vent.png` | condotta dell'azoto, chiusa e aperta (soffia di lato) |
 | `cable_pylon.png`, `ladder.png`, `hook.png` | gru e impugnatura del cavo, scala di servizio, gancio e maglia del Guardiano |
+| `worm_crawl_sheet.png` | verme che striscia, 4 fotogrammi (gallerie) |
+| `geyser_erupt_1..5.png` | eruzione del criovulcano, dal filo alla colonna piena |
 | `cliff_bg.png`, `ledge.png`, `shelter.png` | parete del canyon, cengia, ripari: pronti, non ancora usati |
 
 Per Titano i prompt nuovi devono restare credibili (vedi `STORY.md`, "Titano
