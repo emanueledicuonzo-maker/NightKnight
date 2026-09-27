@@ -3,10 +3,15 @@
 Legenda:
   # crosta   D roccia   H scala di servizio   S parete invisibile dell'arena
   E portello d'uscita   q geyser   u prigioniero   o stazione d'ossigeno
-  c sfiato di gas criogenico   P capsula d'atterraggio   . vuoto (o lago di metano)
+  c sfiato di gas criogenico   P capsula d'atterraggio   ~ lago di metano   . vuoto
 """
-ROWS = 17
-GROUND = 14
+# Sopra la superficie restano SKY righe di cielo per salire (la rupe del
+# labirinto), sotto la crosta DEPTH righe di roccia in cui scavare le gallerie.
+SKY = 10
+GROUND = 14 + SKY
+DEPTH = 14
+ROWS = GROUND + 3 + DEPTH
+LAKE_DEPTH = 3
 
 # La scelta e' deliberatamente senza conferma: una volta entrati nella campagna
 # si porta la stessa arma fino alla fine. L'affinita' giusta evita le resistenze
@@ -71,14 +76,10 @@ def gen_titan_surface():
     geyser e prigionieri; le rive restano libere per la rincorsa."""
     cols = 216
     g = _grid(cols)
-    for col in range(cols):
-        g[GROUND][col] = "#"
-        g[GROUND+1][col] = g[GROUND+2][col] = "D"
+    _rock(g, 0, cols, 0)
     lakes = ((16, 18), (55, 57), (66, 69), (107, 109), (118, 121), (159, 161), (169, 172), (208, 210))
     for start, end in lakes:
-        for col in range(start, end):
-            for row in range(GROUND, ROWS):
-                g[row][col] = "."
+        _lake(g, start, end)
     # q = geyser (due dentro l'arena dello sciame); u = prigioniero
     for col in (10, 61, 82, 94, 113, 165, 212):
         g[GROUND-1][col] = "q"
@@ -99,10 +100,11 @@ def _rock(g, c0, c1, h):
             g[r][c] = "#" if r == GROUND - h else "D"
 
 
-def _lake(g, c0, c1):
+def _lake(g, c0, c1, top=GROUND):
+    """Lago di metano profondo LAKE_DEPTH tessere, con la roccia sotto."""
     for c in range(c0, c1):
-        for r in range(GROUND, ROWS):
-            g[r][c] = "."
+        for r in range(top, top + LAKE_DEPTH):
+            g[r][c] = "~"
 
 
 def _ladder(g, c, h):
@@ -155,8 +157,7 @@ def gen_arena(c=None):
     """L'arena del duello: uno schermo di terreno fra due pareti invisibili."""
     cols = 30
     g = _grid(cols)
-    for cc in range(cols):
-        g[GROUND][cc] = "#"; g[GROUND + 1][cc] = "D"; g[GROUND + 2][cc] = "D"
+    _rock(g, 0, cols, 0)
     for r in range(ROWS):
         g[r][0] = "S"; g[r][cols - 1] = "S"
     return g

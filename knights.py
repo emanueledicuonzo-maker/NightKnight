@@ -6,9 +6,10 @@ import random
 import pygame
 
 import assets
+import levels
 
 TILE = 64
-GROUND = 14
+GROUND = levels.GROUND
 GRAVITY = 0.9
 MAX_FALL = 22
 W = 1920

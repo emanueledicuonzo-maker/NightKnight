@@ -24,7 +24,7 @@ class MovementTests(unittest.TestCase):
 
     def test_every_titan_lake_is_jumpable_both_ways(self):
         lv = goblin.Level(levels.gen_surface(), "surface")
-        for start, end in spans(lv.g[levels.GROUND], "."):
+        for start, end in spans(lv.g[levels.GROUND], "~"):
             if start <= levels.TITAN_PASS_ROPE < end:
                 continue            # il lago del cavo si attraversa appesi al cavo
             if True:
@@ -52,7 +52,7 @@ class MovementTests(unittest.TestCase):
 
     def test_tapped_jump_from_rest_clears_the_lakes_of_the_waves(self):
         lv = goblin.Level(levels.gen_surface(), "surface")
-        for start, end in spans(lv.g[levels.GROUND], "."):
+        for start, end in spans(lv.g[levels.GROUND], "~"):
             if start >= levels.TITAN_PASS_START:
                 continue            # nella traversata i laghi vogliono la rincorsa
             if True:

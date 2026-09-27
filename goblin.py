@@ -34,9 +34,13 @@ CHILL_FRAMES = 50      # il metano sta un po' sotto il bordo del terreno
 BURST_FRAMES = 70    # durata del volo di Bianca durante la raffica
 ROCK_N = 4           # la roccia delle pareti copre 4x4 tessere
 TITAN_N = 6          # il terreno di Titano copre 6x6 tessere
-ROWS = 17
+ROWS = levels.ROWS
 GROUND = levels.GROUND
-VIEW_Y = int(GROUND * TILE * (1 - 1 / ZOOM))    # riga del mondo in cima alla vista
+# Da fermo in superficie i piedi stanno FEET_IN_VIEW pixel sotto il bordo alto
+# della vista; VIEW_Y e' la cima della vista in quel caso (ondate, duello).
+FEET_IN_VIEW = int(14 * TILE / ZOOM)
+VIEW_Y = GROUND * TILE - FEET_IN_VIEW
+CAM_TOP, CAM_BOTTOM = 70, 150      # margini oltre i quali la telecamera insegue un salto o una caduta
 GRAVITY = 0.75
 MAX_FALL = 18
 RUN_ACC = 0.65
@@ -87,7 +91,7 @@ class Gfx:
         rock = pygame.image.load(os.path.join(assets.DIR, "titan_rock.png")).convert()
         self.titan_rock = pygame.transform.smoothscale(rock, (TILE * ROCK_N, TILE * ROCK_N))
         # Lago di metano: liquido scuro, un po' sotto il bordo, che riflette il cielo.
-        depth = H - GROUND * TILE
+        depth = levels.LAKE_DEPTH * TILE
         self.titan_lake = pygame.Surface((TILE, depth), pygame.SRCALPHA)
         for y in range(LAKE_LEVEL, depth):
             k = (y - LAKE_LEVEL) / (depth - LAKE_LEVEL)
@@ -225,8 +229,10 @@ class Level:
         self.kind = kind
         self.cols = len(g[0])
         self.w = self.cols * TILE
+        self.rows = len(g)
+        self.h = self.rows * TILE
         self.markers = []
-        for r in range(ROWS):
+        for r in range(self.rows):
             for c in range(self.cols):
                 if g[r][c] in "Equoc":
                     self.markers.append((g[r][c], c, r))
@@ -235,7 +241,7 @@ class Level:
     def at(self, c, r):
         if c < 0 or c >= self.cols:
             return "S"
-        if r < 0 or r >= ROWS:
+        if r < 0 or r >= self.rows:
             return "."
         return self.g[r][c]
 
@@ -244,6 +250,10 @@ class Level:
 
     def tile_at(self, x, y):
         return self.at(int(x // TILE), int(y // TILE))
+
+    def drowned(self, rect):
+        """Finito nel metano: la testa e' gia' sotto il pelo del lago."""
+        return self.tile_at(rect.centerx, rect.top + 30) == "~" or rect.top > self.h
 
 
 # ---------------------------------------------------------------- entita'
@@ -596,13 +606,13 @@ class Bianca:
         self.t = 0
         self.burst = 0
 
-    def update(self, player, cam=0):
+    def update(self, player, cam=0, camy=VIEW_Y):
         self.t += 1
         if self.burst:
             # raffica: si illumina e attraversa la parte alta dello schermo
             self.burst -= 1
             k = 1 - self.burst / BURST_FRAMES
-            self.x, self.y, self.facing = cam - 200 + (VW + 400) * k, VIEW_Y + 90 + math.sin(k * math.pi * 2) * 30, 1
+            self.x, self.y, self.facing = cam - 200 + (VW + 400) * k, camy + 90 + math.sin(k * math.pi * 2) * 30, 1
             return
         # Resta poco dietro e sopra al protagonista; il ritardo rende il volo vivo.
         offset = -155 if player.facing > 0 else 155
@@ -708,7 +718,7 @@ class Walker(Skeleton):
 
     def update(self, lv, player):
         spec = self.spec
-        if self.y > H + 200:              # finito in un lago di metano
+        if lv.drowned(self.rect):         # finito in un lago di metano
             self.alive = False
             return
         if spec["speed"] == 0:                 # il verme resta dove emerge
@@ -959,6 +969,7 @@ class Game:
                     spento.liberated, spento.glow = True, 60
                 self.spenti.append(spento)
         self.cam = 0
+        self.camy = self.camy_target = VIEW_Y
         self.boss = None
         self.msg = None
         self.effects = []
@@ -1067,6 +1078,22 @@ class Game:
         if projectile.kind == "hook":
             self.jb.fx("hook")
 
+    def follow_y(self, p):
+        """Telecamera verticale: a terra, sulla scala o al cavo si porta i piedi
+        all'altezza di sempre; in salto si muove solo se NightKnight esce dai margini."""
+        r = p.rect
+        steady = p.on_ground or p.climbing or (self.cable and self.cable.attached)
+        if steady:
+            self.camy_target = r.bottom - FEET_IN_VIEW
+        elif r.top < self.camy_target + CAM_TOP:
+            self.camy_target = r.top - CAM_TOP
+        elif r.bottom > self.camy_target + VH - CAM_BOTTOM:
+            self.camy_target = r.bottom - VH + CAM_BOTTOM
+        self.camy_target = max(0, min(self.camy_target, self.lv.h - VH))
+        self.camy += (self.camy_target - self.camy) * (0.2 if p.vy > 8 else 0.1)
+        if abs(self.camy - self.camy_target) < 0.5:
+            self.camy = self.camy_target
+
     def die(self):
         self.state, self.state_t = "dead", 0
         self.jb.fx("death")
@@ -1131,7 +1158,7 @@ class Game:
         else:
             p.update(keys, self.lv)
         if self.bianca:
-            self.bianca.update(p, self.cam)
+            self.bianca.update(p, self.cam, self.camy)
         self.luce = p.albedo
         if p.jumped:
             self.jb.fx("jump")
@@ -1149,7 +1176,8 @@ class Game:
             # porte stagne chiuse: si resta nell'arena finche' l'ondata non e' finita
             p.x = max(lock[0] + 30, min(p.x, lock[1] - 30 - p.w))
             self.cam = int(max(lock[0], min(target, lock[1] - VW)))
-        if p.y > H + 50:
+        self.follow_y(p)
+        if self.lv.drowned(p.rect):
             self.die(); return
         r = p.rect
         for geyser in self.geysers:
@@ -1461,27 +1489,34 @@ class Game:
         s, cam, lv = self.screen, self.cam, self.lv
         # Il cielo non si ripete: e' appena piu' largo dello schermo e scorre
         # pochissimo, cosi' Saturno resta uno solo.
+        # In verticale i piani lontani si spostano meno di quelli vicini.
+        lift = (VIEW_Y - self.camy) * ZOOM
+        s.fill((34, 16, 8))
         sky = self.gfx.wide_sky(1, SKY_PAN)
         off = -min(SKY_PAN, int(cam * SKY_PAN / max(1, lv.cols * TILE - W, W)))
-        s.blit(sky, (off, H - sky.get_height()))
+        s.blit(sky, (off, H - sky.get_height() + int(lift * 0.04)))
         # Due piani di rocce; ognuno si ripete alternando una copia specchiata,
         # cosi' i bordi combaciano senza cuciture.
         for layer, speed in ((self.gfx.mirrored(self.gfx.background("hills")), 0.16),
                              (self.gfx.mirrored(self.gfx.background("hills", 2)), 0.42)):
             off = -(int(cam * speed) % layer.get_width())
             for x in range(off, W, layer.get_width()):
-                s.blit(layer, (x, 0))
+                s.blit(layer, (x, int(lift * speed)))
 
     def draw_tiles(self):
         """Terreno, laghi di metano, scale e portello: disegnati nella vista del mondo."""
         s, cam, lv = self.screen, self.cam, self.lv
         c0 = max(0, cam // TILE)
         cols = range(c0, min(lv.cols, c0 + VW // TILE + 3))
+        r0 = max(0, int(self.camy) // TILE)
+        rows = range(r0, min(lv.rows, r0 + VH // TILE + 2))
         for c in cols:
-            if lv.g[GROUND][c] == ".":
-                s.blit(self.gfx.titan_lake, (c * TILE - cam, GROUND * TILE))
+            for r in range(max(0, r0 - levels.LAKE_DEPTH), rows.stop):
+                if lv.g[r][c] != "~" or lv.at(c, r - 1) == "~":
+                    continue
+                s.blit(self.gfx.titan_lake, (c * TILE - cam, r * TILE))
                 # riflessi che scorrono piano sulla superficie del metano
-                y = GROUND * TILE + LAKE_LEVEL
+                y = r * TILE + LAKE_LEVEL
                 for i in range(3):
                     ph = (self.frame * (0.6 + i * 0.25) + c * 37 + i * 90) % 140
                     if ph < TILE:
@@ -1490,7 +1525,7 @@ class Game:
         s.blit(self.gfx.haze, (0, GROUND * TILE - 75))
         for c in cols:
             x = c * TILE - cam
-            for r in range(ROWS):
+            for r in rows:
                 ch = lv.g[r][c]
                 y = r * TILE
                 if ch in self.gfx.tiles:
@@ -1579,9 +1614,10 @@ class Game:
             return
         self.draw_world()
         screen = self.screen
-        if getattr(self, "world_surf", None) is None:
-            self.world_surf = pygame.Surface((VW, H), pygame.SRCALPHA)
-        self.world_surf.fill((0, 0, 0, 0))
+        camy = int(self.camy)
+        if getattr(self, "world_surf", None) is None or self.world_surf.get_height() != self.lv.h:
+            self.world_surf = pygame.Surface((VW, self.lv.h), pygame.SRCALPHA)
+        self.world_surf.fill((0, 0, 0, 0), (0, camy, VW, VH))
         self.screen = s = self.world_surf
         self.draw_tiles()
         cam = self.cam
@@ -1608,8 +1644,9 @@ class Game:
         p = self.player
         if self.state == "dead":
             # NightKnight a terra: la posa ferma distesa sul suolo
-            fallen = pygame.transform.rotate(self.gfx.player["idle"][0], 90 * p.facing)
-            s.blit(fallen, (p.rect.centerx - fallen.get_width() // 2 - cam, GROUND * TILE - fallen.get_height() + 10))
+            if not self.lv.drowned(p.rect):
+                fallen = pygame.transform.rotate(self.gfx.player["idle"][0], 90 * p.facing)
+                s.blit(fallen, (p.rect.centerx - fallen.get_width() // 2 - cam, p.rect.bottom - fallen.get_height() + 10))
         else:
             p.draw(s, self.gfx, cam)
         for e in self.effects:
@@ -1618,7 +1655,7 @@ class Game:
             pygame.draw.line(s, color, (int(x) - cam, int(y)), (int(x - vx * 1.5) - cam, int(y - vy * 1.5)), 3)
         # la vista del mondo si ingrandisce sopra cielo e fondali
         self.screen = s = screen
-        view = self.world_surf.subsurface((0, VIEW_Y, VW, VH))
+        view = self.world_surf.subsurface((0, camy, VW, VH))
         jolt = (random.randint(-self.shake, self.shake), random.randint(-self.shake, self.shake)) if self.shake else (0, 0)
         s.blit(pygame.transform.smoothscale(view, (W, H)), jolt)
         self.draw_drizzle(s)

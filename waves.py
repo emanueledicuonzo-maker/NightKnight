@@ -3,7 +3,6 @@ Si puo' sempre andare avanti o scappare: chi e' in campo insegue, i rinforzi sme
 import random
 
 TILE = 64
-GROUND = 14
 W = 1920
 SPAWN_EVERY = 28          # fotogrammi fra un nemico e il successivo
 ALIVE = 8                 # nemici in campo insieme, se l'ondata non dice altro

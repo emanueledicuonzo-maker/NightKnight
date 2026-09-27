@@ -4,13 +4,15 @@ import math
 import pygame
 import pymunk
 
+import levels
+
 
 TILE = 64
-FLOOR = 14 * TILE
+FLOOR = levels.GROUND * TILE
 
 
 class Rope:
-    def __init__(self, x, y=240, length=500):
+    def __init__(self, x, y=FLOOR - 656, length=500):
         self.anchor = pymunk.Vec2d(x, y)
         self.space = pymunk.Space()
         self.space.gravity = (0, 2700)
