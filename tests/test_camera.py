@@ -46,7 +46,9 @@ class CameraTests(unittest.TestCase):
         for _ in range(90):
             g.update()
         self.assertTrue(p.on_ground)
-        self.assertEqual(int(g.camy), p.rect.bottom - goblin.FEET_IN_VIEW)
+        # sulla cengia la vista segue i piedi, e scende quanto basta per il suolo sotto
+        self.assertGreaterEqual(int(g.camy), p.rect.bottom - goblin.FEET_IN_VIEW)
+        self.assertLess(p.rect.bottom - int(g.camy), goblin.VH)
 
     def test_a_jump_on_flat_ground_barely_moves_the_camera(self):
         g = self.start()
@@ -75,7 +77,7 @@ class CameraTests(unittest.TestCase):
     def zoom_with(self, foes):
         g = self.start()
         p = g.player
-        p.x = 30 * TILE
+        p.x = 128 * TILE                              # in piano
         g.skels = [goblin.Walker(p.x + 250 + i * 30, "skeleton") for i in range(foes)]
         for _ in range(90):
             g.update()
@@ -104,6 +106,20 @@ class CameraTests(unittest.TestCase):
         for _ in range(30):
             g.update()
         self.assertLess(g.zoom, goblin.ZOOM - 0.15)                      # giu' nel crepaccio
+
+    def test_camera_pulls_back_a_little_at_a_step(self):
+        g = self.start()
+        g.skels, g.crows = [], []
+        p = g.player
+        hts = levels.surface_heights()
+        col = next(c for c in range(len(hts) - 3) if hts[c] >= 3 and hts[c + 1] <= hts[c] - 2)
+        p.x, p.y, p.facing = col * TILE + 10, (levels.GROUND - hts[col]) * TILE - p.h, 1
+        for _ in range(120):
+            g.update()
+        self.assertLess(g.zoom, goblin.ZOOM - 0.1)
+        low = (levels.GROUND - hts[col + 1]) * TILE
+        vx, vy, cw, ch = g.view_rect()
+        self.assertLess(low, int(g.camy) + vy + ch)                  # il suolo sotto si vede
 
 
 if __name__ == "__main__":

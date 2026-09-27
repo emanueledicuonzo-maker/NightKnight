@@ -58,7 +58,10 @@ ZOOM_FIGHT, ZOOM_DUEL = 1.75, 1.6
 ZOOM_OUT = 1.2
 DW, DH = int(W / ZOOM_OUT), int(H / ZOOM_OUT)
 DROP_BIAS = 1.0
-EDGE_DROP = 5        # un vuoto di almeno 5 tessere sotto il bordo      # allontanandosi, la vista scende: si vede sotto i piedi
+EDGE_DROP = 5        # un vuoto di almeno 5 tessere sotto il bordo: tutta larga
+STEP_DROP, ZOOM_STEP = 2, 1.35    # un gradino di 2-4 tessere: un po' piu' larga
+EDGE_LOOK = 3        # quante tessere avanti si guarda per trovare il bordo
+LOW_MARGIN = 110     # il suolo piu' basso li' vicino resta almeno cosi' sopra il fondo della vista      # allontanandosi, la vista scende: si vede sotto i piedi
 FIGHT_RANGE = (520, 320)     # distanza (orizzontale, verticale) dei nemici che fanno avvicinare
 # Piani di parallasse sopra il cielo: (immagine, velocita', spostamento in giu',
 # foschia steso sopra). Il primo piano, davanti al mondo, corre piu' del terreno.
@@ -1381,6 +1384,13 @@ class Game:
         steady = p.on_ground or p.climbing or (self.cable and self.cable.attached)
         if steady:
             self.camy_target = r.bottom - FEET_IN_VIEW
+            if p.on_ground and self.part != "arena":
+                # su un rilievo: il suolo piu' basso li' davanti deve restare in quadro
+                low = max((f for f in (self.lv.floor_near(r.centerx + d * TILE, r.bottom + 4 * TILE, 5)
+                                       for d in range(-2, 6) for d in (d * p.facing,)) if f is not None
+                           and r.bottom < f <= r.bottom + 5 * TILE), default=None)
+                if low is not None:
+                    self.camy_target = max(self.camy_target, low + LOW_MARGIN - VH)
             if p.climbing:
                 # sulla scala si guarda dove si va: in cima c'e' la prossima cengia
                 self.camy_target -= LADDER_LOOK
@@ -1411,9 +1421,11 @@ class Game:
             # mai cosi' vicina da lasciare fuori qualcuno che ti sta addosso
             xs = [x for x, _ in near] + [r.centerx]
             target = max(ZOOM, min(target, VW * ZOOM / (max(xs) - min(xs) + 420)))
-        wide = self.part != "arena" and self.looking_down(p)
+        wide = self.looking_down(p) if self.part != "arena" else None
+        if wide == ZOOM_STEP and near:
+            wide = None                    # in combattimento conta chi ti sta addosso
         if wide:
-            target = ZOOM_OUT
+            target = min(target, wide)
         self.zoom += (target - self.zoom) * (0.08 if target > self.zoom else (0.06 if wide else 0.035))
         if abs(self.zoom - target) < 0.002:
             self.zoom = target
@@ -1422,20 +1434,33 @@ class Game:
             fx += (sum(x for x, _ in near) / len(near) - r.centerx) * 0.5
         self.focus_x = fx if self.focus_x is None else self.focus_x + (fx - self.focus_x) * 0.1
 
+    def drop_ahead(self, p):
+        """Di quante tessere scende il suolo davanti a NightKnight (fino a EDGE_LOOK
+        tessere avanti); 99 se sotto c'e' solo vuoto o metano."""
+        r = p.rect
+        drop = 0
+        for ahead in range(1, EDGE_LOOK + 1):
+            x = r.centerx + p.facing * ahead * TILE
+            floor = self.lv.floor_near(x, r.bottom + 6 * TILE, 7)
+            if floor is None:
+                return 99
+            drop = max(drop, (floor - r.bottom) // TILE)
+        return drop
+
     def looking_down(self, p):
-        """Si cade, si e' appesi al cavo, o si sta sul bordo di un vuoto di cui non
-        si vede il fondo: e' il momento di allontanare la telecamera."""
+        """Quanto allontanare la telecamera: cadendo, appesi al cavo, o sul bordo di
+        un vuoto del tutto; sul bordo di un gradino alto un poco. None se no."""
         if self.cable and self.cable.attached:
-            return True
+            return ZOOM_OUT
         if not p.on_ground and not p.climbing and p.vy > 9:
-            return True
+            return ZOOM_OUT
         if p.on_ground:
-            r = p.rect
-            for ahead in (TILE, 2 * TILE):
-                x = r.centerx + p.facing * ahead
-                if not any(self.lv.solid(x, r.bottom + 2 + i * TILE) for i in range(EDGE_DROP)):
-                    return True
-        return False
+            drop = self.drop_ahead(p)
+            if drop >= EDGE_DROP:
+                return ZOOM_OUT
+            if drop >= STEP_DROP:
+                return ZOOM_STEP
+        return None
 
     def die(self):
         self.state, self.state_t = "dead", 0
