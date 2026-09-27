@@ -116,10 +116,12 @@ NOVA_BEAM = 180            # larghezza della colonna di luce
 # I camminatori sul terreno: gradini da saltare, da scendere, laghi da scavalcare.
 WALKER_STEP, WALKER_DROP, WALKER_GAP, WALKER_TURN = 3, 4, 4, 90
 WORM_MOUND, WORM_SINK, WORM_FLAT = 45, 18, 2
+FEET_SINK = 12              # il bordo del terreno ha una fascia scura: i piedi ci stanno dentro
 CRAWL_SENSE = 10 * TILE     # il verme che striscia ti viene incontro da questa distanza    # il cumulo di terra del verme: piu' largo di lui, e affonda nel suolo
 BURROW_RUMBLE, BURROW_OUT = 40, 130     # il verme alla Tremors: preavviso e tempo fuori
 JELLY_SPEED, JELLY_MAX, JELLY_SLOW, JELLY_DRAIN, JELLY_EVERY = 4.2, 3, 0.22, 3, 50
 LAND_FRAMES, HURT_FRAMES = 10, 22
+MANTLE_FRAMES, MANTLE_STEP = 26, 40     # tirarsi su in cima alla scala
 SOLID = set("#DS")
 
 PS = 8          # scala pixel art personaggi
@@ -517,7 +519,7 @@ class Entity:
         if self.on_ground:
             # a terra: ombra di contatto e piedi appena dentro il suolo
             titan.ground_shadow(s, r.centerx - cam, r.bottom, r.w * 1.3)
-            s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height() + titan.SINK // 2))
+            s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height() + FEET_SINK))
             return
         s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height()))
 
@@ -545,6 +547,7 @@ class Player(Entity):
         self.gravity_scale = 1.0
         self.t = 0
         self.combo, self.combo_t, self.slash_queued = 0, 0, False     # combo di spada
+        self.mantle = None        # tirarsi su in cima alla scala
         self.new_slash = False
         self.running = 0          # corsa col doppio tocco: verso in cui si corre
         self.last_tap, self.tap_dir = -999, 0
@@ -585,6 +588,18 @@ class Player(Entity):
 
     def update(self, keys, lv):
         self.t += 1
+        if self.mantle:
+            # si tira su dal bordo in cima alla scala: niente comandi per un attimo
+            left, y0, y1, x0, side = self.mantle
+            k = 1 - (left - 1) / MANTLE_FRAMES
+            self.y = y0 + (y1 - y0) * min(1, k * 4 / 3)
+            self.x = x0 + side * MANTLE_STEP * max(0, (k - 0.5) * 2)
+            self.vx = self.vy = 0
+            self.on_ground = False
+            self.mantle = (left - 1, y0, y1, x0, side) if left > 1 else None
+            if not self.mantle:
+                self.y, self.on_ground = y1, True
+            return
         self.land_t = max(0, self.land_t - 1)
         self.hurt_t = max(0, self.hurt_t - 1)
         self.hanging = None
@@ -633,9 +648,17 @@ class Player(Entity):
                 feet_row = r.bottom // TILE
                 at_top = lv.at(r.centerx // TILE, feet_row) == "H" and lv.at(r.centerx // TILE, feet_row - 1) != "H"
                 if up and at_top and r.bottom - feet_row * TILE <= CLIMB * 4:
-                    self.y = feet_row * TILE - self.h      # in piedi sulla cima della scala
+                    # in cima: ci si aggrappa al bordo e ci si tira su, verso il lato
+                    # dove c'e' terreno accanto alla scala
+                    top = feet_row * TILE
+                    side = self.facing
+                    for d in (1, -1):
+                        if lv.solid(r.centerx + d * 2 * TILE, top + 2) and not lv.solid(r.centerx + d * 2 * TILE, top - 2):
+                            side = d
+                            break
                     self.climbing = False
-                    self.on_ground = True
+                    self.facing = side
+                    self.mantle = (MANTLE_FRAMES, self.y, top - self.h, self.x, side)
                     return
                 if up:
                     self.y -= CLIMB
@@ -759,6 +782,10 @@ class Player(Entity):
         """Fotogramma dal foglio di sprite della posa corrente, se esiste."""
         sheets = gfx.sheets
         side = 0 if self.facing > 0 else 1
+        if self.mantle and "ledge" in sheets:
+            left = self.mantle[0]
+            fr = sheets["ledge"][side]
+            return fr[min(len(fr) - 1, int((1 - left / MANTLE_FRAMES) * len(fr)))]
         if self.hanging is not None and "hang" in sheets and not self.attack:
             return sheets["hang"][side][{-1: 0, 0: 1, 1: 2}[self.hanging]]
         if self.climbing and not self.attack:
@@ -806,6 +833,13 @@ class Player(Entity):
         img = self.sheet_frame(gfx)
         if img is None:
             img = gfx.player["idle"][0 if self.facing > 0 else 1]
+        if self.mantle and "ledge" in gfx.sheets:
+            left, y0, y1, x0, side = self.mantle
+            if (1 - left / MANTLE_FRAMES) * 4 < 3:
+                # appeso al bordo: le mani sul ciglio del terreno, il corpo sotto
+                edge = y1 + self.h
+                s.blit(img, (self.rect.centerx - img.get_width() // 2 - cam, edge - 14))
+                return
         if self.chill:
             img = gfx.frosted(img)                 # gelato dall'azoto: brina sulla tuta
         self.draw_img(s, img, cam)

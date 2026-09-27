@@ -10,6 +10,8 @@ import levels
 
 TILE = 64
 GROUND = levels.GROUND
+FIST_AT = 0.58     # il pugno della posa "punch", in frazione dell'altezza da terra
+FEET_SINK = 12     # come per 9T9T: i piedi dentro la fascia scura del bordo del terreno
 ART = {}           # gancio e maglia della catena disegnati (caricati dal gioco)
 GRAVITY = 0.9
 MAX_FALL = 22
@@ -40,7 +42,7 @@ MOVES = {
     "whip":       dict(total=40, act=(16, 24), reach=None, box=(50, 40), dmg=9, kind="weapon", pose="attack"),
     "pound":      dict(total=48, act=(20, 26), reach=120, box=(100, 60), dmg=10, kind="weapon", pose="attack", proj=("shock", 24)),
     "jumpsmash":  dict(total=70, act=(50, 56), reach=140, box=(100, 60), dmg=12, kind="air", pose="attack", vy=-22, vx=6, proj=("shock2", 50)),
-    "hook":       dict(total=60, act=None, reach=None, box=None, dmg=10, kind="ranged", pose="special", proj=("hook", 14)),
+    "hook":       dict(total=60, act=None, reach=None, box=None, dmg=10, kind="ranged", pose="punch", proj=("hook", 14)),
     "throw":      dict(total=44, act=None, reach=None, box=None, dmg=10, kind="ranged", pose="special", proj=("axe", 16)),
     "arrow":      dict(total=36, act=None, reach=None, box=None, dmg=8, kind="ranged", pose="special", proj=("arrow", 14)),
     "wave":       dict(total=44, act=None, reach=None, box=None, dmg=14, kind="ranged", pose="special", proj=("wave", 18)),
@@ -67,6 +69,7 @@ class Projectile:
         self.alive = True
         self.owner = "boss"
         self.origin = x
+        self.holder = None
         if kind == "axe":
             self.w, self.h, self.vx = 70, 70, 14 * d
         elif kind == "hook":
@@ -90,7 +93,9 @@ class Projectile:
             if self.t > 90:
                 self.alive = False
         elif self.kind == "hook":
-            # il gancio corre sulla catena, poi torna alla mano
+            # il gancio corre sulla catena, poi torna alla mano (che si sposta con lui)
+            if self.holder is not None:
+                self.origin = self.holder.fist()[0]
             if self.t > 30:
                 self.vx = -16 * self.d
             self.x += self.vx
@@ -320,8 +325,11 @@ class GoldKnight:
                     if self.cfg["index"] >= 5:
                         spawn(Projectile("arrow", r.right if self.facing > 0 else r.left - 90, r.bottom - HUMAN_H + 110, self.facing, self.move_dmg(), self.cfg["color"], self.cfg["index"] // 2))
                 elif kind == "hook":
-                    base = r.bottom - HUMAN_H
-                    spawn(Projectile("hook", r.right if self.facing > 0 else r.left - 60, base + 70, self.facing, self.move_dmg(), self.cfg["color"]))
+                    fx, fy = self.fist()
+                    hook = Projectile("hook", fx if self.facing > 0 else fx - 60, fy - 25, self.facing,
+                                      self.move_dmg(), self.cfg["color"])
+                    hook.holder = self                # la catena parte sempre dalla sua mano
+                    spawn(hook)
                 elif kind == "axe":
                     spawn(Projectile("axe", r.right if self.facing > 0 else r.left - 70, r.bottom - HUMAN_H + 50, self.facing, self.move_dmg(), self.cfg["color"]))
                 elif kind == "wave":
@@ -374,6 +382,13 @@ class GoldKnight:
             return "walk1" if (self.t // 8) % 2 else "walk2"
         return "idle"
 
+    def fist(self):
+        """Il pugno teso nella posa del lancio: da li' parte la catena del gancio."""
+        img = self.imgs["punch"][0]
+        r = self.rect
+        return (r.centerx + self.facing * (img.get_width() // 2 - 18),
+                r.bottom + FEET_SINK - int(img.get_height() * FIST_AT))
+
     def draw(self, s, cam):
         if self.hidden:
             return
@@ -381,7 +396,7 @@ class GoldKnight:
         pose = self.pose()
         img = self.imgs.get(pose, self.imgs["idle"])[i]
         r = self.rect
-        pos = (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height())
+        pos = (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height() + FEET_SINK)
         if pose == "ko" and "ko" not in self.imgs:
             img = pygame.transform.rotate(self.imgs["idle"][i], 90 if self.facing < 0 else -90)
             pos = (pos[0] - 50, pos[1] + 90)
@@ -401,6 +416,8 @@ def knight_images(gfx, num, color):
     idle = assets.load(f"boss{num:02d}_idle", tall * 2, tall, by_height=True)
     raw = {name: pygame.image.load(os.path.join(assets.DIR, f"boss{num:02d}_{name}.png")).convert_alpha()
            for name in ("walk", "jump", "punch", "kick", "attack", "special", "hurt", "ko")}
+    # via i margini trasparenti: i piedi (e il corpo steso nel K.O.) toccano terra
+    raw = {name: r.subsurface(r.get_bounding_rect(min_alpha=20)).copy() for name, r in raw.items()}
     heights = sorted(i.get_height() for i in raw.values())
     k = tall / heights[len(heights) // 2]
     d = {"idle": (idle, assets.flip(idle))}

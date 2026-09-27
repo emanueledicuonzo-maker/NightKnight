@@ -229,6 +229,19 @@ class LabyrinthTests(unittest.TestCase):
                     self.assertTrue(self.lv.solid((X0 + c) * TILE + 32, row * TILE + 2))
                     self.assertFalse(self.lv.solid((X0 + c) * TILE + 32, row * TILE - 2))
 
+    def test_the_top_of_a_ladder_is_a_pull_up(self):
+        p = self.stand(41, levels.LEDGES[0])
+        keys = defaultdict(bool, {pygame.K_UP: True})
+        mantled = False
+        for _ in range(300):
+            p.update(keys, self.lv)
+            mantled = mantled or bool(p.mantle)
+            if mantled and not p.mantle:
+                break
+        self.assertTrue(mantled)
+        self.assertTrue(p.on_ground)
+        self.assertEqual(self.feet(p)[0], levels.LEDGES[1])
+
 
 if __name__ == "__main__":
     unittest.main()
