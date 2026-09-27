@@ -91,6 +91,14 @@ CLIMB = 5
 COYOTE_FRAMES = 6
 JUMP_BUFFER_FRAMES = 7
 PLAYER_HP = 100
+# Bianca in incursione: con piu' di BIANCA_CROWD nemici sullo schermo ne abbatte da
+# sola fino a BIANCA_SORTIE, uno alla volta (volanti e di terra), poi riposa.
+BIANCA_CROWD, BIANCA_SORTIE, BIANCA_SPEED, BIANCA_REST = 4, 5, 17, 12 * 60
+# Corsa: doppio tocco della freccia e tenerla premuta (o Maiusc); l'ossigeno cala di piu'.
+DOUBLE_TAP, SPRINT_O2 = 14, 2.5
+# Nova: al decimo colono liberato, una volta per livello, 9T9T scarica il nucleo
+# della tuta: salta, calcio girato, due bagliori, e non resta nessuno sullo schermo.
+NOVA_PRISONERS, NOVA_FRAMES, NOVA_FLASH, NOVA_BLAST, NOVA_BOSS = 10, 110, 46, 64, 0.10
 # Meduse: ti puntano appena ti vedono e ti si attaccano (al massimo tre); ognuna
 # rallenta e toglie un po' di vita finche' un colpo non la stacca.
 # I camminatori sul terreno: gradini da saltare, da scendere, laghi da scavalcare.
@@ -489,12 +497,18 @@ class Player(Entity):
         self.weapon = levels.weapon_cfg(0)
         self.gravity_scale = 1.0
         self.t = 0
+        self.running = 0          # corsa col doppio tocco: verso in cui si corre
+        self.last_tap, self.tap_dir = -999, 0
         self.jellies = 0          # meduse attaccate addosso
         self.land_t = self.hurt_t = 0
         self.hanging = None       # appeso al cavo: -1 gambe indietro, 0 dritto, 1 gambe avanti
 
     def hurtbox(self):
         return self.rect.inflate(-10, -6)
+
+    @property
+    def sprinting(self):
+        return abs(self.vx) > RUN_MAX + 0.5
 
     @property
     def breathless(self):
@@ -532,7 +546,10 @@ class Player(Entity):
         up = keys[pygame.K_UP] or keys[pygame.K_w]
         down = keys[pygame.K_DOWN] or keys[pygame.K_s]
         jump = keys[pygame.K_SPACE] or up
-        speed_limit = SPRINT_MAX if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] else RUN_MAX
+        held = (right and not left and self.running > 0) or (left and not right and self.running < 0)
+        if not held:
+            self.running = 0                        # si corre finche' si tiene premuto
+        speed_limit = SPRINT_MAX if keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] or self.running else RUN_MAX
         if self.chill:
             self.chill -= 1
             speed_limit *= CHILL_SPEED
@@ -809,14 +826,23 @@ class Bianca:
         self.facing = 1
         self.t = 0
         self.burst = 0
+        self.target = None        # il nemico su cui sta picchiando
+        self.flyers_only = True
+        self.sortie = 0           # nemici ancora da abbattere in questa incursione
+        self.rest = 0
 
     def update(self, player, cam=0, camy=VIEW_Y):
         self.t += 1
         if self.burst:
-            # raffica: si illumina e attraversa la parte alta dello schermo
-            self.burst -= 1
-            k = 1 - self.burst / BURST_FRAMES
-            self.x, self.y, self.facing = cam - 200 + (DW + 400) * k, camy + 90 + math.sin(k * math.pi * 2) * 30, 1
+            self.burst -= 1                   # bagliore della Luce appena spesa
+        if self.target is not None:
+            # in picchiata sul nemico scelto
+            to = pygame.Vector2(self.target.rect.center) - (self.x, self.y)
+            if to.length() > 1:
+                step = to.normalize() * min(BIANCA_SPEED, to.length())
+                self.x += step.x
+                self.y += step.y
+                self.facing = 1 if to.x > 0 else -1
             return
         # Resta poco dietro e sopra al protagonista; il ritardo rende il volo vivo.
         offset = -155 if player.facing > 0 else 155
@@ -1434,22 +1460,56 @@ class Game:
             self.hit_enemy(c, 999, pts=c.spec.get("pts", 150))
 
     def luce_burst(self):
-        """Bianca scarica tutta la Luce in una raffica: abbatte ogni volante sullo
-        schermo e toglie al Guardiano il 5% della vita per ogni unita' da 25."""
+        """V: Bianca spende un'unita' di Luce e va in incursione su volanti e nemici
+        di terra, uno alla volta, fino a BIANCA_SORTIE; al Guardiano toglie il 5%."""
         p = self.player
-        units = min(LUCE_MAX // LUCE_UNIT, p.albedo // LUCE_UNIT)
-        if units <= 0 or not self.bianca or self.bianca.burst:
+        if p.albedo < LUCE_UNIT or not self.bianca:
             return False
-        p.albedo -= units * LUCE_UNIT
+        p.albedo -= LUCE_UNIT
         self.bianca.burst = BURST_FRAMES
+        self.bianca.sortie, self.bianca.flyers_only = BIANCA_SORTIE, False
         self.jb.fx("luce")
-        for c in self.crows:
-            if c.alive and self.cam - 100 < c.x < self.cam + DW + 100:
-                self.hit_enemy(c, 999, pts=getattr(c, "spec", {}).get("pts", 150))
         if self.boss and self.boss.hp > 0:
-            self.boss.hp = max(0, self.boss.hp - max(1, round(self.boss.max_hp * 0.05 * units)))
+            self.boss.hp = max(0, self.boss.hp - max(1, round(self.boss.max_hp * 0.05)))
             self.boss.flash = 20
         return True
+
+    def on_screen(self, e):
+        """Nella scena: dentro la vista piu' larga che la telecamera puo' avere."""
+        p = self.player.rect
+        return abs(e.rect.centerx - p.centerx) < DW // 2 and abs(e.rect.centery - p.centery) < DH * 0.7
+
+    def bianca_sortie(self):
+        """Bianca in incursione. Da sola parte quando ci sono piu' di BIANCA_CROWD
+        volanti sullo schermo, e prende solo volanti; con V prende chiunque."""
+        b = self.bianca
+        if not b:
+            return
+        b.rest = max(0, b.rest - 1)
+        flying = [c for c in self.crows if c.alive and getattr(c, "stuck", None) is None and self.on_screen(c)]
+        if not b.sortie and not b.rest and len(flying) > BIANCA_CROWD:
+            b.sortie, b.flyers_only = BIANCA_SORTIE, True
+        if b.target is not None:
+            if not b.target.alive:
+                b.target = None
+            elif pygame.Vector2(b.target.rect.center).distance_to((b.x, b.y)) < 50:
+                self.hit_enemy(b.target, 999, pts=getattr(b.target, "spec", {}).get("pts", 150))
+                self.burst_sparks(b.x, b.y, 18, (255, 240, 200))
+                self.jb.fx("caw")
+                b.target = None
+            return
+        if not b.sortie:
+            return
+        pool = flying + ([] if b.flyers_only else
+                         [k for k in self.skels if k.alive and not getattr(k, "hidden", False) and self.on_screen(k)])
+        if not pool:
+            b.sortie = 0
+            b.rest = BIANCA_REST if b.flyers_only else b.rest
+            return
+        b.target = min(pool, key=lambda e: pygame.Vector2(e.rect.center).distance_to(self.player.rect.center))
+        b.sortie -= 1
+        if not b.sortie and b.flyers_only:
+            b.rest = BIANCA_REST
 
     def boss_spawn(self, projectile):
         self.balls.append(projectile)
@@ -1606,6 +1666,7 @@ class Game:
             p.update(keys, self.lv)
         if self.bianca:
             self.bianca.update(p, self.cam, self.camy)
+            self.bianca_sortie()
         self.luce = p.albedo
         if p.jumped:
             self.jb.fx("jump")
@@ -1654,7 +1715,7 @@ class Game:
                 self.jb.fx("air")
             p.oxygen = min(OXYGEN_MAX, p.oxygen + OXYGEN_REFILL)
         else:
-            p.oxygen = max(0, p.oxygen - OXYGEN_DRAIN)
+            p.oxygen = max(0, p.oxygen - OXYGEN_DRAIN * (SPRINT_O2 if p.sprinting else 1))
             if p.oxygen == 0 and self.frame % 90 == 0:
                 self.jb.fx("pant")                  # senz'aria: si ansima, non si muore
         for vent in self.vents:
@@ -1878,6 +1939,14 @@ class Game:
             if k == pygame.K_SPACE:
                 self.cable.release(p)
                 self.jb.fx("jump")
+            return
+        side = 1 if k in (pygame.K_RIGHT, pygame.K_d) else (-1 if k in (pygame.K_LEFT, pygame.K_a) else 0)
+        if side:
+            if p.tap_dir == side and self.frame - p.last_tap <= DOUBLE_TAP:
+                p.running = side                    # doppio tocco: si corre
+            p.last_tap, p.tap_dir = self.frame, side
+        if k == pygame.K_b:
+            self.start_nova()
             return
         fwd = (pygame.K_RIGHT, pygame.K_d) if p.facing > 0 else (pygame.K_LEFT, pygame.K_a)
         if k in (pygame.K_DOWN, pygame.K_s):

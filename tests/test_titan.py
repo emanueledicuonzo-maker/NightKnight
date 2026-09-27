@@ -9,6 +9,7 @@ import unittest
 
 import pygame
 import goblin
+import levels
 import titan
 
 
@@ -79,24 +80,62 @@ class TitanTests(unittest.TestCase):
         g.update()
         self.assertEqual(g.player.albedo, goblin.LUCE_PER_PRISONER)
 
-    def test_bianca_burst_downs_flyers_and_spends_whole_units(self):
+    def sortie_scene(self, flyers, walkers):
         g = self.game
-        g.player.albedo = 60
-        crow = goblin.Flyer(g.cam + 600, 300, "crow")
-        g.crows.append(crow)
-        self.assertTrue(g.luce_burst())
-        self.assertFalse(crow.alive)
-        self.assertEqual(g.player.albedo, 10)      # due unita' da 25 spese, il resto rimane
-        self.assertFalse(g.luce_burst())           # Bianca e' ancora in volo
+        g.waves.patrols = None
+        for w in g.waves.waves:
+            w.state = "done"
+        g.skels, g.crows = [], []
+        p = g.player
+        p.x, p.y = 128 * goblin.TILE, levels.GROUND * goblin.TILE - p.h
+        g.bianca = goblin.Bianca(p)
+        for _ in range(20):
+            g.update()
+        for i in range(flyers):
+            g.crows.append(goblin.Flyer(p.x + 150 + 60 * i, p.y - 200, "crow"))
+            g.crows[-1].state = "wait"
+        for i in range(walkers):
+            w = goblin.Walker(p.x - 350 - 40 * i, "skeleton")
+            w.frozen = 10 ** 6
+            g.skels.append(w)
+        for c in g.crows:
+            c.frozen = 10 ** 6
+        return g, list(g.crows), list(g.skels)
 
-    def test_bianca_burst_takes_five_percent_per_unit_from_the_guardian(self):
+    def run_frames(self, g, n):
+        for _ in range(n):
+            g.update()
+            g.player.hp, g.player.invuln = goblin.PLAYER_HP, 5
+
+    def test_bianca_attacks_alone_only_flyers_five_at_most(self):
+        g, crows, skels = self.sortie_scene(flyers=7, walkers=3)
+        self.run_frames(g, 400)
+        self.assertEqual(sum(not c.alive for c in crows), goblin.BIANCA_SORTIE)
+        self.assertTrue(all(k.alive for k in skels))              # i nemici di terra no
+        self.assertGreater(g.bianca.rest, 0)                        # poi riposa
+
+    def test_bianca_does_not_move_for_few_flyers(self):
+        g, crows, _ = self.sortie_scene(flyers=goblin.BIANCA_CROWD, walkers=0)
+        self.run_frames(g, 300)
+        self.assertTrue(all(c.alive for c in crows))
+
+    def test_v_sends_bianca_on_anyone_for_one_unit_of_light(self):
+        g, crows, skels = self.sortie_scene(flyers=1, walkers=6)
+        g.player.albedo = 60
+        self.assertTrue(g.luce_burst())
+        self.assertEqual(g.player.albedo, 35)                       # un'unita' da 25
+        self.run_frames(g, 400)
+        self.assertFalse(crows[0].alive)
+        self.assertEqual(sum(not k.alive for k in skels), goblin.BIANCA_SORTIE - 1)
+
+    def test_v_takes_five_percent_from_the_guardian(self):
         g = self.game
         g.start_part("arena")
         g.state = "play"
         g.player.albedo = 100
         hp = g.boss.hp
         g.luce_burst()
-        self.assertEqual(hp - g.boss.hp, round(g.boss.max_hp * 0.20))
+        self.assertEqual(hp - g.boss.hp, round(g.boss.max_hp * 0.05))
         g.start_part("surface")
         g.state = "play"
 

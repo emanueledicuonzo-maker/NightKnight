@@ -290,6 +290,28 @@ class FaunaTests(unittest.TestCase):
             with self.subTest(kind=kind):
                 self.assertGreater(abs(e.rect.centerx - p.rect.centerx), goblin.DW // 2 + 60)
 
+    def test_double_tap_and_hold_runs_and_costs_air(self):
+        from collections import defaultdict
+        from unittest.mock import patch
+        import levels
+        g = self.game
+        p = g.player
+        p.x, p.y = 128 * goblin.TILE, levels.GROUND * goblin.TILE - p.h
+        keys = defaultdict(bool, {pygame.K_RIGHT: True})
+        with patch.object(pygame.key, "get_pressed", lambda: keys):
+            g.key(pygame.K_RIGHT)
+            g.update()
+            g.key(pygame.K_RIGHT)                    # secondo tocco, subito
+            for _ in range(40):
+                g.update()
+            self.assertGreater(p.vx, goblin.RUN_MAX + 1)
+            o2 = p.oxygen
+            g.update()
+            self.assertAlmostEqual(o2 - p.oxygen, goblin.OXYGEN_DRAIN * goblin.SPRINT_O2, places=5)
+            keys[pygame.K_RIGHT] = False
+            g.update()
+            self.assertEqual(p.running, 0)           # lasciata la freccia, si smette
+
 
 if __name__ == "__main__":
     unittest.main()
