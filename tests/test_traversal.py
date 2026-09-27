@@ -130,7 +130,7 @@ class TraversalTests(unittest.TestCase):
         for _ in range(60):
             g.update()
         self.assertLess(p.oxygen, 50)
-        p.x = station.x - p.w / 2
+        p.x, p.y = station.x - p.w / 2, station.floor - p.h
         for _ in range(60):
             g.update()
         self.assertEqual(p.oxygen, goblin.OXYGEN_MAX)

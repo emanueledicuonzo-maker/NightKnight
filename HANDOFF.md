@@ -33,11 +33,15 @@ must stay readable when scaled up 2x.
 Only **Titan**, start to finish (the other eleven satellites are not built yet;
 after the Guardian an end screen says so):
 
-1. **Surface** — one continuous map (`levels.gen_surface()`, 432 columns): two
+1. **Surface** — one continuous map (`levels.gen_surface()`, 432 columns) with
+   hills and mountains climbed in 1-3 tile steps (`TITAN_HILLS`; the big one,
+   10 tiles, has a 3-wide ladder), markers placed on top of the relief: two
    waves (one on the ground, one of flyers) that start when the knight enters
    their zone and never lock the way (`waves.py`), and all along the way a group
    of 2-4 enemies every 14 columns of new ground (`TITAN_PATROLS`, worms most
-   common); methane lakes, cryovolcanoes (3 s eruptions that throw you off),
+   common), plus a group whenever nobody is around for 3 s (flyers only in the
+   traversal, none in the galleries); reinforcements stand on the real ground
+   (`Level.floor_near`); a wave left far behind closes; methane lakes, cryovolcanoes (3 s eruptions that throw you off),
    nitrogen vents (5 s horizontal jets that push you back, frost you blue: 25%
    speed for 2 s, shorter jumps), 3 oxygen stations, 30 prisoners (5 Light each).
    Oxygen lasts 150 s; at zero you do not die: you slow down, jump less, pant

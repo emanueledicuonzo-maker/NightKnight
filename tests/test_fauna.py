@@ -180,6 +180,28 @@ class FaunaTests(unittest.TestCase):
             if kind == "burrower":
                 self.assertGreater(row, levels.GROUND)
 
+    def test_never_alone_for_long(self):
+        import levels
+        g = self.game
+        g.waves.patrols = levels.TITAN_PATROLS
+        g.waves.next_patrol = 10 ** 9            # niente strada nuova: conta solo il silenzio
+        g.skels, g.crows = [], []
+        for _ in range(levels.TITAN_PATROLS["quiet"] + 5):
+            g.update()
+            g.player.hp = goblin.PLAYER_HP
+        self.assertTrue(g.skels or g.crows)
+
+    def test_a_wave_left_far_behind_closes(self):
+        g = self.game
+        w = g.waves.waves[0]
+        w.state = "fighting"
+        straggler = goblin.Walker(w.x0, "skeleton")
+        w.members, w.queue = [straggler], []
+        g.skels = [straggler]
+        g.player.x = w.x1 + 2000
+        g.update()
+        self.assertEqual(w.state, "done")
+
 
 if __name__ == "__main__":
     unittest.main()

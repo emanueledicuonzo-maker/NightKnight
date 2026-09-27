@@ -9,6 +9,7 @@ ALIVE = 8                 # nemici in campo insieme, se l'ondata non dice altro
 FLEE = 1800               # oltre questa distanza dalla zona l'ondata smette di mandare rinforzi
 VIEW_HALF = 640           # meta' della vista del mondo (1280 px con lo zoom)
 FLYING = ("crow", "skeleton_fly", "jelly")
+QUIET_RANGE = 1100        # nessun nemico piu' vicino di cosi': si e' soli
 
 
 class Wave:
@@ -39,6 +40,8 @@ class WaveDirector:
         self.patrols = patrols
         self.patrol_end = patrol_end
         self.next_patrol = patrols["start"] * TILE if patrols else None
+        self.patrol_floor = 0
+        self.quiet = 0
         self.waves = [Wave(col * TILE, spec, rnd) for col, spec in zip(arenas, specs)]
         self.make_walker, self.make_flyer = make_walker, make_flyer
         self.rnd = rnd
@@ -49,22 +52,35 @@ class WaveDirector:
         """Le ondate non chiudono mai il passaggio."""
         return None
 
-    def patrol(self, cx, walkers, flyers):
-        """Strada nuova e nessuna ondata in corso: arriva un gruppetto."""
+    def patrol(self, player, walkers, flyers):
+        """Strada nuova e nessuna ondata in corso: arriva un gruppetto. E se per un
+        po' non c'e' nessuno attorno, ne arriva uno comunque: mai tratti vuoti.
+        Oltre `patrol_end` (la traversata) arrivano solo volanti, e non sottoterra."""
         spec = self.patrols
-        if not spec or cx < self.next_patrol or (self.patrol_end and cx > self.patrol_end):
+        if not spec:
             return
-        self.next_patrol = cx + spec["every"] * TILE
-        if any(w.state == "fighting" for w in self.waves) or any(w.x0 - 240 < cx < w.x1 for w in self.waves):
+        cx, cy = player.rect.centerx, player.rect.top
+        beyond = self.patrol_end and cx > self.patrol_end
+        if beyond and player.rect.bottom > self.patrol_floor + 2 * TILE:
+            return                                   # nelle gallerie niente rinforzi dal cielo
+        fighting = any(w.state == "fighting" for w in self.waves)
+        near = any(e.alive and abs(e.rect.centerx - cx) < QUIET_RANGE for e in walkers + flyers)
+        self.quiet = 0 if near else self.quiet + 1
+        new_ground = not beyond and cx >= self.next_patrol
+        if new_ground:
+            self.next_patrol = cx + spec["every"] * TILE
+        if not ((new_ground and not fighting) or self.quiet > spec["quiet"]):
             return
+        self.quiet = 0
+        pool = spec["flyers"] if beyond else spec["pool"]
         for _ in range(self.rnd.randint(*spec["size"])):
-            self.spawn(self.rnd.choice(spec["pool"]), cx, walkers, flyers)
+            self.spawn(self.rnd.choice(pool), cx, walkers, flyers, cy)
 
     def update(self, player, walkers, flyers):
         """Aggiorna tutte le ondate; restituisce l'ultimo evento ("start"/"clear", onda) o None."""
         event = None
         cx = player.rect.centerx
-        self.patrol(cx, walkers, flyers)
+        self.patrol(player, walkers, flyers)
         for w in self.waves:
             if w.state == "waiting" and w.x0 + 240 < cx:
                 w.state = "fighting"
@@ -72,24 +88,31 @@ class WaveDirector:
             if w.state != "fighting":
                 continue
             if cx > w.x1 + FLEE or cx < w.x0 - FLEE:
-                # NightKnight e' scappato: niente piu' rinforzi, chi c'e' lo insegue
+                # NightKnight e' scappato: niente piu' rinforzi, chi c'e' lo insegue;
+                # chi e' rimasto indietro, lontano, non tiene piu' aperta l'ondata
                 w.queue.clear()
+                if not any(e.alive and abs(e.rect.centerx - cx) < FLEE for e in w.members):
+                    w.state = "done"
+                    event = ("clear", w)
+                    continue
             w.timer -= 1
             alive = sum(1 for e in w.members if e.alive)
             if w.queue and w.timer <= 0 and alive < w.alive_max:
                 w.timer = w.every
-                w.members.append(self.spawn(w.queue.pop(), cx, walkers, flyers))
+                w.members.append(self.spawn(w.queue.pop(), cx, walkers, flyers, player.rect.top))
             if not w.queue and not any(e.alive for e in w.members):
                 w.state = "done"
                 event = ("clear", w)
         return event
 
-    def spawn(self, kind, cx, walkers, flyers):
-        # i nemici entrano dai bordi della vista, due su tre davanti a NightKnight
+    def spawn(self, kind, cx, walkers, flyers, cy=None):
+        # i nemici entrano dai bordi della vista, due su tre davanti a NightKnight;
+        # i volanti all'altezza di chi inseguono, i camminatori sul suolo che trovano
         self.side = 1 if self.rnd.random() < 0.67 else -1
         if kind in FLYING:
             x = cx - VIEW_HALF - 80 if self.side < 0 else cx + VIEW_HALF + 20
-            e = self.make_flyer(x, self.rnd.randrange(*self.flyer_y), kind)
+            y = cy - self.rnd.randrange(60, 300) if cy is not None else self.rnd.randrange(*self.flyer_y)
+            e = self.make_flyer(x, y, kind)
             flyers.append(e)
             return e
         if kind in ("worm", "burrower"):     # questi vermi escono dal suolo, non lontano

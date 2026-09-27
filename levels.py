@@ -63,10 +63,13 @@ TITAN_WAVES = [
     dict(name="dal cielo", roster=[("crow", 10), ("jelly", 3), ("skeleton_fly", 3)]),
 ]
 # Lungo tutta la strada non si e' mai soli: ogni `every` colonne di strada nuova
-# arriva un gruppetto di 2-4 nemici della fauna di Titano (i vermi sono i piu' comuni).
+# arriva un gruppetto di 2-4 nemici della fauna di Titano (i vermi sono i piu' comuni);
+# se per `quiet` fotogrammi non c'e' nessuno attorno ne arriva uno comunque (nella
+# traversata solo volanti).
 TITAN_PATROLS = dict(every=14, size=(2, 4), start=12,
                      pool=["skeleton", "skeleton", "lizard", "miner", "worm", "worm", "worm_walk",
-                           "worm_walk", "crow", "jelly", "skeleton_fly"])
+                           "worm_walk", "crow", "jelly", "skeleton_fly"],
+                     quiet=180, flyers=["crow", "crow", "jelly", "skeleton_fly"])
 # Nella traversata pochi nemici, otto sottoterra.
 # (specie, colonna dall'inizio, riga: quella dei piedi per chi cammina, del volo per i volanti)
 TITAN_PASS_FOES = [("lizard", 26, GROUND - 4), ("crow", 32, GROUND - 20),
@@ -87,28 +90,60 @@ TITAN_ARENA_FLYERS = ["crow", "jelly", "skeleton_fly"]
 TITAN_ARENA_FLYERS_MAX = 2
 
 
+# Rilievi della superficie: (prima colonna, [(larghezza, altezza), ...]) a gradini di
+# 1-3 tessere, che si salgono saltando; la montagna grande ha la sua scala. Le
+# arene delle ondate, le tappe e le rive dei laghi restano in piano.
+TITAN_HILLS = [
+    (24, [(3, 1), (3, 2), (3, 3), (3, 2), (3, 1)]),
+    (42, [(3, 3), (6, 6), (2, 4)]),
+    (74, [(3, 2), (3, 4), (4, 7), (3, 4), (2, 2)]),
+    (106, [(3, 2), (5, 5), (2, 2)]),
+    (176, [(4, 3), (4, 6), (3, 9), (1, 5)]),
+    (240, [(9, 10), (3, 7), (3, 4), (1, 2)]),          # la montagna, con la scala
+    (262, [(3, 2), (3, 3), (3, 2)]),
+    (334, [(3, 3), (4, 6), (2, 3)]),
+    (376, [(3, 2), (3, 5), (4, 8), (3, 5), (3, 2)]),
+    (405, [(4, 3), (5, 6), (4, 3)]),
+]
+TITAN_BIG_LADDER = 237       # la scala di servizio della montagna grande
+
+
+def surface_heights(cols=432):
+    hts = [0] * cols
+    for c0, steps in TITAN_HILLS:
+        for w, h in steps:
+            for c in range(c0, c0 + w):
+                hts[c] = h
+            c0 += w
+    return hts
+
+
 def gen_titan_surface():
-    """Esplorazione e quattro arene: fra un'ondata e l'altra laghi di metano,
+    """Esplorazione e due arene: colline e montagne da salire, laghi di metano,
     criovulcani e prigionieri; le rive restano libere per la rincorsa."""
     cols = 432
     g = _grid(cols)
-    _rock(g, 0, cols, 0)
+    hts = surface_heights(cols)
+    for c, h in enumerate(hts):
+        _rock(g, c, c + 1, h)
+    _ladder_rows(g, TITAN_BIG_LADDER, GROUND - 10, GROUND)
     lakes = ((16, 18), (55, 57), (66, 69), (100, 103), (118, 121), (150, 152), (165, 168), (190, 193),
              (205, 207), (228, 231), (258, 260), (276, 279), (300, 302), (318, 321), (345, 347),
              (368, 371), (395, 398), (420, 422))
     for start, end in lakes:
         _lake(g, start, end)
-    # q = criovulcano; u = prigioniero (trenta)
-    for col in (10, 61, 82, 94, 113, 145, 172, 198, 214, 250, 283, 310, 335, 380, 412, 426):
-        g[GROUND-1][col] = "q"
+    top = lambda c: GROUND - hts[c] - 1          # la cella appena sopra il suolo, anche in collina
+    # q = criovulcano (in piano, con spazio per passarci); u = prigioniero (trenta)
+    for col in (10, 61, 94, 128, 145, 159, 172, 198, 214, 222, 283, 310, 327, 353, 426):
+        g[top(col)][col] = "q"
     for col in (6, 13, 20, 34, 47, 53, 59, 71, 88, 104, 111, 125, 138, 157, 170, 184, 197, 211,
                 224, 236, 247, 263, 287, 296, 308, 324, 340, 355, 389, 415):
-        g[GROUND-1][col] = "u"
-    g[GROUND-1][1] = "P"                    # la capsula con cui NightKnight e' arrivato
+        g[top(col)][col] = "u"
+    g[top(1)][1] = "P"                      # la capsula con cui NightKnight e' arrivato
     for col in (3, 186, 378):               # stazioni d'ossigeno: poche, vanno pianificate
-        g[GROUND-1][col] = "o"
-    for col in (95, 270, 358, 374):         # condotte d'azoto
-        g[GROUND-1][col] = "c"
+        g[top(col)][col] = "o"
+    for col in (95, 290, 358, 374):         # condotte d'azoto
+        g[top(col)][col] = "c"
     return g
 
 

@@ -44,8 +44,8 @@ con ondate e insidie, 2/3 minuti di traversata con pochissimi nemici, 2/3 minuti
 duello contro il Guardiano, aiutato solo da pochi volanti. Regole, nemici e
 tabelle dei satelliti sono in `STORY.md`.
 
-Oggi e' giocabile **solo Titano**, dall'inizio alla fine: un unico percorso con
-due ondate, una di terra e una di volanti (non bloccano mai, si puo' scappare), e
+Oggi e' giocabile **solo Titano**, dall'inizio alla fine: un unico percorso fra
+colline e montagne da scalare (la piu' alta ha la sua scala di servizio), con due ondate, una di terra e una di volanti (non bloccano mai, si puo' scappare), e
 lungo tutta la strada gruppetti di nemici continui; laghi di metano, criovulcani,
 condotte d'azoto che respingono e gelano, solo quattro stazioni d'ossigeno in
 tutto il livello (senz'aria non si muore, ma si rallenta, si ansima e ogni colpo

@@ -49,6 +49,7 @@ GROUND = levels.GROUND
 FEET_IN_VIEW = int(14 * TILE / ZOOM)
 VIEW_Y = GROUND * TILE - FEET_IN_VIEW
 CAM_TOP, CAM_BOTTOM = 70, 150
+LADDER_LOOK = TILE         # sulla scala la vista sale di una tessera
 # Zoom: in combattimento la telecamera si avvicina, ma non in mezzo alla folla
 # (li' serve vedere); nel duello resta un po' piu' vicina per tutto lo scontro.
 ZOOM_FIGHT, ZOOM_DUEL = 1.75, 1.6
@@ -64,7 +65,7 @@ FIGHT_RANGE = (520, 320)     # distanza (orizzontale, verticale) dei nemici che 
 PARALLAX = (("hills_far", 0.07, 0, 70), ("hills_01", 0.16, 0, 45),
             ("colony_ruins", 0.28, 90, 30), ("hills_02", 0.42, 0, 0))
 FOG_COLOR = (196, 112, 58)
-DARKNESS, VISOR = 195, 460       # buio delle gallerie e raggio della luce della visiera
+DARKNESS, VISOR = 140, 640       # buio delle gallerie e raggio della luce della visiera
 FOREGROUND_SPEED, FOREGROUND_SINK = 1.35, 230
 CROWD = 6                    # con piu' nemici vicini di cosi' la telecamera resta larga      # margini oltre i quali la telecamera insegue un salto o una caduta
 GRAVITY = 0.75
@@ -145,6 +146,10 @@ class Gfx:
         link = assets.pieces("hook", 2, 22, 1)
         if hook and link:
             knights.ART.update(hook=hook[0], link=pygame.transform.rotate(link[1], 90))
+        # Ombra sotto le cengie sospese
+        self.ledge_shadow = pygame.Surface((TILE, 26), pygame.SRCALPHA)
+        for yy in range(26):
+            pygame.draw.line(self.ledge_shadow, (20, 10, 6, int(110 * (1 - yy / 26) ** 1.5)), (0, yy), (TILE, yy))
         # Buio delle gallerie e luce della visiera (un alone che sfuma al buio).
         self.darkness = pygame.Surface((W, H), pygame.SRCALPHA)
         self.visor_light = pygame.Surface((VISOR * 2, VISOR * 2), pygame.SRCALPHA)
@@ -374,6 +379,17 @@ class Level:
 
     def tile_at(self, x, y):
         return self.at(int(x // TILE), int(y // TILE))
+
+    def floor_near(self, x, y, reach=8):
+        """La quota del suolo (una cima con aria sopra) nella colonna di x piu'
+        vicina a y, entro `reach` tessere; None se li' c'e' solo vuoto o metano."""
+        c = int(x // TILE)
+        best = None
+        for r in range(max(1, int(y // TILE) - reach), min(self.rows, int(y // TILE) + reach)):
+            if self.at(c, r) in SOLID and self.at(c, r - 1) not in SOLID and self.at(c, r - 1) != "~":
+                if best is None or abs(r * TILE - y) < abs(best - y):
+                    best = r * TILE
+        return best
 
     def drowned(self, rect):
         """Finito nel metano: la testa e' gia' sotto il pelo del lago."""
@@ -1245,9 +1261,10 @@ class Game:
                     self.skels.append(walker)
         self.waves = None
         if self.part == "surface":
-            self.waves = waves.WaveDirector(levels.TITAN_ARENAS, levels.TITAN_WAVES, Walker, Flyer, seed=self.ci,
+            self.waves = waves.WaveDirector(levels.TITAN_ARENAS, levels.TITAN_WAVES, self.make_walker, Flyer, seed=self.ci,
                                             flyer_y=(VIEW_Y + 40, VIEW_Y + 260),
                                             patrols=levels.TITAN_PATROLS, patrol_end=levels.TITAN_PASS_START * TILE)
+            self.waves.patrol_floor = GROUND * TILE
             # si riparte dall'ultima tappa: le ondate gia' passate restano superate
             col, row = levels.TITAN_STAGES[self.stage]
             p.x, p.y = col * TILE + (TILE - p.w) / 2, row * TILE - p.h
@@ -1260,6 +1277,15 @@ class Game:
             self.dark = 1.0 if row > levels.CAVE_TOP else 0.0
         if self.part == "arena":
             self.start_round()
+
+    def make_walker(self, x, kind):
+        """Un camminatore dei rinforzi, appoggiato sul suolo che c'e' dove entra
+        (colline e montagne comprese), il piu' vicino all'altezza di NightKnight."""
+        w = Walker(x, kind)
+        feet = self.lv.floor_near(w.rect.centerx, self.player.rect.bottom)
+        if feet is not None:
+            w.y = feet - w.h
+        return w
 
     def start_round(self):
         self.player = Player(3 * TILE, GROUND * TILE - Entity.h)
@@ -1355,6 +1381,9 @@ class Game:
         steady = p.on_ground or p.climbing or (self.cable and self.cable.attached)
         if steady:
             self.camy_target = r.bottom - FEET_IN_VIEW
+            if p.climbing:
+                # sulla scala si guarda dove si va: in cima c'e' la prossima cengia
+                self.camy_target -= LADDER_LOOK
         elif r.top < self.camy_target + CAM_TOP:
             self.camy_target = r.top - CAM_TOP
         elif r.bottom > self.camy_target + VH - CAM_BOTTOM:
@@ -1993,7 +2022,14 @@ class Game:
             s.blit(self.gfx.rock_shade_r, (x + TILE - self.gfx.rock_shade_r.get_width(), y))
             pygame.draw.line(s, (24, 14, 10), (x + TILE - 2, y), (x + TILE - 2, y + TILE), 4)
         if air(c, r - 1) and r < GROUND:
-            pygame.draw.line(s, (24, 14, 10), (x, y), (x + TILE, y), 4)
+            # il bordo su cui si cammina: contorno scuro e un filo di luce, si
+            # legge contro i fondali dello stesso colore
+            pygame.draw.line(s, (24, 14, 10), (x, y), (x + TILE, y), 5)
+            pygame.draw.line(s, (255, 214, 150), (x, y + 4), (x + TILE, y + 4), 3)
+        if air(c, r + 1) and r < GROUND:
+            # sotto una cengia sospesa: contorno e ombra portata
+            pygame.draw.line(s, (24, 14, 10), (x, y + TILE - 2), (x + TILE, y + TILE - 2), 5)
+            s.blit(self.gfx.ledge_shadow, (x, y + TILE))
 
     def draw_center(self, text, y, color=(245, 245, 245), scale=8):
         fonts.draw_text(self.screen, text, W // 2 - fonts.text_width(text, scale) // 2, y, color, scale)
