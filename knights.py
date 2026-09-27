@@ -117,7 +117,9 @@ class Projectile:
             for i in range(0, abs(r.centerx - x0), step):
                 cx = x0 + i * (1 if r.centerx > x0 else -1)
                 s.blit(link, (cx - link.get_width() // 2, y - link.get_height() // 2))
-            hook = ART["hook"] if self.d > 0 else pygame.transform.flip(ART["hook"], True, False)
+            if "hook_l" not in ART:
+                ART["hook_l"] = pygame.transform.flip(ART["hook"], True, False)
+            hook = ART["hook"] if self.d > 0 else ART["hook_l"]
             s.blit(hook, (r.centerx - hook.get_width() // 2, y - hook.get_height() // 2))
             return
         if self.kind == "hook":

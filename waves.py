@@ -8,8 +8,8 @@ SPAWN_EVERY = 28          # fotogrammi fra un nemico e il successivo
 ALIVE = 8                 # nemici in campo insieme, se l'ondata non dice altro
 FLEE = 1800               # oltre questa distanza dalla zona l'ondata smette di mandare rinforzi
 # Nessuno compare dal nulla: si nasce fuori dallo schermo anche con la telecamera
-# allargata al massimo (meta' vista 800 px) e si arriva da lontano.
-SPAWN_AWAY = 960
+# allargata al massimo (meta' vista 960 px) e si arriva da lontano.
+SPAWN_AWAY = 1120        # oltre la meta vista, anche contando la larghezza dei nemici
 SPAWN_SPREAD = 300
 FLYING = ("crow", "skeleton_fly", "jelly")
 QUIET_RANGE = 1100        # nessun nemico piu' vicino di cosi': si e' soli

@@ -11,7 +11,9 @@ import levels
 TILE = 64
 ART = {}           # pilone e impugnatura disegnati (caricati dal gioco)
 FLOOR = levels.GROUND * TILE
+BED = FLOOR + levels.LAKE_DEPTH * TILE      # il fondo dei laghi
 _pylons = {}       # gru scalate all'altezza di ogni portale
+GRAB = 130         # in salto, a questa distanza dall'impugnatura ci si aggrappa
 
 
 class Rope:
@@ -55,13 +57,14 @@ def draw_portal(screen, cam, left, right, top):
     source = ART.get("pylon")
     for x, flip in ((left, False), (right, True)):
         if source:
-            h = FLOOR - top + 30
+            h = BED - top + 30            # piantate sul fondo del lago: la parte immersa non si vede
             if h not in _pylons:
                 k = h / source.get_height()
-                _pylons[h] = pygame.transform.smoothscale(source, (int(source.get_width() * k), h))
-            img = pygame.transform.flip(_pylons[h], True, False) if flip else _pylons[h]
+                img = pygame.transform.smoothscale(source, (int(source.get_width() * k), h))
+                _pylons[h] = (img, pygame.transform.flip(img, True, False))     # specchiata una volta sola
+            img = _pylons[h][1 if flip else 0]
             foot = int(img.get_width() * 0.22)
-            screen.blit(img, (x + foot - img.get_width() if flip else x - foot, FLOOR - img.get_height()))
+            screen.blit(img, (x + foot - img.get_width() if flip else x - foot, BED - img.get_height()))
         else:
             pygame.draw.line(screen, (36, 32, 28), (x, FLOOR), (x, top - 12), 18)
             pygame.draw.line(screen, (108, 95, 73), (x - 3, FLOOR), (x - 3, top - 12), 4)
@@ -105,13 +108,15 @@ class Cable:
         body = self.rope.body
         p.x = body.position.x - p.w / 2
         p.y = body.position.y - 45
-        p.facing = 1 if body.velocity.x >= 0 else -1
+        if not p.attack:
+            p.facing = 1 if body.velocity.x >= 0 else -1
         # posa: gambe indietro o avanti secondo da che parte oscilla
         swing = (body.position.x - self.rope.anchor.x) / self.rope.length * p.facing
         p.hanging = -1 if swing < -0.2 else (1 if swing > 0.2 else 0)
         p.vx = p.vy = 0
         p.on_ground = False
         p.jumped = False
+        p.advance_attack()        # la spada si puo' usare anche appesi
 
     def update_player(self, p, keys, lv):
         Cables([[self]]).update_player(p, keys, lv)
@@ -156,7 +161,7 @@ class Cables:
             c.regrab = max(0, c.regrab - 1)
         if not self.attached and not p.on_ground:
             for c in self.all:
-                if not c.regrab and c.reach(p) < 110:
+                if not c.regrab and c.reach(p) < GRAB:
                     c.grab(p)
                     break
         if self.current:

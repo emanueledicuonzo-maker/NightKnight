@@ -6,6 +6,16 @@ import pygame
 
 # Disegni caricati dal gioco (goblin.Gfx): senza, si disegna tutto in codice.
 ART = {}
+_jets = {}         # colonne del getto gia' scalate
+_flips = {}
+
+
+def _flipped(img):
+    """L'immagine specchiata, calcolata una volta sola (non a ogni fotogramma)."""
+    key = id(img)
+    if key not in _flips:
+        _flips[key] = (img, pygame.transform.flip(img, True, False))
+    return _flips[key][1]
 SINK = 8           # gli oggetti affondano un poco nel suolo: poggiano, non galleggiano
 _shadows = {}
 
@@ -101,14 +111,51 @@ class Geyser:
         phase = self.phase
         base = ART["geyser"][0 if phase == "rest" else 1]
         if phase == "eruption":
-            k = (self.age % self.PERIOD - self.REST - self.WARNING) / self.ERUPTION
-            jet = ART["geyser_jet"][0 if k < 0.18 else (1 if k < 0.78 else 2)]
-            wobble = int(math.sin(self.age * 0.9) * 4)
-            screen.blit(jet, (x - jet.get_width() // 2 + wobble, floor - base.get_height() // 3 - jet.get_height()))
+            self.draw_jet(screen, x, floor - base.get_height() // 3)
         elif phase == "warning" and (self.age // 4) % 2:
             x += 2                                # il cono trema prima dell'eruzione
         ground_shadow(screen, x, floor, base.get_width() * 0.9)
         screen.blit(base, (x - base.get_width() // 2, floor - base.get_height() + SINK))
+
+
+    def draw_jet(self, screen, x, mouth):
+        """La colonna che sale dal cratere, ribolle al massimo e ricade; in cima
+        spruzza gocce di fango gelato che ricadono ad arco, alla base schizza."""
+        k = (self.age % self.PERIOD - self.REST - self.WARNING) / self.ERUPTION
+        if k < 0.2:
+            grow = 1 - (1 - k / 0.2) ** 3                 # sale di scatto e rallenta
+        elif k > 0.75:
+            grow = 1 - ((k - 0.75) / 0.25) ** 2           # ricade
+        else:
+            grow = 1 + 0.05 * math.sin(self.age * 0.55)   # ribolle
+        full = ART["geyser_jet"][1]
+        h = max(8, int(full.get_height() * grow) // 4 * 4)
+        w = max(8, int(full.get_width() * (0.8 + 0.2 * min(1, grow)) + 6 * math.sin(self.age * 0.8)) // 4 * 4)
+        key = (id(full), w, h)
+        if key not in _jets:
+            _jets[key] = pygame.transform.smoothscale(full, (w, h))
+        jet = _jets[key]
+        top = mouth - h
+        screen.blit(jet, (x - w // 2, top))
+        # gocce che partono dalla cima e ricadono ad arco, con il contorno del cartoon
+        for i in range(16):
+            life = ((self.age * 2.2 + i * 29) % 70) / 70
+            side = 1 if i % 2 else -1
+            spread = 50 + (i % 5) * 22
+            gx = x + side * (10 + life * spread)
+            gy = top + 20 - 110 * life + 300 * life * life
+            if gy > mouth + 4 or grow < 0.3:
+                continue
+            vx, vy = side * spread, -110 + 600 * life              # la scia segue il volo
+            tail = (gx - vx * 0.08, gy - vy * 0.08)
+            pygame.draw.line(screen, (60, 50, 50), tail, (gx, gy), 5)
+            pygame.draw.line(screen, (236, 232, 222) if i % 3 else (240, 214, 170), tail, (gx, gy), 3)
+        # schizzi alla base
+        for i in range(6):
+            life = ((self.age * 3 + i * 17) % 30) / 30
+            sx = x + (i - 2.5) * 22 * (0.6 + life)
+            sy = mouth - 6 - math.sin(life * math.pi) * 26
+            pygame.draw.circle(screen, (232, 222, 204), (int(sx), int(sy)), int(6 * (1 - life)) + 2)
 
 
 class Spento:
@@ -205,7 +252,7 @@ class GasVent:
         if "vent" in ART:
             pipe = ART["vent"][1 if k >= 0 and (k // 6) % 3 else 0]
             if self.facing < 0:
-                pipe = pygame.transform.flip(pipe, True, False)
+                pipe = _flipped(pipe)
             w = ART["vent"][0].get_width()
             px = x - w // 2 if self.facing > 0 else x + w // 2 - pipe.get_width()
             ground_shadow(screen, x, f, w * 1.1)
@@ -222,10 +269,10 @@ class GasVent:
             if life > grow:
                 continue
             cx = 40 + life * self.REACH
+            if self.facing < 0:
+                cx = jet.get_width() - cx                  # soffia verso sinistra
             cy = 110 + math.sin(i * 1.7 + self.age * 0.08) * (8 + life * 34)
             rad = int(10 + life * 36)
             pygame.draw.circle(jet, (214, 238, 248, int(92 * (1 - life))), (int(cx), int(cy)), rad)
-        if self.facing < 0:
-            jet = pygame.transform.flip(jet, True, False)
         mouth = x + self.facing * 40
         screen.blit(jet, (mouth - 40 if self.facing > 0 else mouth - jet.get_width() + 40, f - self.MOUTH - 110))

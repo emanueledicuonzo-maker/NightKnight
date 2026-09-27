@@ -168,23 +168,35 @@ class LabyrinthTests(unittest.TestCase):
                 return "a terra", grabs, col, h
         return "appeso", grabs, None, None
 
+    def crossings(self, start, h, releases, waits=range(0, 200, 10)):
+        """Tutti i modi di passare provando attese e rilasci: [(attesa, rilasci, esito)]."""
+        import itertools
+        out = []
+        for wait in waits:
+            for rel in itertools.product(*releases):
+                out.append((wait, rel, self.swing(start, h, wait, rel)))
+        return out
+
     def test_the_double_cable_needs_both_cables(self):
-        outcome, grabs, col, h = self.swing(165, 3, 60, (0.85, 0.5))
-        self.assertEqual((outcome, grabs), ("a terra", [1, 2]))
-        self.assertGreaterEqual(col, 201)
-        self.assertEqual(h, 3)
-        for wait in range(0, 170, 10):                   # col primo soltanto non si arriva
-            with self.subTest(wait=wait):
-                result = self.swing(165, 3, wait, (0.95, 0.95))
-                self.assertFalse(result[0] == "a terra" and result[1] == [1])
+        tries = self.crossings(165, 3, [(0.75, 0.85, 0.95), (0.5, 0.65, 0.75)])
+        ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [1, 2] and t[2][2] >= 201]
+        self.assertTrue(ok, "col doppio cavo non si passa mai")
+        for wait, rel, (outcome, grabs, col, h) in tries:              # col primo soltanto no
+            self.assertFalse(outcome == "a terra" and grabs == [1] and col >= 201)
 
     def test_the_triple_cable_is_crossed_only_from_high_up(self):
-        outcome, grabs, col, h = self.swing(213, 11, 140, (0.65, 0.85, 0.5))
-        self.assertEqual((outcome, grabs), ("a terra", [3, 4, 5]))
-        self.assertGreaterEqual(col, 253)
-        self.assertEqual(h, 5)                                     # sullo scalino alto
-        outcome, grabs, _, _ = self.swing(213, 11, 140, (0.65, 0.35, 0.5))
-        self.assertEqual(outcome, "annegato")                      # lasciato in basso, in acqua
+        tries = self.crossings(213, levels.TITAN_TOWER, [(0.5, 0.65), (0.65, 0.75, 0.85), (0.5, 0.65, 0.75)])
+        ok = [t for t in tries if t[2][0] == "a terra" and t[2][1] == [3, 4, 5] and t[2][2] >= 253]
+        self.assertTrue(ok, "col triplo cavo non si passa mai")
+        low = self.crossings(213, levels.TITAN_TOWER, [(0.5, 0.65), (0.35,), (0.5, 0.65, 0.75)])
+        self.assertFalse([t for t in low if t[2][0] == "a terra" and t[2][2] >= 253])   # lasciato basso, no
+
+    def test_handles_hang_above_the_launch_points(self):
+        cables = levels.TITAN_CABLES
+        for group, launch in ((cables[1], 3), (cables[2], levels.TITAN_TOWER)):
+            for col, top, length in group[:1]:
+                lowest = (top - length) / TILE                  # l'impugnatura nel punto piu' basso
+                self.assertGreater(lowest, launch + 1.5)
 
 
 if __name__ == "__main__":

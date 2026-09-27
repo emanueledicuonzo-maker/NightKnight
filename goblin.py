@@ -56,7 +56,8 @@ ZOOM_FIGHT, ZOOM_DUEL = 1.75, 1.6
 # Cadendo, appesi al cavo o sul bordo di un vuoto la telecamera si allontana per
 # far vedere dove si atterra; il mondo si disegna largo quanto serve a quello zoom.
 ZOOM_OUT = 1.2
-DW, DH = int(W / ZOOM_OUT), int(H / ZOOM_OUT)
+ZOOM_WIDEST = 1.0    # appesi ai cavi alti: quanto serve per vedere anche il lago sotto
+DW, DH = int(W / ZOOM_WIDEST), int(H / ZOOM_WIDEST)
 DROP_BIAS = 1.0
 EDGE_DROP = 5        # un vuoto di almeno 5 tessere sotto il bordo: tutta larga
 STEP_DROP, ZOOM_STEP = 2, 1.35    # un gradino di 2-4 tessere: un po' piu' larga
@@ -108,6 +109,7 @@ NOVA_BEAM = 180            # larghezza della colonna di luce
 # rallenta e toglie un po' di vita finche' un colpo non la stacca.
 # I camminatori sul terreno: gradini da saltare, da scendere, laghi da scavalcare.
 WALKER_STEP, WALKER_DROP, WALKER_GAP, WALKER_TURN = 3, 4, 4, 90
+WORM_MOUND, WORM_SINK = 45, 18    # il cumulo di terra del verme: piu' largo di lui, e affonda nel suolo
 BURROW_RUMBLE, BURROW_OUT = 40, 130     # il verme alla Tremors: preavviso e tempo fuori
 JELLY_SPEED, JELLY_MAX, JELLY_SLOW, JELLY_DRAIN, JELLY_EVERY = 4.2, 3, 0.22, 3, 50
 LAND_FRAMES, HURT_FRAMES = 10, 22
@@ -610,7 +612,12 @@ class Player(Entity):
                     self.y -= CLIMB
                 elif down:
                     self.y += CLIMB
+                if left and not right:
+                    self.facing = -1                  # ci si gira per colpire, senza scendere
+                elif right and not left:
+                    self.facing = 1
                 self.anim += 0.5 if (up or down) else 0
+                self.advance_attack()
                 self.move(lv, gravity=False)
                 if self.on_ground and down:
                     self.climbing = False
@@ -655,6 +662,12 @@ class Player(Entity):
             self.jumped = self.do_jump()
         self.anim += abs(self.vx) / 40      # un passo ogni 8 fotogrammi a velocita' piena
         self.run_t += abs(self.vx) / RUN_MAX * 0.125   # passo: un fotogramma ogni 8 frame
+        self.advance_attack()
+        if self.invuln:
+            self.invuln -= 1
+
+    def advance_attack(self):
+        """Un fotogramma del colpo in corso (anche sulla scala e appesi al cavo)."""
         if self.attack:
             name, f = self.attack
             f += 1
@@ -672,8 +685,6 @@ class Player(Entity):
             self.combo_t -= 1
             if not self.combo_t:
                 self.combo = 0
-        if self.invuln:
-            self.invuln -= 1
 
     def do_jump(self):
         if self.climbing:
@@ -708,7 +719,8 @@ class Player(Entity):
         return True
 
     def start_attack(self, name):
-        if not self.attack and not self.climbing and not self.recover:
+        # sulla scala e appesi al cavo si puo' usare solo la spada
+        if not self.attack and (not self.climbing or name == "throw") and not self.recover:
             self.attack = (name, 0)
             self.swing += 1               # ogni colpo tocca ciascun nemico una volta sola
             return True
@@ -718,9 +730,9 @@ class Player(Entity):
         """Fotogramma dal foglio di sprite della posa corrente, se esiste."""
         sheets = gfx.sheets
         side = 0 if self.facing > 0 else 1
-        if self.hanging is not None and "hang" in sheets:
+        if self.hanging is not None and "hang" in sheets and not self.attack:
             return sheets["hang"][side][{-1: 0, 0: 1, 1: 2}[self.hanging]]
-        if self.climbing:
+        if self.climbing and not self.attack:
             if "climb" not in sheets:
                 return None
             return sheets["climb"][0][int(self.anim / 4) % 4]
@@ -1149,6 +1161,18 @@ class Walker(Skeleton):
                 s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - h), (0, 0, img.get_width(), h))
                 return
         frames = gfx.foes[self.kind]
+        if self.kind.startswith("worm") or (self.spec.get("burrow") and not self.under):
+            img = frames[1] if 0 < self.hit_t <= 18 else frames[0]
+            img = gfx.sized(img, self.scale)
+            if self.facing < 0:
+                img = assets.flip(img)
+            if self.flash:
+                self.flash -= 1
+                img = gfx.white(img)
+            r = self.rect
+            titan.ground_shadow(s, r.centerx - cam, r.bottom, img.get_width() * 0.9)
+            s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height() + WORM_SINK))
+            return
         attacking = 0 < self.hit_t <= 18 or self.lunge_t
         img = frames[1] if (attacking or (self.spec["speed"] and (self.t // 10) % 2)) else frames[0]
         img = gfx.sized(img, self.scale)
@@ -1438,8 +1462,12 @@ class Game:
                 continue
             w.x, w.y = x0 + i * step, feet - w.h
             r = w.rect
-            if not any(self.lv.solid(px, py) for px in (r.left + 2, r.centerx, r.right - 3)
-                       for py in (r.top + 2, r.centery, r.bottom - 3)):
+            # suolo pieno sotto tutto il corpo (per il verme, sotto tutto il cumulo di terra)
+            half = r.w // 2 + (WORM_MOUND if kind.startswith("worm") else -6)
+            support = all(self.lv.solid(r.centerx + dx, r.bottom + 2) for dx in (-half, 0, half))
+            if support and not any(self.lv.solid(px, py) for px in (r.left + 2, r.centerx, r.right - 3)
+                                   for py in (r.top + 2, r.centery, r.bottom - 3)):
+                w.on_ground = True
                 return w
         w.x = x0
         feet = self.lv.floor_near(w.rect.centerx, feet_y, 20)
@@ -1671,6 +1699,12 @@ class Game:
         steady = p.on_ground or p.climbing or (self.cable and self.cable.attached)
         if steady:
             self.camy_target = r.bottom - FEET_IN_VIEW
+            if self.cable and self.cable.attached:
+                # appesi al cavo, con la vista larga: lui in alto, il lago sotto in quadro
+                k = ZOOM / (self.looking_down(p) or ZOOM_OUT)
+                rope = self.cable.current.rope              # tutto l'arco dell'oscillazione
+                top = rope.anchor.y + rope.length * 0.6 - 45 - 110
+                self.camy_target = (top - r.bottom * (1 - k)) / k
             if p.on_ground and self.part != "arena":
                 # su un rilievo: il suolo piu' basso li' davanti deve restare in quadro
                 low = max((f for f in (self.lv.floor_near(r.centerx + d * TILE, r.bottom + 4 * TILE, 5)
@@ -1738,7 +1772,11 @@ class Game:
         """Quanto allontanare la telecamera: cadendo, appesi al cavo, o sul bordo di
         un vuoto del tutto; sul bordo di un gradino alto un poco. None se no."""
         if self.cable and self.cable.attached:
-            return ZOOM_OUT
+            # abbastanza larga da tenere l'arco del cavo e il lago sotto
+            rope = self.cable.current.rope
+            top = rope.anchor.y + rope.length * 0.6 - 45 - 110
+            need = (GROUND * TILE + LOW_MARGIN - top) / VH
+            return max(ZOOM_WIDEST, min(ZOOM_OUT, ZOOM / need))
         if not p.on_ground and not p.climbing and p.vy > 9:
             return ZOOM_OUT
         if p.on_ground:
@@ -2097,6 +2135,9 @@ class Game:
             if k == pygame.K_SPACE:
                 self.cable.release(p)
                 self.jb.fx("jump")
+            elif k == pygame.K_z:
+                p.slash()                          # appesi al cavo si puo' menare la spada
+                self.sword_feedback()
             return
         side = 1 if k in (pygame.K_RIGHT, pygame.K_d) else (-1 if k in (pygame.K_LEFT, pygame.K_a) else 0)
         if side:
@@ -2273,7 +2314,8 @@ class Game:
         fy = max(0, min(VH, p.rect.bottom - camy))
         vx = max(0, min(DW - cw, int(fx - VW / 2 * k)))
         # avvicinandosi i piedi restano dove sono; allontanandosi la vista scende
-        vy = int(fy * (1 - k) + max(0, k - 1) * VH * DROP_BIAS)
+        bias = 0 if (self.cable and self.cable.attached) else DROP_BIAS
+        vy = int(fy * (1 - k) + max(0, k - 1) * VH * bias)
         vy = max(-camy, min(self.lv.h - ch - camy, vy))
         return vx, vy, cw, ch
 

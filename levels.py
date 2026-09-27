@@ -171,11 +171,15 @@ TITAN_PASS_START = 432       # dove finiscono le ondate e comincia la traversata
 TITAN_PASS_ROPE = TITAN_PASS_START + 83      # colonna del cavo sopra il lago delle guglie
 # I cavi, a gruppi sotto lo stesso portale: (colonna dall'inizio della traversata,
 # altezza dell'aggancio sopra il suolo in pixel, lunghezza del cavo).
-ROPE_TOP, ROPE_MID, ROPE_HIGH = 656, 820, 1050
+# Le impugnature stanno piu' in alto del punto da cui si salta: si salta verso
+# l'alto per prenderle. Lunghezze un po' diverse: ogni cavo oscilla col suo ritmo,
+# e il salto si fa cercando il momento in cui si allineano.
+ROPE_TOP, ROPE_MID, ROPE_HIGH = 656, 880, 1050
+TITAN_TOWER = 7              # la torre da cui si parte per il triplo
 TITAN_CABLES = [
     [(83, ROPE_TOP, 500)],                                     # il lago delle guglie
-    [(173, ROPE_MID, 500), (189, ROPE_MID, 500)],              # il doppio cavo
-    [(217, ROPE_HIGH, 500), (230, ROPE_HIGH, 500), (243, ROPE_HIGH, 500)],   # il triplo, dall'alto
+    [(173, ROPE_MID, 470), (189, ROPE_MID, 530)],              # il doppio cavo
+    [(217, ROPE_HIGH, 480), (230, ROPE_HIGH, 520), (243, ROPE_HIGH, 460)],   # il triplo, dall'alto
 ]
 # Da che parte soffiano gli sfiati d'azoto (colonna assoluta -> verso): verso chi
 # arriva; sulla cengia media si arriva da destra.
@@ -276,14 +280,14 @@ def gen_titan_pass():
     _lake(g, 167, 201)
     _rock(g, 201, 204, 3)
     # 6. la torre, il triplo cavo sul lago grande, lo scalino della riva di la'
-    _pillar(g, 210, 215, 11)
-    _ladder_rows(g, 207, GROUND - 11, GROUND)
+    _pillar(g, 210, 215, TITAN_TOWER)
+    _ladder_rows(g, 207, GROUND - TITAN_TOWER, GROUND)
     _lake(g, 215, 253)
-    _rock(g, 253, 268, 5)
+    _rock(g, 253, 268, 4)
     # prigionieri, ossigeno, gas, criovulcani, uscita
     floor, cave = GROUND - 1, CAVE_FLOOR - 1
     for c, r in ((30, GROUND - l1 - 1), (18, GROUND - l2 - 1), (54, GROUND - l3 - 1), (89, cave), (94, cave),
-                 (129, cave), (152, floor), (202, GROUND - 4), (212, GROUND - 12), (262, GROUND - 6)):
+                 (129, cave), (152, floor), (202, GROUND - 4), (212, GROUND - TITAN_TOWER - 1), (262, GROUND - 5)):
         g[r][c] = "u"
     for c, r in ((149, floor),):             # una sola stazione nella traversata
         g[r][c] = "o"
