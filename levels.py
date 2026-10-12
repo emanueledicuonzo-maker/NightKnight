@@ -408,9 +408,9 @@ NIX_HILLS = [
 NIX_CREVASSES = ((66, 69), (95, 99), (186, 192), (248, 255), (318, 322), (384, 391))
 NIX_BRIDGE = (248, 255)      # il ripetitore caduto fa da ponte sul quarto crepaccio
 # Oggetti del paesaggio, in piedi sul suolo: (colonna, oggetto)
-NIX_PROPS = [(48, "antenna"), (72, "antenna"), (92, "antenna"), (110, "repeater"), (120, "antenna"),
-             (130, "repeater"), (148, "antenna"), (160, "repeater"), (178, "antenna"), (200, "antenna"),
-             (240, "door"), (284, "antenna"), (340, "repeater"), (410, "repeater"), (420, "door")]
+NIX_PROPS = [(48, "antenna"), (72, "antenna"), (90, "antenna"), (110, "repeater"), (120, "antenna"),
+             (130, "repeater"), (134, "antenna"), (160, "repeater"), (178, "antenna"), (200, "antenna"),
+             (240, "door"), (287, "antenna"), (340, "repeater"), (414, "repeater"), (420, "door")]
 # immagine e altezza (in altezze di 9T9T) di ogni oggetto
 NIX_PROP_IMAGES = {"antenna": ("nix_antenna", 4.0), "repeater": ("nix_repeater", 1.15),
                    "door": ("nix_door", 1.5)}
@@ -472,7 +472,7 @@ NIX_CABLES = [[(170, NIX_ROPE_TOP, 480), (186, NIX_ROPE_TOP, 480), (202, NIX_ROP
                (218, NIX_ROPE_TOP, 480)]]
 NIX_ROPE_SPEEDS = (1.0, 1.15, 0.85, 1.05)
 NIX_PASS_CRACKS = (15, 36, 363, 398)
-NIX_PASS_PROPS = [(8, "antenna"), (50, "repeater"), (145, "antenna"), (262, "pylon", GROUND - 16),
+NIX_PASS_PROPS = [(1, "antenna"), (50, "repeater"), (145, "antenna"), (262, "pylon", GROUND - 16),
                   (320, "repeater", GROUND - NIX_TOP), (380, "antenna", GROUND - NIX_TOP),
                   (445, "repeater", GROUND - NIX_TOP)]
 # pochi nemici, piazzati: ragni sopra le passerelle, custodi davanti ai due
@@ -570,8 +570,8 @@ NIX = {
     "fauna": ("pipistrelli del vuoto", "falene ossee", "custodi senza volto", "ragni da condotto",
               "copie difettose"),
     "oxygen_seconds": 100,
-    "sky": "nix_sky", "parallax": (("nix_hills_far", 0.07, 0, 0), ("nix_hills_01", 0.16, 0, 0),
-                                   ("nix_ruins", 0.28, 90, 0), ("nix_hills_02", 0.42, 0, 0)),
+    "sky": "nix_sky", "parallax": (("nix_hills_far", 0.07, 120, 0), ("nix_hills_01", 0.16, 180, 0),
+                                   ("nix_ruins", 0.28, 230, 0), ("nix_hills_02", 0.42, 190, 0)),
     "foreground": "nix_foreground", "fog_color": (0, 0, 0), "bg_color": (0, 0, 0),
     "ground": "nix_ground", "ground_top_cut": False, "rock": "nix_rock",
     "station": "nix_station", "caves": False, "night": 0.75, "drizzle": False,

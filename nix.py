@@ -163,8 +163,8 @@ def draw_crevasse_edges(screen, cam, crevasses, ground_y):
         x0, x1 = c0 * TILE - cam, c1 * TILE - cam
         if x1 < -left.get_width() or x0 > w + right.get_width():
             continue
-        screen.blit(left, (x0 - left.get_width() + 10, ground_y - 26))
-        screen.blit(right, (x1 - 10, ground_y - 26))
+        screen.blit(left, (x0 - left.get_width() + 10, ground_y - 4))
+        screen.blit(right, (x1 - 10, ground_y - 4))
 
 
 class Grating:

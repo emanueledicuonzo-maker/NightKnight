@@ -1070,7 +1070,7 @@ FLYERS = {
     "jelly":        dict(frames="jelly_atmo_{}", h=150, box=(110, 120), hp=1, dmg=20, pts=350, drift=True),
     # Nix: il pipistrello sale sopra di te e piomba senza frenare; la falena non fa male,
     # passa davanti al visore e spegne la vista
-    "bat":          dict(frames="bat_void_{}", h=90, box=(110, 70), hp=1, dmg=20, pts=350, swoop=True),
+    "bat":          dict(frames="bat_void_{}", h=90, box=(110, 70), hp=1, dmg=0, pts=350, swoop=True),
     "moth":         dict(frames="moth_bone_{}", h=80, box=(100, 70), hp=1, dmg=0, pts=100, blind=True),
 }
 KEEPER_OPEN = 120        # il calcio apre la guardia del custode per due secondi
@@ -2447,8 +2447,8 @@ class Game:
                         p.jellies += 1
                         self.jb.fx("hurt")
                     continue
-                if isinstance(e, Crow) and getattr(e, "harmless", True):
-                    # il corvo disturba: spinge, fa sbagliare il colpo, ma non toglie vita
+                if (isinstance(e, Crow) and getattr(e, "harmless", True)) or getattr(e, "kind", "") == "bat":
+                    # il corvo e il pipistrello disturbano: spingono, fanno sbagliare il colpo, ma non tolgono vita
                     if not p.invuln:
                         p.vx = 3 * e.facing
                         p.attack = None
