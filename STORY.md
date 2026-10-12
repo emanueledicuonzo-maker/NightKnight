@@ -315,6 +315,59 @@ capsule e seduti negli ossari; dodici nella traversata. L'ossigeno è il più
 scarso dei primi satelliti: quattro stazioni in superficie (capsula, campo delle
 antenne, imbocco delle miniere, fine delle miniere) e due nella traversata.
 
+### Gravità e aria
+
+Nix è il primo satellite in cui **il salto è l'arma e il pericolo**. Rispetto a
+Titano (fattore di gravità 0,84: salto alto circa 5 tessere e lungo quasi 6):
+
+| | Titano | Nix |
+| --- | --- | --- |
+| Fattore di gravità (`gravity_scale`) | 0,84 | **0,55** |
+| Salto alto | ~5 tessere | **~7,5 tessere** |
+| Salto lungo con rincorsa | ~6 tessere | **~9 tessere** |
+| Tempo in aria di un salto pieno | ~1 s | **~1,6 s** |
+| Caduta | normale | lenta: dall'orlo di un cratere si scende come una piuma, e si può correggere in aria |
+| Aria | densa, azoto e metano | **nessuna**: niente nebbia, niente pioggia, niente vento, niente suono fuori dalla tuta |
+| Sassi | arco normale | arco **più piatto e lungo** (stessa gravità del salto): si colpisce da lontano |
+| Nemici | cadono come 9T9T | cadono lenti anche loro; i volanti galleggiano e i pipistrelli piombano senza freno |
+| Ossigeno all'aperto | 150 s | **100 s** (vedi le insidie: ossigeno scarso) |
+
+Che cosa ne segue sul terreno:
+
+- i **crepacci** si saltano facili, ma il salto pieno porta oltre l'orlo di là:
+  su un orlo stretto si cade dall'altra parte. La misura del salto si impara;
+- i **crateri a conca** si attraversano in un salto solo dall'orlo, oppure
+  scendendo sul fondo e risalendo i gradini: il fondo è dove stanno i nemici;
+- dalle **passerelle che cedono** si fa in tempo a saltare, perché la caduta è
+  lenta: la fretta è il nemico, non il tempo;
+- i **cavi sospesi** dondolano piano (gravità bassa, pendolo lento): si resta
+  appesi più a lungo e si lascia la presa più in alto che su Titano;
+- il **Guardiano** salta quanto 9T9T: il duello si gioca anche in aria.
+
+I suoni sono tutti dentro la tuta: passi, respiro, colpi ovattati; i nemici non
+si sentono arrivare. Le sirene psichiche sono l'unico suono «di fuori», e non è
+un suono: è nella testa.
+
+### Nix vero
+
+- Scoperta nel 2005 con Hubble; circa **50 × 35 × 33 km**, un sasso di ghiaccio
+  d'acqua. Orbita a 48.700 km dal baricentro di Plutone e Caronte, un giro in 25
+  giorni, e **ruota in modo caotico**: il cielo di Nix gira senza regola. Nel
+  gioco il cielo resta fermo per i dieci minuti del livello.
+- Gravità **meno di un millesimo** di quella terrestre: un salto vero porterebbe
+  in orbita. Il fattore 0,55 del gioco è una licenza per restare giocabili;
+  resta il satellite dei salti più alti e delle cadute più lente.
+- **Nessuna atmosfera**: cielo nero, stelle fisse, nessun suono. Temperatura
+  attorno a **−230 °C**. Niente ossigeno: stazioni e bombole.
+- La superficie è chiara (ghiaccio d'acqua) con una grande macchia rossastra di
+  toline. Il Sole a Plutone dà circa un millesimo della luce terrestre: molto
+  più di una notte di luna piena. La «notte quasi totale» del gioco è una
+  licenza; la neve grigia e la roccia nera sono il ghiaccio sporco di polvere e
+  toline, visto in quella luce.
+- **Plutone** nel cielo è largo circa 3 gradi, sei lune piene affiancate, con le
+  macchie chiare e scure e il cuore di ghiaccio della Sputnik Planitia; Caronte
+  dietro, più piccolo. Sono le due luci del cielo di Nix.
+
 ## Gli anelli di Saturno
 
 Dopo il dodicesimo satellite appare Saturno intero. NightKnight e Bianca corrono
