@@ -30,8 +30,11 @@ must stay readable when scaled up 2x.
 
 ## What is playable today
 
-Only **Titan**, start to finish (the other eleven satellites are not built yet;
-after the Guardian an end screen says so):
+**Titan** and **Nix**, start to finish, one after the other (the other ten
+satellites are not built yet; after Nix's Guardian an end screen says so).
+Everything that changes from one world to the next lives in `levels.SATELLITES`
+(one dict per satellite: backdrops, ground, gravity, oxygen, stages, waves,
+cables, placed foes, map generators); the game reads only `cfg()`. Titan:
 
 1. **Surface** — one continuous map (`levels.gen_surface()`, 432 columns) with
    hills and mountains climbed in 1-3 tile steps (`TITAN_HILLS`; the big one,
@@ -91,6 +94,42 @@ after the Guardian an end screen says so):
    beatable mostly from afar with stones: the owner accepts it for Titan, but
    the next Guardian needs a reason to fight up close (to be designed).
 
+**Nix** (built 12/10/2026, design in `STORY.md`, "Nix, il secondo satellite";
+tests in `tests/test_nix*.py`, 31 of them): Pluto's moon, night with fixed
+stars, Pluto and Charon in the sky, `gravity_scale` .55 (a jump is ~7.5 tiles
+high, a sprint jump almost 10, falls are slow), no air (no drizzle, no haze),
+100 s of oxygen. Surface (430 columns, `levels.gen_nix_field()`): the antenna
+field with the big landing crater and bowl craters, the mines with black rock
+hills; six bottomless crevasses (falling costs a life) and a fallen repeater as a
+bridge; four ossuaries breathing the bone cloud (`nix.Ossuary`: visor down to 2
+tiles, screen whitens, life drains, oxygen at double), three psychic sirens
+(`nix.Siren`: left and right swapped within 10 tiles while pulsing, three hits
+silence them and free a prisoner); five new enemies (`WALKERS`/`FLYERS`):
+`bat` (rises above you and dives without braking, swarms out of the cracks at
+the crevasses), `moth` (harmless, blacks out the screen for half a second),
+`keeper` (guard that opens only with a kick, protects a zone), `spider` (hangs
+from the antenna masts, drops on you, leaves slowing threads), `copy` (mimics
+jump, slash and stone 0.4 s later); three director waves plus 14 placed foes
+(the 2x on top of a hill with two keepers at its foot). Traversal (455 columns,
+`levels.gen_nix_pass()`): crater rims over voids, eight collapsing gratings
+(`nix.Grating`, tiles `G` that vanish 0.5 s after the step and come back after
+4 s), the launch step and four cables over the big crevasse (handles 420 px
+above the launch, 16 columns apart: Nix's long flights need it), the high side,
+the way back on ledges at 12 and 16 (each reached with a jump), the hidden
+platform at 22 with two prisoners and two keepers, the final plateau at 20
+(12 above the high side: unreachable even with the sprint jump) with pits.
+Skill shortcuts exist (high side to ledge 16, ledge 12 to the plateau) and
+skip the hidden prisoners. Guardian of Nix (`knights.knight_cfg(1)`): Nix's
+gravity, a fixed move sequence reshuffled at every hit, the lance hits only
+with its tip (`tip`: safe at his chest), stones from the front are caught by
+the dish and sent back as `pulse` projectiles, stones count only from behind or
+while the lance is planted (`plant`: 1.5 s open after the dive), the pulse ring
+runs both ways and swaps the controls for 2 s, the mantle eats the visor light
+beyond 6 tiles (only the violet ring of the helm shows). An automaton that stays
+at his chest and jumps at his tells beats him in 20-60 s (`test_nix_boss.py`).
+Twelve traversal stages plus six on the surface; Continue remembers the
+satellite (`checkpoint["satellite"]`).
+
 Player kit: sword (Z, 3 slashes/s, counts 2, reach 240 px; pressed in rhythm it
 chains a 3-slash combo: the second is a backhand, the third lunges forward and
 reaches 60 px further), stone (X, 2 throws/s, counts 1,
@@ -111,10 +150,11 @@ in hits (see `WALKERS` / `FLYERS` in `goblin.py`, and `STORY.md`).
 | File | Role |
 | --- | --- |
 | `goblin.py` | game loop, player, enemies (`Walker`, `Flyer`), Bianca, HUD, drawing, zoom |
-| `levels.py` | Titan config, weapons, map generation (surface + traversal, arena), wave data |
+| `levels.py` | the satellites (`SATELLITES`, `cfg()`), weapons, map generation for Titan and Nix (surface + traversal, arena), wave data |
 | `waves.py` | wave director (independent waves, spawn at view edges, flee rule) |
 | `knights.py` | the Guardian: moves, AI, projectiles (hook), pose loading |
 | `titan.py` | cryovolcanoes (`Geyser`), prisoners, oxygen stations, nitrogen vents (horizontal jet) |
+| `nix.py` | Nix: ossuaries and the bone cloud, psychic sirens, collapsing gratings, crevasse edges |
 | `athletics.py` | the cables: scripted pendulums in groups under two cranes (pymunk only for `Vec2d`) |
 | `assets.py` | image loading; sprite sheets split **by silhouette**, not by grid |
 | `music.py` | synthesized bass + light percussion tracks and all sound effects |
@@ -141,8 +181,16 @@ is its own tile `~` (`LAKE_DEPTH` deep): a head under it drowns.
 
 ## Asset pipeline
 
-The owner generates images with ChatGPT "Create image" from the prompts in
-`assets/PROMPT.md` and drops them in `~/Scaricati`. Then:
+Since 12/10/2026 the images are made by **Codex** (`codex exec`, built-in
+image generation, ~80 s each, several in parallel), from prompts in the style
+of `assets/PROMPT.md`: a prompt file per image, `--image assets/knight_idle.png`
+as style/scale reference, output asked in `assets/_codex/` and checked with
+Pillow (size, RGBA, alpha 0 at the corners, two separate figures for enemies).
+When Codex ends with "model at capacity" the image is still in
+`~/.codex/generated_images/<session>/` and is picked from there. The helper
+scripts and prompts of Nix are in `assets/_codex/` (not tracked). Before that,
+the owner generated images with ChatGPT "Create image" and dropped them in
+`~/Scaricati`. Either way, then:
 
 - always attach `knight_idle.png` as style/scale reference;
 - check transparency (some come with a real alpha, some don't; one came with
@@ -206,8 +254,11 @@ The owner generates images with ChatGPT "Create image" from the prompts in
    `Vec2d` is left to replace) and the case-study page. **Not done yet: there
    is no deploy.** Where to publish it (GitHub Pages, Cloudflare Pages, the
    agency site) is still to be decided with the owner.
-6. The other eleven satellites, Saturn's rings, Luna (see `STORY.md`,
-   "Ancora da decidere").
+6. The other ten satellites (Io next), Saturn's rings, Luna (see `STORY.md`,
+   "Ancora da decidere"). A new satellite is a dict in `levels.SATELLITES`,
+   a Guardian entry in `knights.KNIGHTS` and its images.
+7. A short transfer sequence between satellites (asked for on 12/10): today
+   Titan's victory goes straight to Nix's card.
 
 ## Known gaps
 
@@ -225,6 +276,9 @@ The owner generates images with ChatGPT "Create image" from the prompts in
   folder (the project used to live under `/home/ema`).
 
 - `Player` still keeps its Light in the attribute `albedo` (old name).
+- Nix: the "ondata 3" of STORY.md (the 2x on the hill with the keepers) is made
+  of placed foes, not sent by the wave director; the lance of Nix (the affine
+  weapon) is not made: Nix is played with the sword.
 - The Guardian's movement code (`knights.py`) still carries generic moves from
   the prototype; only four are used by Titan's Guardian.
 - The gas cloud, the lakes' shimmer and the ladders are drawn in code, not art.

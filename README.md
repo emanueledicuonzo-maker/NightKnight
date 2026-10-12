@@ -58,7 +58,26 @@ visiera) con un vicolo cieco, un passaggio basso e una pozza di metano, un pozzo
 che risale in superficie, il doppio cavo e il triplo cavo agganciato in alto su
 un lago largo (dall'altra parte si arriva solo lasciando il cavo dall'alto);
 infine il duello a un round col Guardiano, alto il doppio di NightKnight, con
-alabarda e gancio. Gli altri undici satelliti arriveranno.
+alabarda e gancio.
+
+Caduto il Guardiano di Titano si atterra su **Nix**, la luna di Plutone
+(dal 12/10/2026): notte, stelle fisse, Plutone e Caronte nel cielo, gravita'
+minima (si salta alto 7 tessere e mezzo, quasi 10 di corsa, e si cade piano),
+niente aria e 100 secondi d'ossigeno. La superficie: il campo delle antenne col
+cratere grande dell'atterraggio, le miniere con gli ossari; crepacci senza fondo
+(caderci costa una vita), ossari che respirano la nube ossea (si vede poco, si
+perde vita, l'aria finisce al doppio), sirene psichiche che scambiano destra e
+sinistra finche' non le si spegne con tre colpi; pipistrelli dalle crepe, falene
+che spengono la vista, custodi senza volto con la guardia che si apre solo col
+calcio, ragni appesi ai tralicci che lasciano fili, copie difettose di 9T9T che
+imitano le sue mosse con ritardo; tre ondate e trenta prigionieri. La traversata,
+il campo dei crateri: salti da orlo a orlo, passerelle che cedono mezzo secondo
+dopo il passo, quattro cavi sul crepaccio grande, il ritorno sulle cengie fino
+all'altopiano del ripetitore con una piattaforma nascosta. Il Guardiano di Nix si
+batte da vicino: la lancia-antenna colpisce con la punta, il piatto sotto la
+punta prende i sassi e li rimanda, il mantello spegne il visore da lontano, la
+picchiata pianta la lancia nel ghiaccio e lo lascia scoperto, l'anello viola
+gira i comandi. Gli altri dieci satelliti arriveranno.
 
 **Bianca** segue il cavaliere e non muore. Quando sullo schermo ci sono piu' di
 4 volanti parte da sola e ne abbatte fino a 5, uno alla volta, poi riposa 12

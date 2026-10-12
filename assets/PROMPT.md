@@ -14,6 +14,9 @@ Storia, personaggi e tabelle dei satelliti: `../STORY.md`.
   (al momento dell'inserimento Claude li gira tutti a destra, come vuole il gioco).
 - **Download:** le immagini finiscono in `~/Scaricati`; il nome del file lo dà
   Claude quando le inserisce.
+- **Dal 12/10/2026** le immagini le genera Codex (`codex exec` con lo strumento
+  immagini, `--image assets/knight_idle.png` come riferimento), un prompt per
+  immagine, uscita in `assets/_codex/`: cosi' sono state fatte tutte quelle di Nix.
 
 Blocco di stile da mettere in testa a ogni prompt:
 
@@ -52,6 +55,11 @@ STYLE: match the attached character's dark 2D cartoon style exactly: bold clean 
 | `worm_crawl_sheet.png` | verme che striscia, 4 fotogrammi (gallerie) |
 | `geyser_erupt_1..5.png` | eruzione del criovulcano, dal filo alla colonna piena |
 | `cliff_bg.png`, `ledge.png`, `shelter.png` | parete del canyon, cengia, ripari: pronti, non ancora usati |
+| `nix_sky`, `nix_hills_far`, `nix_hills_01`, `nix_ruins`, `nix_hills_02`, `nix_foreground` | Nix: cielo (Plutone, Caronte, il Sole) e i cinque piani |
+| `nix_ground`, `nix_rock`, `nix_crevasse`, `nix_grating` | Nix: terreno, roccia, i due orli del crepaccio, la passerella |
+| `bat_void_1/2`, `moth_bone_1/2`, `keeper_faceless_1/2`, `spider_duct_1/2`, `copy_knight_1/2` | pipistrello, falena, custode, ragno, copia (gia' tagliati, verso destra) |
+| `nix_antenna`, `nix_repeater`, `nix_ossuary`, `nix_door`, `nix_siren`, `nix_station`, `nix_pylon` | Nix: antenna, ripetitore, ossario (quieto, che sfiata), porta, sirena (spenta, accesa), stazione, traliccio |
+| `boss02_*.png` | Guardiano di Nix: guardia + 8 pose |
 
 Per Titano i prompt nuovi devono restare credibili (vedi `STORY.md`, "Titano
 vero"): roccia di ghiaccio d'acqua e sedimenti organici scuri sotto luce
