@@ -42,15 +42,13 @@ def weapon_cfg(i):
 
 
 def cfg(i=0):
-    """Configurazione del satellite. Per ora e' giocabile solo Titano."""
+    """Configurazione del satellite i (0 Titano, 1 Nix): nome, Guardiano, gravita',
+    aria, e tutto il mondo (fondali, terreno, mappe, tappe, ondate, cavi).
+    Le mappe sono funzioni, chiamate quando il livello parte."""
     import knights
-    boss, _, _, color, _ = knights.KNIGHTS[0]
-    return {
-        "index": 0, "num": 1, "name": "Titano", "boss": boss, "color": color,
-        "gravity": "bassa", "gravity_scale": .84, "air": "densa, azoto e metano",
-        "climate": "nebbia arancione, pioviggine di metano", "affinity": "cryo",
-        "fauna": ("corvi", "meduse", "minatori", "lucertole criogeniche", "vermi di silicio"),
-    }
+    sat = SATELLITES[i]
+    boss, _, _, color, _ = knights.KNIGHTS[i]
+    return dict(sat, index=i, num=i + 1, boss=boss, color=color)
 
 
 def _grid(cols):
@@ -362,3 +360,54 @@ def _cave_worms():
 
 
 TITAN_PASS_FOES = [f for f in TITAN_PASS_FOES if f[0] not in ("worm", "burrower", "crawler")] + _cave_worms()
+
+
+# ---------------------------------------------------------------- i satelliti
+# Ogni satellite e' un dizionario: quello che cambia da un mondo all'altro sta
+# qui, il codice del gioco legge solo da cfg(). I fondali: cielo (non si ripete),
+# piani di parallasse (nome, velocita', spostamento verticale, foschia che
+# stende sui piani dietro), primo piano, colore della foschia e del fondo.
+TITAN = {
+    "name": "Titano", "gravity": "bassa", "gravity_scale": .84, "air": "densa, azoto e metano",
+    "climate": "nebbia arancione, pioviggine di metano", "affinity": "cryo",
+    "fauna": ("corvi", "meduse", "minatori", "lucertole criogeniche", "vermi di silicio"),
+    "oxygen_seconds": 150,
+    "sky": "sky_01", "parallax": (("hills_far", 0.07, 0, 70), ("hills_01", 0.16, 0, 45),
+                                  ("colony_ruins", 0.28, 90, 30), ("hills_02", 0.42, 0, 38)),
+    "foreground": "foreground", "fog_color": (196, 112, 58), "bg_color": (34, 16, 8),
+    "ground": "titan_ground_grass", "ground_top_cut": True, "rock": "titan_rock",
+    "station": "stazione_ossigeno", "caves": True, "night": 0.0, "drizzle": True,
+    "surface": gen_surface, "arena": gen_arena, "pass_start": TITAN_PASS_START,
+    "stages": TITAN_STAGES, "arenas": TITAN_ARENAS, "waves": TITAN_WAVES, "patrols": TITAN_PATROLS,
+    "pass_foes": TITAN_PASS_FOES, "cables": TITAN_CABLES, "rope_speeds": ROPE_SPEEDS,
+}
+
+
+def gen_nix_surface():
+    """Nix: per ora un tratto piano con l'uscita (la mappa vera arriva con i passi
+    successivi della fase 3 e con la fase 4)."""
+    cols = 60
+    g = _grid(cols)
+    _rock(g, 0, cols, 0)
+    g[GROUND - 1][1] = "P"
+    g[GROUND - 1][cols - 4] = "E"
+    return g
+
+
+NIX_STAGES = [(2, GROUND)]
+NIX = {
+    "name": "Nix", "gravity": "minima", "gravity_scale": .55, "air": "nessuna",
+    "climate": "notte, stelle fisse, Plutone nel cielo", "affinity": "lumen",
+    "fauna": ("pipistrelli del vuoto", "falene ossee", "custodi senza volto", "ragni da condotto",
+              "copie difettose"),
+    "oxygen_seconds": 100,
+    "sky": "nix_sky", "parallax": (("nix_hills_far", 0.07, 0, 0), ("nix_hills_01", 0.16, 0, 0),
+                                   ("nix_ruins", 0.28, 90, 0), ("nix_hills_02", 0.42, 0, 0)),
+    "foreground": "nix_foreground", "fog_color": (0, 0, 0), "bg_color": (0, 0, 0),
+    "ground": "nix_ground", "ground_top_cut": False, "rock": "nix_rock",
+    "station": "nix_station", "caves": False, "night": 0.75, "drizzle": False,
+    "surface": gen_nix_surface, "arena": gen_arena, "pass_start": 60,
+    "stages": NIX_STAGES, "arenas": [], "waves": [], "patrols": None,
+    "pass_foes": [], "cables": [], "rope_speeds": (),
+}
+SATELLITES = [TITAN, NIX]

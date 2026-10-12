@@ -22,6 +22,8 @@ REAL_H = 192              # altezza dello sprite di NightKnight
 # nome, arma, portata arma, colore, mosse
 KNIGHTS = [
     ("Guardiano di Titano", "alabarda", 170, (200, 205, 225), ["slash", "hook", "kick", "heavy", "hook", "slash"]),
+    # il Guardiano di Nix: la lancia-antenna (le mosse vere arrivano con la fase 4)
+    ("Guardiano di Nix", "lancia", 190, (188, 150, 236), ["thrust", "thrust", "wave", "dashthrust", "dive", "kick"]),
 ]
 
 # libreria delle mosse: total, finestra attiva (a, b), portata, altezza (offset y, h), danno extra, tipo, pose

@@ -66,9 +66,7 @@ LOW_MARGIN = 110     # il suolo piu' basso li' vicino resta almeno cosi' sopra i
 FIGHT_RANGE = (520, 320)     # distanza (orizzontale, verticale) dei nemici che fanno avvicinare
 # Piani di parallasse sopra il cielo: (immagine, velocita', spostamento in giu',
 # foschia steso sopra). Il primo piano, davanti al mondo, corre piu' del terreno.
-PARALLAX = (("hills_far", 0.07, 0, 70), ("hills_01", 0.16, 0, 45),
-            ("colony_ruins", 0.28, 90, 30), ("hills_02", 0.42, 0, 38))
-FOG_COLOR = (196, 112, 58)
+# I piani di parallasse, la foschia e i fondali di ogni satellite stanno in levels (cfg()).
 DARKNESS, VISOR = 140, 640       # buio delle gallerie e raggio della luce della visiera
 FOREGROUND_SPEED, FOREGROUND_SINK = 1.35, 230
 CROWD = 6                    # con piu' nemici vicini di cosi' la telecamera resta larga      # margini oltre i quali la telecamera insegue un salto o una caduta
@@ -139,18 +137,10 @@ class Gfx:
     def __init__(self):
         # caratteri disegnati come terreno (le pareti "S" dell'arena sono invisibili)
         self.tiles = set("#DH")
-        # Terreno di Titano: l'immagine e' un'unica sezione di suolo alla Huygens.
-        # Si scala a TITAN_N x TITAN_N tessere, cosi' i ciottoli restano leggibili:
-        # la riga in alto e' la crosta calpestabile, le altre il sottosuolo.
-        self.titan_ground = None
-        if assets.has("titan_ground_grass"):
-            img = pygame.image.load(os.path.join(assets.DIR, "titan_ground_grass.png")).convert()
-            top = img.get_height() // 30          # striscia scura sopra la superficie
-            img = img.subsurface((0, top, img.get_width(), img.get_height() - top))
-            self.titan_ground = pygame.transform.smoothscale(img, (TILE * TITAN_N, TILE * TITAN_N))
-        # Roccia delle pareti e dei cumuli: strati di Titano, 4x4 tessere
-        rock = pygame.image.load(os.path.join(assets.DIR, "titan_rock.png")).convert()
-        self.titan_rock = pygame.transform.smoothscale(rock, (TILE * ROCK_N, TILE * ROCK_N))
+        # Terreno, roccia, fondali, stazione: cambiano col satellite (load_world)
+        self.world = None
+        self.ground = self.rock = self.station = self.foreground_low = None
+        self.pass_start, self.fog_color, self.sky_name, self.caves = 0, (0, 0, 0), None, True
         # Lago di metano: liquido scuro, un po' sotto il bordo, che riflette il cielo.
         depth = levels.LAKE_DEPTH * TILE
         self.titan_lake = pygame.Surface((TILE, depth), pygame.SRCALPHA)
@@ -205,10 +195,6 @@ class Gfx:
         for rad in range(VISOR, 0, -4):
             k = rad / VISOR
             pygame.draw.circle(self.visor_light, (255, 255, 255, int(255 * k ** 1.6)), (VISOR, VISOR), rad)
-        # Primo piano all'aperto: solo le sagome che salgono dal basso (quelle
-        # appese in alto servono sottoterra).
-        fg = assets.load("foreground", W, H, exact=True)
-        self.foreground_low = fg.subsurface((0, H * 55 // 100, W, H * 45 // 100)).copy()
         self.vignette = pygame.Surface((W, H), pygame.SRCALPHA)
         for i in range(60):
             a = int(90 * (1 - i / 60) ** 2)
@@ -246,10 +232,9 @@ class Gfx:
             h = max(TILE, round(img.get_height() * w / img.get_width() / TILE) * TILE)
             self.ladder_strip = pygame.Surface((LADDER_W * TILE, h), pygame.SRCALPHA)
             self.ladder_strip.blit(pygame.transform.smoothscale(img, (w, h)), (8, 0))
-        # Portello stagno dell'uscita, la capsula d'atterraggio, la stazione d'ossigeno
+        # Portello stagno dell'uscita, la capsula d'atterraggio
         self.airlock = assets.load("portello", TILE * 5, int(PH * 1.5), by_height=True)
         self.capsule = assets.load("capsula", TILE * 5, int(PH * 1.7), by_height=True)
-        self.station = assets.load("stazione_ossigeno", TILE * 3, int(PH * 1.05), by_height=True)
         self.player = player_images()
         self.sheets = {}
         # posa -> (file, colonne, righe): i fogli cartoon hanno griglie diverse
@@ -316,6 +301,36 @@ class Gfx:
             self.bg_cache["title"] = bg
         return self.bg_cache["title"]
 
+    def load_world(self, cfg):
+        """Il mondo di un satellite: terreno, roccia, stazione, primo piano, cielo
+        e foschia. Si carica quando il livello parte; lo stesso satellite non si
+        ricarica."""
+        if self.world == cfg["index"]:
+            return
+        self.world = cfg["index"]
+        # Il terreno e' un'unica sezione di suolo, scalata a TITAN_N x TITAN_N
+        # tessere cosi' i ciottoli restano leggibili: la riga in alto e' la crosta
+        # calpestabile, le altre il sottosuolo. Su Titano si toglie la striscia
+        # scura sopra la superficie; su Nix la crosta coi cristalli e' gia' al bordo.
+        self.ground = None
+        if assets.has(cfg["ground"]):
+            img = pygame.image.load(os.path.join(assets.DIR, cfg["ground"] + ".png")).convert()
+            if cfg["ground_top_cut"]:
+                top = img.get_height() // 30
+                img = img.subsurface((0, top, img.get_width(), img.get_height() - top))
+            self.ground = pygame.transform.smoothscale(img, (TILE * TITAN_N, TILE * TITAN_N))
+        # Roccia delle pareti e dei cumuli, 4x4 tessere
+        rock = pygame.image.load(os.path.join(assets.DIR, cfg["rock"] + ".png")).convert()
+        self.rock = pygame.transform.smoothscale(rock, (TILE * ROCK_N, TILE * ROCK_N))
+        self.station = assets.load(cfg["station"], TILE * 3, int(PH * 1.05), by_height=True)
+        # Primo piano all'aperto: solo le sagome che salgono dal basso (quelle
+        # appese in alto servono sottoterra).
+        fg = assets.load(cfg["foreground"], W, H, exact=True)
+        self.foreground_low = fg.subsurface((0, H * 55 // 100, W, H * 45 // 100)).copy()
+        self.pass_start, self.fog_color, self.sky_name, self.caves = (cfg["pass_start"], cfg["fog_color"],
+                                                                       cfg["sky"], cfg["caves"])
+        self.bg_cache = {k: v for k, v in self.bg_cache.items() if k[0] == "title"}
+
     def titan_tile(self, ch, c, r, part=0):
         if ch == "H":
             if self.ladder_strip:
@@ -323,22 +338,22 @@ class Gfx:
                 y = (r * TILE) % self.ladder_strip.get_height()
                 return self.ladder_strip.subsurface((part % LADDER_W * TILE, y, TILE, TILE))
             return self.titan_ladder
-        if self.titan_ground is None or ch not in "#D":
+        if self.ground is None or ch not in "#D":
             return None
-        if ch == "D" and r > GROUND + 2 and self.cave_rock and c >= levels.TITAN_PASS_START:
+        if ch == "D" and r > GROUND + 2 and self.cave_rock and self.caves and c >= self.pass_start:
             # sotto la crosta: la roccia scura delle gallerie
             return self.cave_rock.subsurface(((c % ROCK_N) * TILE, (r % ROCK_N) * TILE, TILE, TILE))
         if ch == "D" and r < GROUND:
             # sopra il livello del suolo e' parete o cumulo: roccia a strati
-            return self.titan_rock.subsurface(((c % ROCK_N) * TILE, (r % ROCK_N) * TILE, TILE, TILE))
+            return self.rock.subsurface(((c % ROCK_N) * TILE, (r % ROCK_N) * TILE, TILE, TILE))
         row = 0 if ch == "#" else 1 + r % (TITAN_N - 1)
-        return self.titan_ground.subsurface(((c % TITAN_N) * TILE, row * TILE, TILE, TILE))
+        return self.ground.subsurface(((c % TITAN_N) * TILE, row * TILE, TILE, TILE))
 
-    def wide_sky(self, num, pan):
+    def wide_sky(self, name, pan):
         """Cielo allargato di `pan` pixel, in proporzione, ancorato in basso."""
-        key = ("wide_sky", num, pan)
+        key = ("wide_sky", name, pan)
         if key not in self.bg_cache:
-            sky = self.background("sky", num)
+            sky = self.background(name, None)
             k = (W + pan) / sky.get_width()
             self.bg_cache[key] = pygame.transform.smoothscale(sky, (W + pan, int(sky.get_height() * k)))
         return self.bg_cache[key]
@@ -407,7 +422,7 @@ class Gfx:
                 keep *= 1 - alpha / 255 * profile
             out = img.copy()
             rgb = pygame.surfarray.pixels3d(out)
-            rgb[:] = (rgb * keep[None, :, None] + numpy.array(FOG_COLOR) * (1 - keep[None, :, None])).astype("uint8")
+            rgb[:] = (rgb * keep[None, :, None] + numpy.array(self.fog_color) * (1 - keep[None, :, None])).astype("uint8")
             del rgb
             self.bg_cache[key] = out
         return self.bg_cache[key]
@@ -1336,8 +1351,8 @@ class Game:
         self.screen = pygame.display.set_mode((W, H), flags)
         self.luce, self.freed = 0, set()      # Luce di Bianca e prigionieri gia' liberati
         self.sparks, self.shake = [], 0       # scintille dei colpi e scossa dello schermo
-        self.reached_pass = False             # su Titano: arrivati alla traversata
-        self.stage = 0                        # ultima tappa raggiunta (levels.TITAN_STAGES)
+        self.reached_pass = False             # arrivati alla traversata
+        self.stage = 0                        # ultima tappa raggiunta (cfg["stages"])
         self.nova_used, self.nova_t = False, 0  # Nova: una per livello, e la sequenza in corso
         pygame.display.set_caption("NightKnight")
         self.clock = pygame.time.Clock()
@@ -1373,7 +1388,7 @@ class Game:
             self.saved["checkpoint"] = None
         elif checkpoint:
             self.saved["checkpoint"] = {
-                "cemetery": 0, "part": self.part, "lives": self.lives, "score": self.score,
+                "cemetery": 0, "satellite": self.ci, "part": self.part, "lives": self.lives, "score": self.score,
                 "luce": self.luce, "freed": sorted(list(f) for f in self.freed),
                 "pass": self.reached_pass, "stage": self.stage, "nova": self.nova_used,
             }
@@ -1382,12 +1397,14 @@ class Game:
     def continue_game(self):
         cp = self.saved["checkpoint"]
         if cp:
-            self.ci, self.lives, self.score = 0, cp["lives"], cp["score"]
+            sat = cp.get("satellite", 0)
+            self.ci = sat if type(sat) is int and 0 <= sat < len(levels.SATELLITES) else 0
+            self.lives, self.score = cp["lives"], cp["score"]
             self.luce = max(0, min(LUCE_MAX, int(cp.get("luce", 0))))
             self.reached_pass = cp.get("pass") is True
             self.nova_used = cp.get("nova") is True
             stage = cp.get("stage", 0)
-            self.stage = stage if type(stage) is int and 0 <= stage < len(levels.TITAN_STAGES) else 0
+            self.stage = stage if type(stage) is int and 0 <= stage < len(levels.cfg(self.ci)["stages"]) else 0
             self.freed = {tuple(f) for f in cp.get("freed", []) if isinstance(f, list) and len(f) == 3}
             self.start_part(cp["part"])
 
@@ -1443,8 +1460,10 @@ class Game:
             self.stage = 0
         c = levels.cfg(self.ci)
         self.cfg = c
+        self.gfx.load_world(c)
+        self.o2_drain = OXYGEN_MAX / (c["oxygen_seconds"] * 60)
         self.part = part
-        g = {"surface": levels.gen_surface, "arena": levels.gen_arena}[part]()
+        g = c[part]()
         self.lv = Level(g, part)
         self.rounds = [0, 0]
         self.nova_t = 0
@@ -1486,14 +1505,15 @@ class Game:
         self.effects = []
         self.intro = 0
         self.cable = None
+        cfg = self.cfg
         if self.part == "surface":
-            x0 = levels.TITAN_PASS_START * TILE
-            speeds = iter(levels.ROPE_SPEEDS)
+            x0 = cfg["pass_start"] * TILE
+            speeds = iter(cfg["rope_speeds"])
             self.cable = athletics.Cables([[athletics.Cable(x0 + col * TILE + TILE // 2, athletics.FLOOR - top, length,
                                                             next(speeds))
-                                            for col, top, length in group] for group in levels.TITAN_CABLES])
-            for kind, col, row in levels.TITAN_PASS_FOES:
-                col += levels.TITAN_PASS_START
+                                            for col, top, length in group] for group in cfg["cables"]])
+            for kind, col, row in cfg["pass_foes"]:
+                col += cfg["pass_start"]
                 if kind in FLYERS:
                     flyer = Flyer(col * TILE, row * TILE, kind)
                     flyer.state = "wait"          # aspetta il passaggio, come i corvi di guardia
@@ -1504,17 +1524,18 @@ class Game:
                     self.skels.append(walker)
         self.waves = None
         if self.part == "surface":
-            self.waves = waves.WaveDirector(levels.TITAN_ARENAS, levels.TITAN_WAVES, self.make_walker, Flyer, seed=self.ci,
+            self.waves = waves.WaveDirector(cfg["arenas"], cfg["waves"], self.make_walker, Flyer, seed=self.ci,
                                             flyer_y=(VIEW_Y + 40, VIEW_Y + 260),
-                                            patrols=levels.TITAN_PATROLS, patrol_end=levels.TITAN_PASS_START * TILE)
+                                            patrols=cfg["patrols"], patrol_end=cfg["pass_start"] * TILE)
             self.waves.patrol_floor = GROUND * TILE
             # si riparte dall'ultima tappa: le ondate gia' passate restano superate
-            col, row = levels.TITAN_STAGES[self.stage]
+            col, row = cfg["stages"][self.stage]
             p.x, p.y = col * TILE + (TILE - p.w) / 2, row * TILE - p.h
             for w in self.waves.waves:
                 if w.x1 < col * TILE:
                     w.state = "done"
-            self.waves.next_patrol = max(self.waves.next_patrol, (col + levels.TITAN_PATROLS["every"]) * TILE)
+            if cfg["patrols"]:
+                self.waves.next_patrol = max(self.waves.next_patrol, (col + cfg["patrols"]["every"]) * TILE)
             self.camy = self.camy_target = max(0, p.rect.bottom - FEET_IN_VIEW)
             self.bianca = Bianca(p)
             self.dark = 1.0 if row > levels.CAVE_TOP else 0.0
@@ -1524,7 +1545,7 @@ class Game:
     def flat_ground(self, x, feet):
         """Terreno vero per un verme: il suolo base (niente colline, gradini o cengie),
         in piano per WORM_FLAT tessere da ogni lato, senza laghi."""
-        if self.part == "surface" and x < levels.TITAN_PASS_START * TILE and feet != GROUND * TILE:
+        if self.part == "surface" and x < self.cfg["pass_start"] * TILE and feet != GROUND * TILE:
             return False
         for d in range(-WORM_FLAT, WORM_FLAT + 1):
             cx = x + d * TILE
@@ -2017,7 +2038,7 @@ class Game:
                 self.jb.fx("air")
             p.oxygen = min(OXYGEN_MAX, p.oxygen + OXYGEN_REFILL)
         else:
-            p.oxygen = max(0, p.oxygen - OXYGEN_DRAIN * (SPRINT_O2 if p.sprinting else 1))
+            p.oxygen = max(0, p.oxygen - self.o2_drain * (SPRINT_O2 if p.sprinting else 1))
             if p.oxygen == 0 and self.frame % 90 == 0:
                 self.jb.fx("pant")                  # senz'aria: si ansima, non si muore
         for vent in self.vents:
@@ -2036,12 +2057,12 @@ class Game:
             self.next_part()
             return
         if self.part == "surface":
-            stages = levels.TITAN_STAGES
+            stages = self.cfg["stages"]
             moved = False
             while self.stage + 1 < len(stages) and p.rect.centerx > stages[self.stage + 1][0] * TILE:
                 self.stage += 1                     # nuova tappa: da qui si riparte
                 moved = True
-            if not self.reached_pass and p.x > levels.TITAN_PASS_START * TILE:
+            if not self.reached_pass and p.x > self.cfg["pass_start"] * TILE:
                 self.reached_pass = True
                 self.jb.play("trials")
             if moved:
@@ -2356,16 +2377,17 @@ class Game:
         s, cam, lv = self.screen, self.cam, self.lv
         # In verticale i piani lontani si spostano meno di quelli vicini.
         lift = (VIEW_Y - self.camy) * ZOOM
-        s.fill((34, 16, 8))
+        parallax = self.cfg["parallax"]
+        s.fill(self.cfg["bg_color"])
         # Il cielo non si ripete: e' appena piu' largo dello schermo e scorre
         # pochissimo, cosi' Saturno resta uno solo.
-        fogs = tuple(fog for *_, fog in PARALLAX)
-        sky = self.gfx.wide_sky(1, SKY_PAN)
+        fogs = tuple(fog for *_, fog in parallax)
+        sky = self.gfx.wide_sky(self.cfg["sky"], SKY_PAN)
         sky = self.gfx.fogged(sky, fogs, H - sky.get_height())
         off = -min(SKY_PAN, int(cam * SKY_PAN / max(1, lv.cols * TILE - W, W)))
         s.blit(sky, (off, H - sky.get_height() + int(lift * 0.04)))
         # Ogni piano si ripete alternando una copia specchiata: niente cuciture.
-        for i, (name, speed, dy, _) in enumerate(PARALLAX):
+        for i, (name, speed, dy, _) in enumerate(parallax):
             layer = self.gfx.mirrored(self.gfx.fogged(self.gfx.layer(name), fogs[i:], dy))
             off = -(int(cam * speed) % layer.get_width())
             for x in range(off, W, layer.get_width()):
@@ -2373,7 +2395,7 @@ class Game:
         # Sotto la crosta non c'e' cielo: dietro le gallerie si vede la caverna.
         vx, vy, cw, ch = self.view_rect()
         ground = int((GROUND * TILE + TILE - self.camy - vy) * H / ch)
-        if ground < H:
+        if ground < H and self.cfg["caves"]:
             cave = self.gfx.mirrored(self.gfx.layer("cave_bg"))
             off = -(int(cam * 0.3) % cave.get_width())
             clip = s.get_clip()
@@ -2469,9 +2491,9 @@ class Game:
 
     def draw_cave_props(self, s, cam, lv):
         """Stalattiti, stalagmiti, puntelli e rottami della colonia nelle gallerie."""
-        if lv.kind != "surface":
+        if lv.kind != "surface" or not self.cfg["caves"]:
             return
-        x0 = levels.TITAN_PASS_START * TILE - cam
+        x0 = self.cfg["pass_start"] * TILE - cam
         mouth = self.gfx.cave_mouth
         if mouth:
             x = x0 + levels.CAVE_MOUTH * TILE
@@ -2490,7 +2512,10 @@ class Game:
                 s.blit(img, (x, levels.CAVE_FLOOR * TILE - img.get_height() + 6))
 
     def draw_drizzle(self, s):
-        """Pioviggine di metano: gocce lente e pesanti, in diagonale, davanti a tutto."""
+        """Pioviggine di metano: gocce lente e pesanti, in diagonale, davanti a tutto.
+        Solo dove c'e' un'atmosfera (cfg["drizzle"])."""
+        if not self.cfg["drizzle"]:
+            return
         if not hasattr(self, "drops"):
             rnd = random.Random(7)
             self.drops = [(rnd.randrange(W), rnd.randrange(H), rnd.uniform(3, 6)) for _ in range(140)]
