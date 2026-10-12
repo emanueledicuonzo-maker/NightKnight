@@ -67,7 +67,8 @@ def knight_cfg(i=0):
         # dopo la picchiata (plant), il piatto prende i sassi di fronte e li rimanda
         # (reflect), l'anello corre da tutte e due le parti (wave_both), il mantello
         # spegne il visore da lontano (dark)
-        cfg.update(speed=3.2, gravity_scale=.55, sequence=True, plant=90, reflect=True, wave_both=True, dark=True)
+        cfg.update(speed=3.2, gravity_scale=.55, sequence=True, plant=90, reflect=True, wave_both=True, dark=True,
+                   tip=90)
     return cfg
 
 
@@ -257,6 +258,10 @@ class GoldKnight:
             return pygame.Rect(r.left - reach, body + 40, r.w + reach * 2, 100)
         top = body + 40 + bw if bw >= 0 else body
         x = r.right if self.facing > 0 else r.left - reach
+        tip = self.cfg.get("tip", 0) if m["kind"] == "weapon" else 0
+        if tip:
+            # la lancia di Nix colpisce con la punta: al petto, dentro la portata, non arriva
+            return pygame.Rect(x + tip if self.facing > 0 else x, top, reach - tip, bh)
         return pygame.Rect(x, top, reach, bh)
 
     def move_dmg(self):

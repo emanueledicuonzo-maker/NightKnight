@@ -163,6 +163,49 @@ class NixGuardianTests(unittest.TestCase):
         # la salita della picchiata dura 20 fotogrammi: su Titano arriva a ~3,4 tessere, qui oltre 4
         self.assertGreater((G * TILE - bs.h - top) / TILE, 4, "la picchiata sale alto come un salto di Nix")
 
+    def test_the_thrust_does_not_reach_the_chest(self):
+        bs = self.bs
+        bs.facing = -1
+        bs.move = ("thrust", 12)                     # nella finestra attiva
+        box = bs.attack_box()
+        self.assertIsNotNone(box)
+        self.assertGreaterEqual(bs.rect.left - box.right, bs.cfg["tip"] - 1, "al petto la punta non arriva")
+        self.assertAlmostEqual(box.width, bs.reach - bs.cfg["tip"])
+
+    def test_an_automaton_beats_him_up_close(self):
+        """Stare al petto, menare, saltare l'anello e la carica: si vince entro due minuti."""
+        import random
+        random.seed(1)
+        g, p = self.game, self.p
+        self.bs.cool = 14
+        keys = defaultdict(bool)
+
+        def bot():
+            bs = g.boss
+            for k in list(keys):
+                keys[k] = False
+            gap = bs.rect.centerx - p.rect.centerx
+            d = 1 if gap > 0 else -1
+            if abs(gap) > 1.9 * TILE:
+                keys[pygame.K_RIGHT if d > 0 else pygame.K_LEFT] = True
+            elif abs(gap) < 1.2 * TILE:
+                keys[pygame.K_LEFT if d > 0 else pygame.K_RIGHT] = True
+            ring = any(getattr(b, "kind", "") == "wave" and abs(b.x - p.rect.centerx) < 3 * TILE for b in g.balls)
+            charge = bs.move and bs.move[0] == "dashthrust" and abs(gap) < 5 * TILE
+            if (ring or charge) and p.on_ground:
+                p.do_jump()
+            if g.frame % 20 == 0 and abs(gap) < 4 * TILE:
+                p.slash()
+
+        with unittest.mock.patch("pygame.key.get_pressed", return_value=keys):
+            for frame in range(60 * 120):
+                bot()
+                g.update()
+                p = g.player
+                if g.state in ("gameover", "victory", "end"):
+                    break
+        self.assertEqual(g.state, "victory", f"dopo {frame // 60} s: vita del Guardiano {g.boss.hp}, vite {g.lives}")
+
 
 if __name__ == "__main__":
     unittest.main()
