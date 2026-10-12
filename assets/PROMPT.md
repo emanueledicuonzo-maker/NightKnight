@@ -127,3 +127,21 @@ The Guardian of Titan, a boss for a side-scrolling game: a knight, not a soldier
 
 Full body, side view facing LEFT, standing in guard with the halberd held diagonally, calm and menacing. Transparent PNG background with real alpha, 1024x1024, no ground, no shadow, no text, no frame.
 ```
+
+### Nix — deciso il 12/10/2026
+
+Il primo dei custodi senza volto: piastre grigio-ghiaccio con pinne d'antenna,
+mantello nero che beve la luce, elmo a corno di ripetitore senza visore con un
+anello viola, lancia-antenna con punta di cristallo e piatto ricevente.
+
+```text
+The Guardian of Nix, a boss for a side-scrolling game: a knight, not a soldier, TWICE as tall as the attached knight, tall and thin, imposing. Ritual retro-futurist armor of pale grey-blue ice-glass plates with small antenna fins on the shoulders and along the spine. A tall sealed helm shaped like a repeater horn, with NO visor and no face: only a single glowing violet ring around the helm, pulsing. A very long black mantle down to the ground that seems to swallow light, with no highlights. He wields a lance taller than himself: a thin black shaft, a sharp crystal tip glowing faintly violet, and just below the tip a small open receiving dish like a metal flower. On his breastplate, a worn emblem of Pluto with its heart-shaped plain.
+
+Full body, side view facing LEFT, standing in guard with the lance held low and diagonal, calm and listening. Transparent PNG background with real alpha, 1024x1024, no ground, no shadow, no text, no frame.
+```
+
+Le altre pose partono dalla guardia, come per Titano: `boss02_walk`, `boss02_attack`
+(affondo con la lancia tesa), `boss02_jump` (la picchiata, lancia in basso),
+`boss02_special` (lancia piantata a terra, piatto aperto), `boss02_kick`,
+`boss02_hurt`, `boss02_ko` (steso, il mantello a terra), `boss02_punch` (il
+piatto che rimanda il sasso). In piu' `pulse_ring.png`: l'anello viola a terra.

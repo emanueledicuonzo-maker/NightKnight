@@ -425,6 +425,53 @@ traversata **solo pipistrelli**.
 2 ragni sotto le passerelle, 2 custodi sul lato del ritorno davanti ai due
 ossari nascosti, 1 copia difettosa sul traliccio. Nessuno sui cavi.
 
+### Il Guardiano di Nix
+
+Il cavaliere che governa il ripetitore: l'ultimo che ha sentito i segnali, e
+che non ha mai smesso di ascoltare. È il primo dei custodi senza volto: alto il
+doppio di 9T9T, armatura di piastre grigio-ghiaccio con pinne d'antenna sulle
+spalle e sulla schiena, un mantello nero lungo fino a terra che **beve la
+luce**, un elmo a corno di ripetitore senza visore, con un solo anello viola che
+pulsa come le sirene. L'arma è una **lancia-antenna**: un'asta nera lunga più
+di lui, con una punta di cristallo e, sotto la punta, un piccolo piatto
+ricevente aperto come un fiore. Con la lancia luminosa di Nix, se mai la
+faremo, sarà la sua l'arma affine da prendergli.
+
+**Perché lo si combatte da vicino.** Il Guardiano di Titano cade dai sassi; quello
+di Nix no:
+
+- il **piatto della lancia prende i sassi** al volo e li rimanda come impulsi
+  viola, più veloci: ogni sasso da lontano è un colpo che torna indietro;
+- l'arena è **al buio**: il mantello spegne il cono del visore quando lui è a più
+  di 6 tessere, e da lontano si vede solo il suo anello viola; da vicino il
+  visore torna a illuminarlo. Non si mira a quello che non si vede;
+- la lancia è lunga 3 tessere: la **zona sicura è dentro la sua portata**, al
+  petto, dove la punta non arriva e lui deve passare al calcio o al salto.
+
+**Le mosse** (dalla libreria già nel codice, più una nuova):
+
+| Mossa | Cosa fa | Come si legge | Risposta |
+| --- | --- | --- | --- |
+| **Affondo** (`thrust`) | Un passo e la lancia in avanti, 3 tessere | La punta si accende un attimo prima | Salto alto, o passo dentro la portata |
+| **Carica** (`dashthrust`) | Scatto di 4 tessere con la lancia tesa, da lontano | Si piega in avanti, l'anello lampeggia due volte | Salto sopra di lui: con la gravità di Nix lo si supera e si atterra alle sue spalle, aperto per 1 s |
+| **Picchiata** (`dive`) | Salta alto quanto 9T9T e scende con la lancia puntata in basso | Lenta: si vede l'ombra di Plutone addosso | Spostarsi: la lancia **si pianta nel ghiaccio** e lui ci mette 1,5 s a tirarla fuori, il momento per tre fendenti |
+| **Impulso** (`wave`) | Pianta la lancia e dal piatto esce un **anello viola** che corre a terra in entrambe le direzioni | L'anello pulsa come la sirena: dentro il suo raggio destra e sinistra si scambiano per 2 s | Si salta: l'anello è basso e il salto di Nix è alto |
+| **Riflesso** (nuova) | Se un sasso lo raggiunge mentre non attacca, il piatto lo prende e lo **rimanda** come impulso dritto | Il piatto si apre di scatto | Non tirare sassi da lontano, o farlo solo mentre lui è a terra con la lancia piantata |
+| **Calcio** (`kick`) | Da vicino, quando 9T9T sta al petto | Alza il ginocchio | Passo indietro e di nuovo dentro |
+
+Sequenza di base: affondo, affondo, impulso, carica, picchiata, calcio; dopo
+ogni colpo preso cambia ordine. Vita 320 come il Guardiano di Titano, 20 di
+danno a colpo; il fendente gli toglie 12, il sasso 6 solo se lo prende alle
+spalle o mentre ha la lancia piantata. Velocità 3,2; salta con la gravità di
+Nix. Bianca lo prende in picchiata ogni 6 s (2%), V vale il 5% per 25 Luce,
+Nova il 30%: come su Titano.
+
+**L'arena.** La piattaforma del ripetitore principale: 60 colonne piane fra i
+due piloni dell'antenna madre, con Plutone che riempie mezzo cielo e Caronte
+dietro; due lampade d'emergenza rosse ai lati, che sono le sole luci fisse. Al
+K.O. l'anello viola si spegne, il mantello cade e il cono del visore torna
+pieno. Il portello è nel basamento dell'antenna.
+
 ## Gli anelli di Saturno
 
 Dopo il dodicesimo satellite appare Saturno intero. NightKnight e Bianca corrono
@@ -534,4 +581,4 @@ prototipo non resta nulla: sono tutte in `assets/inutili/`.
   lega i prigionieri illuminati alla sua luce.
 - Le fasi del duello con Luna. La vecchia versione (fuoco, ghiaccio, vento, luce
   rimandata con l'Albedo) usava l'Albedo, che non c'è più.
-- I dodici Guardiani: aspetto, arma e meccanica di ciascuno.
+- I Guardiani da Io a Oberon: aspetto, arma e meccanica di ciascuno (Titano e Nix sono decisi).
