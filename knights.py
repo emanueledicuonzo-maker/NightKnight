@@ -58,10 +58,17 @@ RANGED = {"hook", "throw", "arrow", "wave", "pound", "teleport", "dash", "dashth
 
 
 def knight_cfg(i=0):
-    name, weapon, reach, color, moves = KNIGHTS[0]
-    # il Guardiano di Titano: tanta vita, colpi pesanti, poca pausa fra un attacco e l'altro
-    return {"index": 0, "num": 1, "name": name, "weapon": weapon, "reach": reach, "color": color,
-            "moves": moves, "hp": 320, "dmg": 20, "speed": 3.4, "cool": 14}
+    name, weapon, reach, color, moves = KNIGHTS[i]
+    cfg = {"index": i, "num": i + 1, "name": name, "weapon": weapon, "reach": reach, "color": color,
+           "moves": moves, "hp": 320, "dmg": 20, "speed": 3.4, "cool": 14, "gravity_scale": 1.0}
+    if i == 1:
+        # il Guardiano di Nix (STORY.md): salta con la gravita' di Nix, segue la sua
+        # sequenza di mosse e la cambia a ogni colpo preso; la lancia resta piantata
+        # dopo la picchiata (plant), il piatto prende i sassi di fronte e li rimanda
+        # (reflect), l'anello corre da tutte e due le parti (wave_both), il mantello
+        # spegne il visore da lontano (dark)
+        cfg.update(speed=3.2, gravity_scale=.55, sequence=True, plant=90, reflect=True, wave_both=True, dark=True)
+    return cfg
 
 
 class Projectile:
@@ -82,6 +89,8 @@ class Projectile:
             self.w, self.h, self.vx = 110, 150, (9 + speed_bonus) * d
         elif kind == "shock":
             self.w, self.h, self.vx = 60, 50, 9 * d
+        elif kind == "pulse":            # il sasso rimandato dal piatto del Guardiano di Nix
+            self.w, self.h, self.vx = 36, 36, 18 * d
         else:  # shock2 in entrambe le direzioni: creata due volte
             self.w, self.h, self.vx = 60, 50, 9 * d
         self.rect = pygame.Rect(int(self.x), int(self.y), self.w, self.h)
@@ -155,6 +164,11 @@ class Projectile:
         elif self.kind == "wave":
             for i in range(3):
                 pygame.draw.ellipse(s, c, r.inflate(-i * 26, -i * 30), 6)
+        elif self.kind == "pulse":
+            tail = (r.centerx - self.d * 40, r.centery)
+            pygame.draw.line(s, (120, 70, 170), tail, r.center, 10)
+            pygame.draw.circle(s, (120, 70, 170), r.center, 18)
+            pygame.draw.circle(s, (210, 160, 255), r.center, 12)
         else:
             pygame.draw.polygon(s, c, [(r.left, r.bottom), (r.centerx, r.top + (self.t % 4) * 4), (r.right, r.bottom)])
 
@@ -183,6 +197,8 @@ class GoldKnight:
         self.ko_t = 0
         self.t = 0
         self.hidden = False
+        self.planted = 0        # Nix: la lancia piantata nel ghiaccio dopo la picchiata
+        self.seq_i = 0          # Nix: a che punto della sequenza di mosse
         self.imgs = gfx.knight(cfg["num"], cfg["color"])
         # alto il doppio di NightKnight
         self.w, self.h = 130, 360
@@ -201,7 +217,7 @@ class GoldKnight:
         elif self.vx < 0 and (lv.solid(r.left, r.centery) or lv.solid(r.left, r.bottom - 2)):
             self.x = (r.left // TILE + 1) * TILE; self.vx = 0
         if gravity:
-            self.vy = min(self.vy + GRAVITY, MAX_FALL)
+            self.vy = min(self.vy + GRAVITY * self.cfg.get("gravity_scale", 1.0), MAX_FALL)
         self.y += self.vy
         r = self.rect
         self.on_ground = False
@@ -246,9 +262,30 @@ class GoldKnight:
     def move_dmg(self):
         return self.dmg + (MOVES[self.move[0]]["dmg"] if self.move else 0)
 
+    # ---- Nix: la lancia piantata, il piatto che rimanda i sassi
+    @property
+    def open(self):
+        """Scoperto: con la lancia piantata ogni colpo conta, anche i sassi."""
+        return self.planted > 0
+
+    def catches(self, x):
+        """Il piatto della lancia prende un sasso che arriva di fronte mentre non attacca."""
+        return (self.cfg.get("reflect") and self.hp > 0 and not self.hidden and not self.planted
+                and self.move is None and (x - self.rect.centerx) * self.facing > 0)
+
+    def stone_counts(self, x):
+        """Un sasso conta solo alle spalle o con la lancia piantata (Nix); sempre, altrove."""
+        if not self.cfg.get("reflect"):
+            return True
+        return self.planted > 0 or (x - self.rect.centerx) * self.facing < 0
+
     # ---- intelligenza
     def choose(self, dist, player):
         moves = self.cfg["moves"]
+        if self.cfg.get("sequence"):
+            move = moves[self.seq_i % len(moves)]
+            self.seq_i += 1
+            return move
         far = dist > self.reach + 80
         ranged = [m for m in moves if m in RANGED]
         melee = [m for m in moves if m not in RANGED]
@@ -275,6 +312,13 @@ class GoldKnight:
         if self.frozen:
             self.frozen -= 1
             self.vx = 0
+            self.physics(lv)
+            return
+        if self.planted:
+            self.planted -= 1            # la lancia nel ghiaccio: fermo e scoperto
+            self.vx = 0
+            if not self.planted:
+                self.cool = 10
             self.physics(lv)
             return
         dx = player.rect.centerx - self.rect.centerx
@@ -305,6 +349,11 @@ class GoldKnight:
                     self.vy = max(self.vy, 12)
                 if self.on_ground and f > 8:
                     self.vx *= 0.6
+                    if name == "dive" and self.cfg.get("plant"):
+                        self.move = None                   # la lancia si pianta: 1,5 s scoperto
+                        self.planted = self.cfg["plant"]
+                        self.physics(lv)
+                        return
             elif m.get("dash") and m["act"] and m["act"][0] <= f <= m["act"][1]:
                 self.vx = m["dash"] * self.facing
             elif m.get("step") and self.active():
@@ -336,6 +385,8 @@ class GoldKnight:
                     spawn(Projectile("axe", r.right if self.facing > 0 else r.left - 70, r.bottom - HUMAN_H + 50, self.facing, self.move_dmg(), self.cfg["color"]))
                 elif kind == "wave":
                     spawn(Projectile("wave", r.right if self.facing > 0 else r.left - 110, r.bottom - HUMAN_H + 10, self.facing, self.move_dmg(), self.cfg["color"], self.cfg["index"] // 3))
+                    if self.cfg.get("wave_both"):          # l'anello corre da tutte e due le parti
+                        spawn(Projectile("wave", r.left - 110 if self.facing > 0 else r.right, r.bottom - HUMAN_H + 10, -self.facing, self.move_dmg(), self.cfg["color"], self.cfg["index"] // 3))
             self.move = (name, f) if f < m["total"] else None
             if self.move is None:
                 self.cool = self.cfg["cool"] + random.randrange(0, 20)
@@ -360,6 +411,8 @@ class GoldKnight:
         self.hp = max(0, self.hp - dmg)
         self.invuln = 16
         self.flash = 10
+        if self.cfg.get("sequence"):
+            self.seq_i = random.randrange(len(self.cfg["moves"]))   # ogni colpo preso cambia l'ordine
         if power == "ice":
             self.frozen = 50
         if self.move and MOVES[self.move[0]]["kind"] in ("melee", "weapon") and random.random() < 0.35:
@@ -373,6 +426,8 @@ class GoldKnight:
             return "ko"
         if self.flash and (self.flash // 3) % 2:
             return "hurt"
+        if self.planted:
+            return "special"
         if self.move:
             m = MOVES[self.move[0]]
             if not self.on_ground and m["pose"] not in ("kick", "attack"):
@@ -383,6 +438,11 @@ class GoldKnight:
         if abs(self.vx) > 0.5:
             return "walk1" if (self.t // 8) % 2 else "walk2"
         return "idle"
+
+    def helm(self, cam=0):
+        """Dove sta l'anello viola dell'elmo (sullo schermo del mondo)."""
+        r = self.rect
+        return r.centerx - cam, r.top + 42
 
     def fist(self):
         """Il pugno teso nella posa del lancio: da li' parte la catena del gancio."""
@@ -405,6 +465,11 @@ class GoldKnight:
         s.blit(img, pos)
         if self.flash and (self.flash // 2) % 2 and self.hp > 0:
             s.blit(self.imgs["white"][i], pos)
+        if self.cfg.get("dark") and self.hp > 0:
+            # l'anello viola dell'elmo pulsa: e' quello che si vede di lui nel buio
+            k = 0.6 + 0.4 * abs(math.sin(self.t / 9))
+            cx, cy = self.helm(cam)
+            pygame.draw.circle(s, (int(150 * k), int(80 * k), int(230 * k)), (cx, cy), 22, 6)
         if self.frozen:
             pygame.draw.rect(s, (150, 220, 255), (int(self.x) - cam, self.y, self.w, self.h), 5)
 

@@ -2254,6 +2254,11 @@ class Game:
         # scendendo nelle gallerie la luce se ne va piano; dove non ci sono
         # gallerie resta la notte del satellite
         depth = (p.rect.bottom / TILE - levels.CAVE_TOP) / 3 if self.cfg["caves"] else self.cfg["night"]
+        mantle = (self.boss is not None and self.boss.hp > 0 and self.boss.cfg.get("dark")
+                  and abs(self.boss.rect.centerx - p.rect.centerx) > 6 * TILE)
+        if mantle:
+            depth = 1.0                              # il mantello del Guardiano di Nix beve la luce
+        self.mantle_k = getattr(self, "mantle_k", 0.0) + ((1.0 if mantle else 0.0) - getattr(self, "mantle_k", 0.0)) * 0.06
         self.dark += (max(0.0, min(1.0, depth)) - self.dark) * 0.05
         if self.lv.drowned(p.rect):
             self.die(); return
@@ -2308,7 +2313,8 @@ class Game:
                 self.jb.fx("bones")
                 self.shake = max(self.shake, 3)
         # le sirene: mentre pulsano, nel loro raggio destra e sinistra si scambiano
-        p.swapped = False
+        p.swap_t = max(0, getattr(p, "swap_t", 0) - 1)
+        p.swapped = p.swap_t > 0
         for siren in self.sirens:
             if siren.update(p):
                 p.swapped = True
@@ -2464,13 +2470,22 @@ class Game:
                         self.hit_enemy(e, p.power(b.dmg), pts=pts)
                         break
                 if self.boss and b.alive and b.rect.colliderect(self.boss.rect):
-                    if self.boss.hit(getattr(b, "boss_dmg", b.dmg)):
+                    bs = self.boss
+                    if bs.catches(b.x):
+                        # il piatto della lancia prende il sasso e lo rimanda, piu' veloce
+                        d = 1 if p.rect.centerx > bs.rect.centerx else -1
+                        self.balls.append(knights.Projectile("pulse", b.x, b.y, d, 10, bs.cfg["color"]))
+                        self.burst_sparks(b.x, b.y, 8, (200, 150, 255))
+                        self.jb.fx("hit")
+                    elif bs.stone_counts(b.x) and bs.hit(getattr(b, "boss_dmg", b.dmg)):
                         self.score += 50
                         self.shake = max(self.shake, 5)
                         self.jb.fx("boss_hit")
                     b.alive = False
             if b.owner == "boss" and b.alive and b.rect.colliderect(p.hurtbox()):
                 b.alive = False
+                if getattr(b, "kind", "") == "wave" and self.boss and self.boss.cfg.get("wave_both"):
+                    p.swap_t = 120                     # l'impulso psichico: comandi girati per 2 s
                 self.hurt_player(b.dmg, b.x)
                 if self.state != "play":
                     return
@@ -2754,6 +2769,9 @@ class Game:
         light = self.gfx.visor_light
         if self.dust_k > 0.02:            # nella nube ossea il cono si accorcia a 2 tessere
             light = self.gfx.sized(light, round(1 - 0.8 * self.dust_k, 2))
+        mk = getattr(self, "mantle_k", 0.0)
+        if mk > 0.02:                     # da lontano dal Guardiano di Nix resta un lume
+            light = self.gfx.sized(light, round(max(0.05, 1 - 0.85 * mk), 2))
         shade.blit(light, (cx - light.get_width() // 2, cy - light.get_height() // 2),
                    special_flags=pygame.BLEND_RGBA_MIN)
         s.blit(shade, (0, 0))
@@ -3011,6 +3029,14 @@ class Game:
         s.blit(pygame.transform.smoothscale(view, (W, H)), jolt)
         self.draw_foreground(s)
         self.draw_darkness(s)
+        if self.boss and self.boss.hp > 0 and self.boss.cfg.get("dark") and getattr(self, "mantle_k", 0) > 0.02:
+            # l'anello viola dell'elmo buca il buio: e' l'unica cosa che si vede di lui
+            vx, vy, cw, ch = self.view_rect()
+            k = W / cw
+            hx, hy = self.boss.helm()
+            sx, sy = (hx - self.cam - vx) * k, (hy - self.camy - vy) * k
+            glow = max(0.4, abs(math.sin(self.frame / 9)))
+            pygame.draw.circle(s, (int(170 * glow), int(90 * glow), 255), (int(sx), int(sy)), int(24 * k), 6)
         if self.blind:                    # la falena davanti al visore: buio per un attimo
             k = min(1, self.blind / 8)
             black = pygame.Surface((W, H), pygame.SRCALPHA); black.fill((0, 0, 0, int(235 * k)))
