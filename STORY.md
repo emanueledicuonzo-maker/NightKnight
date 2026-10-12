@@ -272,6 +272,49 @@ Volanti e terrestri sono solo creature del satellite, mai scheletri.
 | Umbriel | Eclissi quasi continua, nero assoluto e rara luce viola | Monoliti, cappella tecnologica, terminali che recitano messaggi, statue senza volto | Percorso al buio con luci intermittenti, salti guidati da segnali, corde in una navata spezzata |
 | Oberon | Foresta morta color oro, palazzo-colonia in rovina, cielo uraniano | Sale del trono devastate, armature vuote, giardini artificiali secchi, treno reale fermo | Scalinata monumentale, balconi del palazzo, corsa sul tetto del treno |
 
+## Nix, il secondo satellite
+
+Nix è una luna piccola di Plutone: cinquanta chilometri di ghiaccio d'acqua
+sporco, senza atmosfera, in orbita a quarantottomila chilometri dal pianeta.
+Qui la colonia era una **stazione di ripetitori**: le antenne che rilanciavano
+i segnali fra le miniere di Caronte e il sistema interno. Quando i segnali
+sono finiti, i coloni sono rimasti ad aspettarli; le miniere di ghiaccio sono
+diventate ossari. È il satellite del **buio e del silenzio**: si vede poco, si
+sente meno, e le sirene psichiche fanno il resto.
+
+### La mappa in tre quadri
+
+Un unico percorso continuo, come su Titano: superficie, traversata e Guardiano
+nella stessa mappa. Numeri in colonne di tessere (64 px); Titano ha 432 colonne
+di superficie e 455 di traversata.
+
+| Parte | Quadro | Colonne | Cosa c'è |
+| --- | --- | --- | --- |
+| Superficie, prima metà | **1. Il campo delle antenne** | 0–210 | La capsula atterra sull'orlo di un cratere grande; si scende nella conca di neve grigia e si risale dall'altra parte. Fuori, una piana di antenne spezzate e ripetitori spenti con le luci rosse d'emergenza che ancora lampeggiano: sono le uniche luci, insieme al visore. Crateri piccoli a conca (2–4 tessere di profondità, pareti a gradini), i primi due crepacci stretti. Due ondate: poche unità per capire il salto, poi lo sciame. |
+| Superficie, seconda metà | **2. Le miniere** | 210–430 | Il terreno sale in rilievi di roccia nera; nelle pareti si aprono gli imbocchi delle miniere di ghiaccio, con gli ossari in vista. Porte stagne senza corrente, nastri trasportatori fermi, un ripetitore caduto che fa da ponte su un crepaccio largo. Qui le sirene psichiche e la nube ossea. Due ondate: il cavaliere-scheletro 2× in cima a un rilievo, poi i volanti tutti insieme dentro la nube. |
+| Traversata | **2→3. Il campo dei crateri** | 430–730 | Il bordo dell'altopiano crolla in una distesa di crateri uno dentro l'altro: si salta da orlo a orlo con la gravità bassa, i fondi dei crateri sono crepacci senza fondo. Le passerelle di servizio delle antenne cedono sotto i piedi dopo un attimo. I cavi sospesi fra i tralicci portano oltre il crepaccio grande, e il percorso **torna indietro** sull'altro lato più in alto: un traliccio con due ossari nascosti in cima premia chi esplora. Pochissimi nemici: qualche pipistrello dalle crepe, due ragni sotto le passerelle. |
+| Guardiano | **3. Il ripetitore principale** | 730–790 | La piattaforma dell'antenna madre, in cima all'altopiano, con Plutone enorme che occupa mezzo cielo e Caronte dietro. Arena di due schermi (60 colonne) fra i piloni dell'antenna. |
+
+Durate attese: superficie 4–5 minuti, traversata 2–3, duello 2–3.
+
+**Le tappe di ripartenza** (si riparte dall'ultima raggiunta, come su Titano):
+sei in superficie (capsula, uscita dal cratere grande, prima delle ondate 2, 3 e
+4, fine delle miniere), sei nella traversata (ingresso nel campo dei crateri,
+dopo il primo crepaccio, prima delle passerelle, prima dei cavi, sul lato alto
+del ritorno, ai piedi del ripetitore). Le ondate già superate restano superate.
+
+**La luce.** Nix è notte: il cielo è nero con le stelle fisse, Plutone e
+Caronte grigio-rossastri danno una luce fredda appena sufficiente a vedere le
+sagome. Il visore di 9T9T illumina un cono davanti a lui come nelle gallerie di
+Titano; le luci rosse dei ripetitori lampeggiano a ritmi diversi e segnano la
+strada da lontano; dentro le miniere qualche lampada da lavoro è rimasta accesa.
+Le falene ossee, passando davanti al visore, spengono la vista per un momento.
+
+**Prigionieri e stazioni.** Trenta coloni illuminati in superficie, chiusi nelle
+capsule e seduti negli ossari; dodici nella traversata. L'ossigeno è il più
+scarso dei primi satelliti: quattro stazioni in superficie (capsula, campo delle
+antenne, imbocco delle miniere, fine delle miniere) e due nella traversata.
+
 ## Gli anelli di Saturno
 
 Dopo il dodicesimo satellite appare Saturno intero. NightKnight e Bianca corrono
