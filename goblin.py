@@ -1740,7 +1740,7 @@ class Game:
                     walker.y = row * TILE - walker.h     # sulla cengia, in galleria, o appeso
                     walker.gravity_scale = cfg["gravity_scale"]
                     self.skels.append(walker)
-        self.cracks = {c: 0 for c in cfg.get("cracks", ())}   # colonna -> ultimo sciame di pipistrelli
+        self.cracks = {c: -CRACK_REST for c in cfg.get("cracks", ())}   # colonna -> ultimo sciame di pipistrelli
         self.blind = 0
         self.waves = None
         if self.part == "surface":
@@ -2353,6 +2353,14 @@ class Game:
                 self.die(); return
         # colpi del giocatore sulle sirene: tre e si spengono, e liberano il prigioniero
         for siren in self.sirens:
+            if siren.dead and not siren.freed:
+                siren.freed = True
+                self.score += 800
+                self.jb.fx("door")
+                spento = titan.Spento(siren.x, siren.floor)
+                if (self.ci, self.part, int(spento.x)) in self.freed:
+                    spento.liberated, spento.glow = True, 60
+                self.spenti.append(spento)
             if siren.dead:
                 continue
             abox, adm = p.attack_box()
@@ -2367,14 +2375,6 @@ class Game:
                     if siren.hit():
                         self.jb.fx("boss_hit")
                         self.burst_sparks(siren.x, siren.floor - 120, 10, (200, 140, 255))
-            if siren.dead and not siren.freed:
-                siren.freed = True
-                self.score += 800
-                self.jb.fx("door")
-                spento = titan.Spento(siren.x, siren.floor)
-                if (self.ci, self.part, int(spento.x)) in self.freed:
-                    spento.liberated, spento.glow = True, 60
-                self.spenti.append(spento)
         # colpi del giocatore sui nemici
         enemies = [(k, k.spec["pts"]) for k in self.skels] + [(c, c.spec.get("pts", 150)) for c in self.crows]
         for e, pts in enemies:
