@@ -323,6 +323,9 @@ class Gfx:
         rock = pygame.image.load(os.path.join(assets.DIR, cfg["rock"] + ".png")).convert()
         self.rock = pygame.transform.smoothscale(rock, (TILE * ROCK_N, TILE * ROCK_N))
         self.station = assets.load(cfg["station"], TILE * 3, int(PH * 1.05), by_height=True)
+        # gli oggetti del paesaggio (antenne, ripetitori, porte): nome -> immagine
+        self.props = {name: assets.load(file, TILE * 8, int(PH * k), by_height=True)
+                      for name, (file, k) in cfg["prop_images"].items() if assets.has(file)}
         # Primo piano all'aperto: solo le sagome che salgono dal basso (quelle
         # appese in alto servono sottoterra).
         fg = assets.load(cfg["foreground"], W, H, exact=True)
@@ -1538,7 +1541,7 @@ class Game:
                 self.waves.next_patrol = max(self.waves.next_patrol, (col + cfg["patrols"]["every"]) * TILE)
             self.camy = self.camy_target = max(0, p.rect.bottom - FEET_IN_VIEW)
             self.bianca = Bianca(p)
-            self.dark = 1.0 if row > levels.CAVE_TOP else 0.0
+            self.dark = (1.0 if row > levels.CAVE_TOP else 0.0) if cfg["caves"] else cfg["night"]
         if self.part == "arena":
             self.start_round()
 
@@ -2009,8 +2012,9 @@ class Game:
             self.cam = int(max(lock[0], min(target, lock[1] - DW)))
         self.follow_y(p)
         self.update_zoom(p)
-        # scendendo nelle gallerie la luce se ne va piano
-        depth = (p.rect.bottom / TILE - levels.CAVE_TOP) / 3
+        # scendendo nelle gallerie la luce se ne va piano; dove non ci sono
+        # gallerie resta la notte del satellite
+        depth = (p.rect.bottom / TILE - levels.CAVE_TOP) / 3 if self.cfg["caves"] else self.cfg["night"]
         self.dark += (max(0.0, min(1.0, depth)) - self.dark) * 0.05
         if self.lv.drowned(p.rect):
             self.die(); return
@@ -2470,8 +2474,10 @@ class Game:
                     if ph < TILE:
                         pygame.draw.line(s, (236, 168, 96), (c * TILE - cam + ph, y + 3 + i * 7),
                                          (c * TILE - cam + min(TILE, ph + 22 - i * 6), y + 3 + i * 7), 2)
-        s.blit(self.gfx.haze, (0, GROUND * TILE - 75))
+        if self.cfg["haze"]:
+            s.blit(self.gfx.haze, (0, GROUND * TILE - 75))
         self.draw_cave_props(s, cam, lv)
+        self.draw_props(s, cam, lv)
         for c in cols:
             x = c * TILE - cam
             for r in rows:
@@ -2488,6 +2494,24 @@ class Game:
                     img = self.gfx.airlock if ch == "E" else self.gfx.capsule
                     titan.ground_shadow(s, x + TILE // 2, y + TILE, img.get_width() * 0.9)
                     s.blit(img, (x + TILE // 2 - img.get_width() // 2, y + TILE - img.get_height() + titan.SINK))
+
+    def draw_props(self, s, cam, lv):
+        """Gli oggetti del paesaggio in piedi sul suolo (le antenne e i ripetitori di
+        Nix): dietro a tutto, col piede affondato come le stazioni."""
+        if lv.kind != "surface":
+            return
+        for col, name in self.cfg["props"]:
+            img = self.gfx.props.get(name)
+            if img is None:
+                continue
+            x = col * TILE + TILE // 2 - cam
+            if not -img.get_width() < x < DW + img.get_width():
+                continue
+            floor = lv.floor_near((col + .5) * TILE, GROUND * TILE, reach=12)
+            if floor is None:
+                continue
+            titan.ground_shadow(s, x, floor, img.get_width() * 0.8)
+            s.blit(img, (x - img.get_width() // 2, floor - img.get_height() + titan.SINK))
 
     def draw_cave_props(self, s, cam, lv):
         """Stalattiti, stalagmiti, puntelli e rottami della colonia nelle gallerie."""

@@ -377,24 +377,92 @@ TITAN = {
     "foreground": "foreground", "fog_color": (196, 112, 58), "bg_color": (34, 16, 8),
     "ground": "titan_ground_grass", "ground_top_cut": True, "rock": "titan_rock",
     "station": "stazione_ossigeno", "caves": True, "night": 0.0, "drizzle": True,
+    "props": [], "prop_images": {}, "haze": True,
     "surface": gen_surface, "arena": gen_arena, "pass_start": TITAN_PASS_START,
     "stages": TITAN_STAGES, "arenas": TITAN_ARENAS, "waves": TITAN_WAVES, "patrols": TITAN_PATROLS,
     "pass_foes": TITAN_PASS_FOES, "cables": TITAN_CABLES, "rope_speeds": ROPE_SPEEDS,
 }
 
 
-def gen_nix_surface():
-    """Nix: per ora un tratto piano con l'uscita (la mappa vera arriva con i passi
-    successivi della fase 3 e con la fase 4)."""
+# ---------------------------------------------------------------- Nix
+# La superficie di Nix (STORY.md, "Nix, il secondo satellite"): il campo delle
+# antenne (0-210) col cratere grande dell'atterraggio, poi le miniere (210-430).
+# Rilievi come su Titano (altezza positiva: roccia che sale) e crateri a conca
+# (altezza negativa: il suolo scende a gradini di una tessera). I crepacci sono
+# colonne senza suolo: chi ci cade dentro perde una vita.
+NIX_SURFACE_COLS = 430
+NIX_HILLS = [
+    (8, [(2, -1), (2, -2), (2, -3), (20, -4), (2, -3), (2, -2), (2, -1)]),       # il cratere grande
+    (52, [(1, -1), (4, -2), (1, -1)]),                                          # conche del campo
+    (78, [(1, -1), (1, -2), (5, -3), (1, -2), (1, -1)]),
+    (140, [(3, 1), (3, 2), (4, 3), (3, 2), (3, 1)]),
+    (165, [(1, -1), (8, -2), (1, -1)]),
+    (214, [(3, 2), (3, 4), (5, 6), (3, 4), (2, 2)]),                            # le miniere
+    (262, [(3, 3), (4, 6), (6, 9), (4, 6), (3, 3)]),                            # il rilievo del 2x
+    (296, [(1, -1), (1, -2), (8, -3), (1, -2), (1, -1)]),
+    (326, [(3, 2), (3, 4), (3, 2)]),
+    (398, [(4, 2), (4, 4), (4, 2)]),
+]
+NIX_CREVASSES = ((66, 69), (95, 99), (186, 192), (248, 255), (318, 322), (384, 391))
+NIX_BRIDGE = (248, 255)      # il ripetitore caduto fa da ponte sul quarto crepaccio
+# Oggetti del paesaggio, in piedi sul suolo: (colonna, oggetto)
+NIX_PROPS = [(48, "antenna"), (72, "antenna"), (92, "antenna"), (110, "repeater"), (120, "antenna"),
+             (130, "repeater"), (148, "antenna"), (160, "repeater"), (178, "antenna"), (200, "antenna"),
+             (240, "door"), (284, "antenna"), (340, "repeater"), (410, "repeater"), (420, "door")]
+# immagine e altezza (in altezze di 9T9T) di ogni oggetto
+NIX_PROP_IMAGES = {"antenna": ("nix_antenna", 4.0), "repeater": ("nix_repeater", 1.15),
+                   "door": ("nix_door", 1.5)}
+
+
+def nix_heights(cols=NIX_SURFACE_COLS):
+    hts = [0] * cols
+    for c0, steps in NIX_HILLS:
+        for w, h in steps:
+            for c in range(c0, c0 + w):
+                hts[c] = h
+            c0 += w
+    return hts
+
+
+def gen_nix_field():
+    """Il campo delle antenne e le miniere: crateri, rilievi, crepacci,
+    prigionieri, stazioni e la capsula."""
+    cols = NIX_SURFACE_COLS
+    g = _grid(cols)
+    hts = nix_heights(cols)
+    gaps = {c for c0, c1 in NIX_CREVASSES for c in range(c0, c1)}
+    for c, h in enumerate(hts):
+        if c not in gaps:
+            _rock(g, c, c + 1, h)
+    for c in range(*NIX_BRIDGE):            # il ponte: una riga sola, il vuoto sotto
+        g[GROUND][c] = "#"
+    top = lambda c: GROUND - hts[c] - 1     # la cella sopra il suolo, anche nei crateri
+    for col in (6, 16, 20, 28, 36, 45, 60, 74, 90, 106, 118, 126, 136, 150, 158, 172, 182, 198,
+                206, 222, 236, 258, 275, 288, 300, 312, 330, 345, 362, 400):
+        g[top(col)][col] = "u"
+    g[top(1)][1] = "P"
+    for col in (3, 104, 212, 426):          # quattro stazioni: capsula, campo, imbocco, fine
+        g[top(col)][col] = "o"
+    return g
+
+
+def gen_nix_pass():
+    """La traversata di Nix: per ora un tratto piano con l'uscita (arriva con la fase 4)."""
     cols = 60
     g = _grid(cols)
     _rock(g, 0, cols, 0)
-    g[GROUND - 1][1] = "P"
     g[GROUND - 1][cols - 4] = "E"
     return g
 
 
-NIX_STAGES = [(2, GROUND)]
+def gen_nix_surface():
+    first, second = gen_nix_field(), gen_nix_pass()
+    return [a + b for a, b in zip(first, second)]
+
+
+# Sei tappe in superficie: capsula, uscita dal cratere grande, prima delle
+# ondate 2, 3 e 4, fine delle miniere (la traversata aggiunge le sue).
+NIX_STAGES = [(2, GROUND), (41, GROUND), (100, GROUND), (256, GROUND), (338, GROUND), (424, GROUND)]
 NIX = {
     "name": "Nix", "gravity": "minima", "gravity_scale": .55, "air": "nessuna",
     "climate": "notte, stelle fisse, Plutone nel cielo", "affinity": "lumen",
@@ -406,7 +474,8 @@ NIX = {
     "foreground": "nix_foreground", "fog_color": (0, 0, 0), "bg_color": (0, 0, 0),
     "ground": "nix_ground", "ground_top_cut": False, "rock": "nix_rock",
     "station": "nix_station", "caves": False, "night": 0.75, "drizzle": False,
-    "surface": gen_nix_surface, "arena": gen_arena, "pass_start": 60,
+    "surface": gen_nix_surface, "arena": gen_arena, "pass_start": NIX_SURFACE_COLS,
+    "props": NIX_PROPS, "prop_images": NIX_PROP_IMAGES, "haze": False,
     "stages": NIX_STAGES, "arenas": [], "waves": [], "patrols": None,
     "pass_foes": [], "cables": [], "rope_speeds": (),
 }
