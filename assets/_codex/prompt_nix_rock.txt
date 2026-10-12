@@ -1,0 +1,6 @@
+Con lo strumento di generazione immagini crea UNA immagine e salvala come assets/_codex/nix_rock.png (quadrata, 1024x1024, PNG opaco). Allegata c'è assets/knight_idle.png: NON disegnarla, usala solo per lo stile (cartoon 2D cupo: contorni neri marcati, colori piatti con una o due tonalità d'ombra, forme semplificate, superfici sporche).
+
+Soggetto, in inglese per il modello:
+"Rock wall texture for a side-scrolling game: blocks of black water-ice rock on Nix, a tiny icy moon of Pluto, seen from the side: big angular black-grey slabs with bold outlines, cracks, thin veins of pale frost between the blocks, a few drifts of dull grey snow caught on the ledges of the blocks, tiny white frost crystals. Very dark overall. Dark 2D cartoon style with bold black outlines and flat cel shading, no gradients, no glow. The texture must fill the whole square edge to edge and tile seamlessly left to right (the left edge continues the right edge). No sky, no characters, no text, no frame."
+
+Dopo averla generata controlla con Python/Pillow che sia 1024x1024. Alla fine stampa percorso e dimensioni.

@@ -1,0 +1,6 @@
+Con lo strumento di generazione immagini crea UNA immagine e salvala come assets/_codex/nix_door.png (1024x1536, PNG con trasparenza vera: canale alpha). Allegata c'è assets/knight_idle.png: NON disegnarla, usala solo per lo stile e per la scala (cartoon 2D cupo: contorni neri marcati, colori piatti con una o due tonalità d'ombra, forme semplificate, superfici sporche).
+
+Soggetto, in inglese per il modello:
+"A powerless airlock door of a colony station on Nix, a tiny icy moon of Pluto, seen from the front as a flat wall piece: a heavy sealed metal door about one and a half times as tall as the attached knight, with a dark dead control panel, a round porthole frosted over, warning stripes worn away, dark grey-blue metal crusted with grey frost, and a frozen drift of grey snow at the foot. No lights. Dark 2D cartoon style with bold black outlines and flat cel shading. Transparent PNG background with real alpha: everything outside the drawn object is fully transparent, not black, not a drawn sky, no checkerboard, no ground plane, no shadow on the ground, no text, no frame."
+
+Dopo averla generata controlla con Python/Pillow: deve essere 1024x1536, modalità RGBA, e gli angoli dell'immagine devono avere alpha 0. Se lo sfondo non è trasparente, rigenerala chiedendo esplicitamente lo sfondo trasparente. Alla fine stampa percorso, dimensioni e modalità.

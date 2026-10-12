@@ -1,0 +1,18 @@
+#!/bin/bash
+# posa del Guardiano di Nix: $1 nome (boss02_xxx), $2 descrizione della posa
+cd ~/Documenti/goblin
+cat > assets/_codex/prompt_$1.txt <<P
+Con lo strumento di generazione immagini crea UNA immagine e salvala come assets/_codex/$1.png (quadrata, 1024x1024, PNG con trasparenza vera: canale alpha). Allegate ci sono due immagini: assets/_codex/boss02_idle.png è IL PERSONAGGIO da ridisegnare (il Guardiano di Nix) e va riprodotto identico in ogni dettaglio; assets/knight_idle.png è solo riferimento di stile e scala, NON disegnarlo.
+
+Prompt in inglese per il modello:
+"STYLE: match the attached dark 2D cartoon style exactly: bold clean black outlines, flat colors with one or two cel-shading tones, slightly simplified shapes, worn surfaces. Not realistic, not 3D, not pixel art.
+
+Draw the SAME character as the attached Guardian of Nix, identical in every detail: the tall pale grey-blue ice-glass armor with antenna fins, the sealed horn-shaped helm with no face and a single glowing violet ring, the very long black light-swallowing mantle, the Pluto emblem on the breastplate, and his lance taller than himself with a thin black shaft, a violet crystal tip and a small open metal dish just below the tip. Same proportions and size as the attached image.
+
+POSE: $2
+
+Full body, side view facing LEFT. Transparent PNG background with real alpha, no ground, no shadow, no text, no frame."
+
+Dopo averla generata controlla con Python/Pillow: 1024x1024, RGBA, angoli con alpha 0. Se manca la trasparenza, rigenerala. Alla fine stampa percorso, dimensioni e modalità.
+P
+codex exec --skip-git-repo-check --sandbox workspace-write -C ~/Documenti/goblin --image assets/_codex/boss02_idle.png --image assets/knight_idle.png - < assets/_codex/prompt_$1.txt > assets/_codex/codex_$1.log 2>&1

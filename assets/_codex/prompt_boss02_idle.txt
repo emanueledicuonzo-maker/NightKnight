@@ -1,0 +1,10 @@
+Con lo strumento di generazione immagini crea UNA immagine e salvala come assets/_codex/boss02_idle.png (quadrata, 1024x1024, PNG con trasparenza vera: canale alpha). Allegata c'è assets/knight_idle.png: NON disegnarla, usala solo per lo stile e per la scala.
+
+Prompt in inglese per il modello:
+"STYLE: match the attached character's dark 2D cartoon style exactly: bold clean black outlines, flat colors with one or two cel-shading tones, slightly simplified shapes, worn and dirty surfaces. Not realistic, not 3D, not pixel art. Do not draw the attached character: use him only for style and scale.
+
+The Guardian of Nix, a boss for a side-scrolling game: a knight, not a soldier, TWICE as tall as the attached knight, tall and thin, imposing. Ritual retro-futurist armor of pale grey-blue ice-glass plates with small antenna fins on the shoulders and along the spine. A tall sealed helm shaped like a repeater horn, with NO visor and no face: only a single glowing violet ring around the helm, pulsing. A very long black mantle down to the ground that seems to swallow light, with no highlights. He wields a lance taller than himself: a thin black shaft, a sharp crystal tip glowing faintly violet, and just below the tip a small open receiving dish like a metal flower. On his breastplate, a worn emblem of Pluto with its heart-shaped plain.
+
+Full body, side view facing LEFT, standing in guard with the lance held low and diagonal, calm and listening. Transparent PNG background with real alpha, no ground, no shadow, no text, no frame."
+
+Dopo averla generata controlla con Python/Pillow: 1024x1024, RGBA, angoli con alpha 0, una sola figura. Se manca la trasparenza, rigenerala. Alla fine stampa percorso, dimensioni e modalità.

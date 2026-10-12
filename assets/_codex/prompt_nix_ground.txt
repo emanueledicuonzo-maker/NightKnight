@@ -1,0 +1,6 @@
+Con lo strumento di generazione immagini crea UNA immagine e salvala come assets/_codex/nix_ground.png (quadrata, 1024x1024, PNG opaco). Allegata c'è assets/knight_idle.png: NON disegnarla, usala solo per lo stile (cartoon 2D cupo: contorni neri marcati, colori piatti con una o due tonalità d'ombra, forme semplificate, superfici sporche).
+
+Soggetto, in inglese per il modello:
+"Ground texture for a side-scrolling game, a cross-section of the surface of Nix, a tiny icy moon of Pluto: along the TOP edge a thin walkable crust of dull grey snow with small black pebbles and a few frost crystals, and below it, filling the rest of the square, layers of black water-ice rock, hard as stone, with thin pale grey streaks, embedded dark pebbles and small cracks. Mostly very dark grey-black, the snow crust pale grey. Dark 2D cartoon style with bold black outlines and flat cel shading, no gradients, no glow. The texture must fill the whole square edge to edge and tile seamlessly left to right (the left edge continues the right edge). No sky, no characters, no text, no frame."
+
+Dopo averla generata controlla con Python/Pillow che sia 1024x1024. Alla fine stampa percorso e dimensioni.
