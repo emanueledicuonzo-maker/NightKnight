@@ -387,6 +387,44 @@ cadono piano nel buio; tornano al loro posto dopo 4 secondi (ne servono per
 ripartire dalla tappa). Non sono un'insidia del satellite: sono il terreno
 della traversata, come i cavi.
 
+### I nemici di Nix
+
+Niente scheletri normali: la base dello sciame sono gli **scheletri volanti**, che
+a gravità bassa galleggiano e piombano. Vita in colpi (il sasso vale uno, il
+fendente due, come su Titano).
+
+| Nemico | Vita | Comportamento | Dove |
+| --- | --- | --- | --- |
+| **Scheletro volante** (c'è già) | 1 | Galleggia a mezz'aria, poi piomba su 9T9T; con la gravità di Nix la picchiata è lenta e lunga, si vede arrivare. Lo sciame del satellite. | Ondate 1, 2 e 4, pattuglie |
+| **Cavaliere-scheletro 2×** (c'è già) | 2 | Duello ravvicinato: guardia, affondo, parata. Qui salta quanto 9T9T e scende con l'affondo dall'alto. | Ondata 3, uno solo in cima a un rilievo; uno nelle miniere |
+| **Pipistrello del vuoto** | 1 | Esce dalle **crepe** e dai crepacci a gruppi di 3–5, appena 9T9T è a 8 tessere; sale sopra di lui e piomba **senza frenare** (niente aria), poi risale e riprova. Un fendente o un sasso lo abbatte; il calcio girato ne prende tutto il gruppo. Fa 20 di danno. | Dappertutto dove c'è una crepa; i soli nemici volanti della traversata |
+| **Falena ossea** | 1 | Volo erratico a scatti, non attacca: passa davanti al visore e **spegne la vista** per mezzo secondo (schermo nero, poi torna). Vive nella nube ossea e ne esce con lo sfiato. Vale pochi punti: il pericolo è quello che non si vede mentre lei passa. | Ondata 4 e attorno agli ossari |
+| **Custode senza volto** | 6 (tre fendenti) | Lento (metà di 9T9T), alto come lui, **protegge una zona**: sta davanti a un prigioniero, una stazione o un imbocco e non insegue oltre 6 tessere, poi torna al suo posto. Tiene la **guardia**: i colpi di fronte non contano finché un **calcio** non gliela apre, per 2 secondi (è la regola del kit: «il calcio apre la guardia dei custodi»). Colpisce con la mano guantata, 40 di danno, portata corta. | Miniere: 6 custodi davanti a prigionieri e stazioni; 2 nella traversata |
+| **Ragno da condotto** | 1 | Pende dai soffitti delle miniere, dai tralicci e **sotto le passerelle**; quando 9T9T passa sotto si lascia cadere (lento, a gravità bassa: si vede), poi corre verso di lui e lascia **fili** a terra che dimezzano la velocità per 1,5 s a chi ci passa. Se 9T9T si allontana risale. 25 di danno. | Miniere e traversata, mai in piano aperto |
+| **Copia difettosa di 9T9T** | 3 | Stessa sagoma e armatura di 9T9T, colori sbagliati, visore che sfarfalla, movimenti a scatti. **Imita** con quattro decimi di ritardo: se 9T9T salta, salta; se tira il fendente, lo tira; se lancia un sasso, lo lancia. Si batte col ritardo: fendente a vuoto da lontano, lei risponde a vuoto, e si colpisce durante il suo recupero. Il calcio la spinge e non lo imita. 30 di danno. | Miniere, una o due per volta, mai in ondata; una sola nella traversata, sul lato del ritorno |
+
+### Le ondate e le pattuglie di Nix
+
+Quattro ondate, come vuole la struttura, più le pattuglie fra un'ondata e
+l'altra; nessuna blocca mai la strada.
+
+| Ondata | Dove | Chi | Serve a |
+| --- | --- | --- | --- |
+| 1 | Sul fondo del cratere grande | 3 scheletri volanti, 4 pipistrelli da una crepa | Capire il salto alto, la caduta lenta, il sasso piatto |
+| 2 | Il campo delle antenne | 12 scheletri volanti, 8 pipistrelli da due crepe, 2 ragni dai tralicci | Lo sciame: il calcio girato e Bianca |
+| 3 | Un rilievo delle miniere | Il cavaliere-scheletro 2× in cima; 2 custodi ai piedi davanti alla scala; la sirena psichica accesa a fianco | Il duello sul terreno: zittire la sirena, aprire la guardia col calcio, salire e battere il 2× |
+| 4 | Gli ossari, dentro la nube ossea | 20 scheletri volanti, 10 pipistrelli, 6 falene | I volanti alla cieca: Bianca con tutta la Luce, o correre fuori dalla nube e combattere sull'orlo |
+
+**Pattuglie.** Un gruppetto di 2–4 ogni 14 colonne di strada nuova, come su
+Titano, dal mazzo: scheletri volanti (i più comuni), pipistrelli, un custode
+ogni tanto; copie e ragni **mai** nelle pattuglie, solo dove sono piazzati. Se
+per 3 secondi non c'è nessuno, arriva qualcuno: in superficie dal mazzo, nella
+traversata **solo pipistrelli**.
+
+**Traversata.** Pochi nemici, piazzati: pipistrelli da tre crepe sui crepacci,
+2 ragni sotto le passerelle, 2 custodi sul lato del ritorno davanti ai due
+ossari nascosti, 1 copia difettosa sul traliccio. Nessuno sui cavi.
+
 ## Gli anelli di Saturno
 
 Dopo il dodicesimo satellite appare Saturno intero. NightKnight e Bianca corrono
