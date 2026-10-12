@@ -299,9 +299,10 @@ Durate attese: superficie 4–5 minuti, traversata 2–3, duello 2–3.
 
 **Le tappe di ripartenza** (si riparte dall'ultima raggiunta, come su Titano):
 sei in superficie (capsula, uscita dal cratere grande, prima delle ondate 2, 3 e
-4, fine delle miniere), sei nella traversata (ingresso nel campo dei crateri,
-dopo il primo crepaccio, prima delle passerelle, prima dei cavi, sul lato alto
-del ritorno, ai piedi del ripetitore). Le ondate già superate restano superate.
+4, fine delle miniere), nove nella traversata come su Titano (ingresso nel campo
+dei crateri, dopo il primo crepaccio, prima delle passerelle, dopo le
+passerelle, prima dei cavi, dopo i cavi sul lato alto, a metà del ritorno, al
+traliccio dei due ossari, ai piedi del ripetitore). Le ondate già superate restano superate.
 
 **La luce.** Nix è notte: il cielo è nero con le stelle fisse, Plutone e
 Caronte grigio-rossastri danno una luce fredda appena sufficiente a vedere le
