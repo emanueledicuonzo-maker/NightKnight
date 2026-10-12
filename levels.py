@@ -468,6 +468,28 @@ def gen_nix_surface():
 # Sei tappe in superficie: capsula, uscita dal cratere grande, prima delle
 # ondate 2, 3 e 4, fine delle miniere (la traversata aggiunge le sue).
 NIX_STAGES = [(2, GROUND), (41, GROUND), (100, GROUND), (256, GROUND), (338, GROUND), (424, GROUND)]
+# Le ondate dal direttore: la prima sul fondo del cratere grande, la seconda nel
+# campo delle antenne, la quarta dentro la nube degli ossari. La terza (il 2x in
+# cima al rilievo coi due custodi ai piedi) e' fatta di nemici piazzati.
+NIX_ARENAS = [12, 100, 338]
+NIX_WAVES = [
+    dict(name="dal cratere", roster=[("skeleton_fly", 3), ("bat", 4)]),
+    dict(name="il campo delle antenne", roster=[("skeleton_fly", 12), ("bat", 8)]),
+    dict(name="gli ossari", roster=[("skeleton_fly", 20), ("bat", 10), ("moth", 6)], alive=10),
+]
+NIX_PATROLS = dict(every=14, size=(2, 4), start=12,
+                   pool=["skeleton_fly", "skeleton_fly", "skeleton_fly", "bat", "bat", "keeper"],
+                   quiet=180, flyers=["bat"])
+# Nemici piazzati in superficie: (specie, colonna, riga dei piedi o dell'aggancio).
+# Il 2x in cima al rilievo, i custodi davanti a prigionieri e stazioni, le copie
+# nelle miniere, i ragni appesi ai tralicci delle antenne.
+NIX_SURFACE_FOES = [("skeleton_2x", 271, GROUND - 9), ("keeper", 260, GROUND), ("keeper", 283, GROUND),
+                    ("keeper", 223, GROUND - 4), ("keeper", 237, GROUND), ("keeper", 289, GROUND),
+                    ("keeper", 313, GROUND), ("keeper", 331, GROUND - 4), ("keeper", 401, GROUND - 2),
+                    ("copy", 245, GROUND), ("copy", 410, GROUND),
+                    ("spider", 120, GROUND - 7), ("spider", 148, GROUND - 7), ("spider", 284, GROUND - 7)]
+# Le crepe da cui escono i pipistrelli: i crepacci
+NIX_CRACKS = tuple((c0 + c1) // 2 for c0, c1 in NIX_CREVASSES)
 NIX = {
     "name": "Nix", "gravity": "minima", "gravity_scale": .55, "air": "nessuna",
     "climate": "notte, stelle fisse, Plutone nel cielo", "affinity": "lumen",
@@ -481,7 +503,8 @@ NIX = {
     "station": "nix_station", "caves": False, "night": 0.75, "drizzle": False,
     "surface": gen_nix_surface, "arena": gen_arena, "pass_start": NIX_SURFACE_COLS,
     "props": NIX_PROPS, "prop_images": NIX_PROP_IMAGES, "haze": False, "crevasses": NIX_CREVASSES,
-    "stages": NIX_STAGES, "arenas": [], "waves": [], "patrols": None,
+    "stages": NIX_STAGES, "arenas": NIX_ARENAS, "waves": NIX_WAVES, "patrols": NIX_PATROLS,
+    "surface_foes": NIX_SURFACE_FOES, "cracks": NIX_CRACKS,
     "pass_foes": [], "cables": [], "rope_speeds": (),
 }
 SATELLITES = [TITAN, NIX]

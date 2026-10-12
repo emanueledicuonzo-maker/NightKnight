@@ -646,6 +646,9 @@ class Player(Entity):
         if self.chill:
             self.chill -= 1
             speed_limit *= CHILL_SPEED
+        if getattr(self, "webbed", 0):
+            self.webbed -= 1
+            speed_limit *= WEB_SLOW
         speed_limit *= 1 - JELLY_SLOW * self.jellies
         if self.breathless:
             speed_limit *= BREATHLESS_SPEED
@@ -1032,12 +1035,30 @@ WALKERS = {
     # suolo che trema) e sbuca sotto i piedi
     "burrower":    dict(frames="worm_silicon_{}", h=260, box=(110, 230), hp=1, speed=3.4, dmg=35, reach=120, pts=800,
                         burrow=True),
+    # Nix: il custode senza volto tiene la guardia (si apre col calcio) e protegge una zona;
+    # la copia difettosa imita 9T9T con ritardo; il ragno pende da un traliccio, cade addosso
+    # e lascia fili che rallentano
+    "keeper":      dict(frames="keeper_faceless_{}", h=int(PH * 1.05), box=(80, 196), hp=6, speed=1.3, dmg=40, reach=90,
+                        pts=900, guard=True, zone=6 * TILE),
+    "copy":        dict(frames="copy_knight_{}", h=PH, box=(70, 176), hp=3, speed=4.0, dmg=30, reach=200, pts=1200,
+                        mimic=True),
+    "spider":      dict(frames="spider_duct_{}", h=140, box=(150, 120), hp=1, speed=2.2, dmg=25, reach=70, pts=500,
+                        hang=True),
 }
 FLYERS = {
     "crow":         dict(frames="crow_{}", hp=1, dmg=0),
     "skeleton_fly": dict(frames="skeleton_fly_{}", h=PH, box=(80, 150), hp=1, dmg=25, pts=500),
     "jelly":        dict(frames="jelly_atmo_{}", h=150, box=(110, 120), hp=1, dmg=20, pts=350, drift=True),
+    # Nix: il pipistrello sale sopra di te e piomba senza frenare; la falena non fa male,
+    # passa davanti al visore e spegne la vista
+    "bat":          dict(frames="bat_void_{}", h=90, box=(110, 70), hp=1, dmg=20, pts=350, swoop=True),
+    "moth":         dict(frames="moth_bone_{}", h=80, box=(100, 70), hp=1, dmg=0, pts=100, blind=True),
 }
+KEEPER_OPEN = 120        # il calcio apre la guardia del custode per due secondi
+COPY_DELAY = 24          # la copia difettosa imita con quattro decimi di ritardo
+WEB_FRAMES, WEB_SLOW = 90, 0.5     # i fili del ragno: un secondo e mezzo a meta' velocita'
+BLIND_FRAMES = 30        # la falena davanti al visore: mezzo secondo al buio
+CRACK_RANGE, CRACK_REST = 8 * TILE, 720   # i pipistrelli escono dalle crepe a 8 tessere, ogni 12 s
 
 
 class Stone:
@@ -1079,6 +1100,22 @@ class Stone:
         pygame.draw.circle(s, (196, 188, 174), (c[0] - 3, c[1] - 3), 3)
 
 
+class CopyStone(Stone):
+    """Il sasso della copia difettosa: come quello di 9T9T, ma contro di lui."""
+    owner = "boss"
+
+    def __init__(self, e):
+        self.d = e.facing
+        r = e.rect
+        self.x = r.right if self.d > 0 else r.left - 20
+        self.y = r.top + 40
+        self.vx, self.vy = 15 * self.d, -5.0
+        self.dmg = 15
+        self.alive = True
+        self.t = 0
+        self.kind = "stone"
+
+
 class Walker(Skeleton):
     """Nemico di terra di una specie di WALKERS, piazzato in pixel."""
 
@@ -1097,6 +1134,12 @@ class Walker(Skeleton):
         self.under, self.rumble, self.up_t, self.out_t = True, 0, 0, 0
         self.turn = 0
         self.leap = 0.0
+        self.home = float(x)
+        self.guard_open = 0          # custode: fotogrammi in cui la guardia e' aperta
+        self.queue = []              # copia: le mosse di 9T9T da ripetere, (fotogramma, mossa)
+        self.hanging = bool(spec.get("hang"))
+        self.anchor_y = None         # ragno: dove e' appeso il filo
+        self.threads = []            # ragno: i fili lasciati a terra, (x, y, vita)
 
     def attack_box(self):
         if 0 < self.hit_t <= 12:
@@ -1143,13 +1186,104 @@ class Walker(Skeleton):
         if self.out_t > BURROW_OUT:
             self.under, self.out_t = True, 0
 
+    def guard_blocks(self, from_x):
+        """Il custode para i colpi di fronte finche' un calcio non gli apre la guardia."""
+        if not self.spec.get("guard") or self.guard_open:
+            return False
+        return (from_x - self.rect.centerx) * self.facing > 0
+
+    def mimic(self, lv, player):
+        """La copia difettosa: salta quando 9T9T salta, colpisce quando colpisce,
+        tutto COPY_DELAY fotogrammi dopo. Il calcio la spinge e lei non lo imita."""
+        self.t += 1
+        self.guard_open = 0
+        if self.frozen:
+            self.frozen -= 1
+            return
+        # registra le mosse di 9T9T
+        jumped = player.vy < -8 and not player.on_ground and not getattr(self, "saw_jump", False)
+        self.saw_jump = not player.on_ground
+        if jumped:
+            self.queue.append((self.t + COPY_DELAY, "jump"))
+        if player.attack and player.attack[1] == 0 and player.attack[0] in ("throw", "punch"):
+            self.queue.append((self.t + COPY_DELAY, "stone" if player.attack[0] == "punch" else "throw"))
+        dist = player.x - self.x
+        if abs(dist) < 900:
+            self.facing = 1 if dist > 0 else -1
+        self.throwing = False
+        while self.queue and self.queue[0][0] <= self.t:
+            _, move = self.queue.pop(0)
+            if move == "jump" and self.on_ground:
+                self.vy = JUMP_V * 0.9
+            elif move == "throw":
+                self.hit_t = 24
+            elif move == "stone":
+                self.throwing = True          # il gioco le fa lanciare un sasso
+        if self.hit_t:
+            self.hit_t -= 1
+            self.vx = 0
+            self.move(lv)
+            return
+        # tiene la distanza del suo fendente, a scatti
+        want = self.spec["reach"] - 40
+        if abs(dist) > want + 60 and abs(dist) < 900 and self.t % 20 < 14:
+            self.vx = self.spec["speed"] * self.pace * self.facing
+        else:
+            self.vx = 0
+        if self.on_ground and self.vx:
+            self.vx = self.leap = self.terrain(lv, abs(self.vx))
+        self.move(lv)
+
+    def spider(self, lv, player):
+        """Il ragno da condotto: pende dal filo; quando 9T9T passa sotto si lascia
+        cadere, poi lo insegue lasciando fili a terra; se si allontana risale."""
+        self.t += 1
+        if self.frozen:
+            self.frozen -= 1
+            return
+        dist = player.rect.centerx - self.rect.centerx
+        if self.anchor_y is None:
+            self.anchor_y = self.y
+        if self.hanging:
+            self.vx = self.vy = 0
+            if abs(dist) < 3 * TILE and player.rect.top > self.rect.bottom:
+                self.hanging = False      # si lascia cadere, piano con la gravita' di Nix
+            return
+        if abs(dist) > 10 * TILE and self.on_ground:
+            # risale lungo il filo verso casa
+            self.x += (self.home - self.x) * 0.05
+            self.y -= 3
+            if self.y <= self.anchor_y:
+                self.y, self.hanging = self.anchor_y, True
+            return
+        self.facing = 1 if dist > 0 else -1
+        if self.hit_t:
+            self.hit_t -= 1
+            self.vx = 0
+        elif abs(dist) < self.spec["reach"] + 30 and abs(player.rect.bottom - self.rect.bottom) < 100:
+            self.hit_t = 24
+        elif self.on_ground:
+            self.vx = self.leap = self.terrain(lv, self.spec["speed"] * self.pace)
+            if self.t % 18 == 0:
+                self.threads.append([self.rect.centerx, self.rect.bottom, 600])
+        self.move(lv)
+
     def update(self, lv, player):
         spec = self.spec
         if lv.drowned(self.rect):         # finito in un lago di metano
             self.alive = False
             return
+        for th in self.threads:
+            th[2] -= 1
+        self.threads = [th for th in self.threads if th[2] > 0]
         if spec.get("burrow"):
             return self.burrow(lv, player)
+        if spec.get("mimic"):
+            return self.mimic(lv, player)
+        if spec.get("hang"):
+            return self.spider(lv, player)
+        if self.guard_open:
+            self.guard_open -= 1
         if spec["speed"] == 0:                 # il verme resta dove emerge
             self.t += 1
             dist = player.x - self.x
@@ -1177,12 +1311,22 @@ class Walker(Skeleton):
             return
         dist = player.x - self.x
         far = self.kind == "crawler" and (abs(dist) > CRAWL_SENSE or abs(player.rect.bottom - self.rect.bottom) > 200)
+        zone = spec.get("zone")
         if self.turn:
             self.turn -= 1                    # torna indietro da un ostacolo che non passa
         elif far:
             if self.t % 200 == 0:
                 self.facing = -self.facing    # lontano da te striscia avanti e indietro
             speed *= 0.5
+        elif zone and abs(player.x - self.home) > zone:
+            # il custode protegge la sua zona: non insegue oltre, torna al suo posto
+            back = self.home - self.x
+            if abs(back) < 8:
+                self.vx = 0
+                self.facing = 1 if dist > 0 else -1
+                self.move(lv)
+                return
+            self.facing = 1 if back > 0 else -1
         else:
             self.facing = 1 if dist > 0 else -1
         if abs(dist) < spec["reach"] + 30 and abs(player.rect.bottom - self.rect.bottom) < 100:
@@ -1271,6 +1415,16 @@ class Walker(Skeleton):
             titan.ground_shadow(s, r.centerx - cam, r.bottom, img.get_width() * 0.9)
             s.blit(img, (r.centerx - img.get_width() // 2 - cam, r.bottom - img.get_height() + WORM_SINK))
             return
+        if self.spec.get("hang"):
+            # il filo dal traliccio al ragno, e i fili lasciati a terra
+            r = self.rect
+            top = self.anchor_y if self.anchor_y is not None else r.top
+            if self.hanging or r.top > top + 4:
+                pygame.draw.line(s, (200, 196, 190), (r.centerx - cam, top - 4 * TILE), (r.centerx - cam, r.top + 10), 2)
+            for x, y, life in self.threads:
+                a = min(1, life / 120)
+                pygame.draw.line(s, (int(200 * a) + 30, int(196 * a) + 30, int(190 * a) + 30),
+                                 (x - 40 - cam, y - 3), (x + 40 - cam, y - 6), 3)
         attacking = 0 < self.hit_t <= 18 or self.lunge_t
         if len(frames) == 4:
             img = frames[(self.t // 9) % 4]           # striscia: il corpo si inarca e si distende
@@ -1306,7 +1460,51 @@ class Flyer(Crow):
         self.cawed = kind == "crow"
         self.stuck = None          # medusa attaccata: posizione rispetto a NightKnight
 
+    def swoop(self, lv, player):
+        """Il pipistrello del vuoto: sale sopra 9T9T, poi piomba dritto dove lui era
+        senza frenare (niente aria), passa oltre e risale."""
+        self.t += 1
+        if self.frozen:
+            self.frozen -= 1
+            return
+        if self.state != "fall":
+            self.state = "rise"
+        if self.state == "rise":
+            tx, ty = player.rect.centerx + self.facing * 260, player.rect.top - 380
+            self.x += max(-5, min(5, (tx - self.rect.centerx) * 0.06))
+            self.y += max(-6, min(6, (ty - self.y) * 0.06))
+            if abs(ty - self.y) < 40 and self.t > 50:
+                to = pygame.Vector2(player.rect.center) - self.rect.center
+                self.dive_v = to.normalize() * 11 if to.length() > 1 else pygame.Vector2(0, 11)
+                self.facing = 1 if to.x > 0 else -1
+                self.state, self.t = "fall", 0
+        else:
+            self.x += self.dive_v.x
+            self.y += self.dive_v.y
+            if self.t > 70 or lv.solid(self.rect.centerx, self.rect.bottom):
+                self.state, self.t = "rise", 0
+                self.facing = 1 if player.x > self.x else -1
+
+    def flutter(self, lv, player):
+        """La falena ossea: volo erratico attorno a 9T9T, puntando ogni tanto il visore."""
+        self.t += 1
+        if self.frozen:
+            self.frozen -= 1
+            return
+        if self.t % 30 == 0 or not hasattr(self, "goal"):
+            face = random.random() < 0.4
+            self.goal = ((player.rect.centerx + (player.facing * 60 if face else random.randint(-500, 500))),
+                         (player.rect.top + 30 if face else player.rect.top + random.randint(-350, 100)))
+        gx, gy = self.goal
+        self.x += max(-6, min(6, (gx - self.rect.centerx) * 0.08)) + math.sin(self.t / 3) * 2
+        self.y += max(-6, min(6, (gy - self.rect.centery) * 0.08)) + math.cos(self.t / 4) * 2
+        self.facing = 1 if gx > self.x else -1
+
     def update(self, lv, player):
+        if self.spec.get("swoop"):
+            return self.swoop(lv, player)
+        if self.spec.get("blind"):
+            return self.flutter(lv, player)
         if self.spec.get("drift"):
             self.t += 1
             if self.stuck is not None:
@@ -1531,16 +1729,19 @@ class Game:
             self.cable = athletics.Cables([[athletics.Cable(x0 + col * TILE + TILE // 2, athletics.FLOOR - top, length,
                                                             next(speeds))
                                             for col, top, length in group] for group in cfg["cables"]])
-            for kind, col, row in cfg["pass_foes"]:
-                col += cfg["pass_start"]
+            placed = [(k, c + cfg["pass_start"], r) for k, c, r in cfg["pass_foes"]] + list(cfg.get("surface_foes", ()))
+            for kind, col, row in placed:
                 if kind in FLYERS:
                     flyer = Flyer(col * TILE, row * TILE, kind)
                     flyer.state = "wait"          # aspetta il passaggio, come i corvi di guardia
                     self.crows.append(flyer)
                 else:
                     walker = Walker(col * TILE, kind)
-                    walker.y = row * TILE - walker.h     # sulla cengia o in galleria
+                    walker.y = row * TILE - walker.h     # sulla cengia, in galleria, o appeso
+                    walker.gravity_scale = cfg["gravity_scale"]
                     self.skels.append(walker)
+        self.cracks = {c: 0 for c in cfg.get("cracks", ())}   # colonna -> ultimo sciame di pipistrelli
+        self.blind = 0
         self.waves = None
         if self.part == "surface":
             self.waves = waves.WaveDirector(cfg["arenas"], cfg["waves"], self.make_walker, Flyer, seed=self.ci,
@@ -1576,6 +1777,7 @@ class Game:
         """Un camminatore dei rinforzi, appoggiato sul suolo che c'e' dove entra
         (colline e montagne comprese), il piu' vicino all'altezza di NightKnight."""
         w = Walker(x, kind)
+        w.gravity_scale = self.cfg["gravity_scale"]
         feet_y = self.player.rect.bottom
         away = -TILE if x < self.player.rect.centerx else TILE
         # dentro una montagna o su un lago non si nasce: ci si sposta lontano da
@@ -2117,6 +2319,23 @@ class Game:
             k.update(self.lv, p)
             if getattr(k, "rumble", 0) and abs(k.x - p.x) < 300:
                 self.shake = max(self.shake, 3)          # il suolo trema sotto i piedi
+            if getattr(k, "throwing", False):
+                k.throwing = False
+                self.balls.append(CopyStone(k))          # la copia lancia il sasso come 9T9T
+            for x, y, life in getattr(k, "threads", ()):
+                if abs(p.rect.centerx - x) < 50 and abs(p.rect.bottom - y) < 20:
+                    p.webbed = WEB_FRAMES                # i fili del ragno rallentano
+        if self.blind:
+            self.blind -= 1
+        for col, last in self.cracks.items():
+            x = (col + .5) * TILE
+            if abs(p.rect.centerx - x) < CRACK_RANGE and self.frame - last > CRACK_REST:
+                self.cracks[col] = self.frame
+                for i in range(random.randint(3, 5)):
+                    bat = Flyer(x + random.randint(-60, 60), GROUND * TILE + 60 + i * 50, "bat")
+                    bat.facing = 1 if p.x > x else -1
+                    self.crows.append(bat)
+                self.jb.fx("geyser_warn")
         for cr in self.crows:
             cr.update(self.lv, p)
             if getattr(cr, "cawed", False):
@@ -2165,6 +2384,14 @@ class Game:
             er = e.rect
             if abox and abox.colliderect(er) and getattr(e, "swing", None) != p.swing:
                 e.swing = p.swing
+                if p.attack[0] in ("kick", "spin") and getattr(e, "spec", {}).get("guard"):
+                    e.guard_open = KEEPER_OPEN          # il calcio apre la guardia del custode
+                    self.jb.fx("stomp")
+                if hasattr(e, "guard_blocks") and e.guard_blocks(p.rect.centerx):
+                    e.flash = 4                         # parato: niente danno
+                    self.jb.fx("hit")
+                    self.burst_sparks(er.centerx, er.centery, 6, (200, 200, 210))
+                    continue
                 self.hit_enemy(e, p.power(SWORD_HIT if p.attack[0] in ("throw", "spin") else STONE_HIT),
                                pts=pts, weapon=p.attack[0] == "throw" and not p.breathless)
                 continue
@@ -2173,6 +2400,10 @@ class Game:
             if getattr(e, "stuck", None) is not None or getattr(e, "hidden", False):
                 continue
             if p.hurtbox().colliderect(er):
+                if getattr(e, "spec", {}).get("blind"):
+                    if er.top < p.rect.top + 70 and er.bottom > p.rect.top:
+                        self.blind = BLIND_FRAMES       # la falena davanti al visore
+                    continue
                 if getattr(e, "spec", {}).get("drift") and not self.intro:
                     if p.jellies < JELLY_MAX:
                         e.stuck = (random.randint(-40, 40), random.randint(10, 90))
@@ -2200,8 +2431,12 @@ class Game:
             if b.owner == "player" and b.alive:
                 for e, pts in enemies:
                     if e.alive and not getattr(e, "hidden", False) and getattr(b, "hit_rect", b.rect).colliderect(e.rect):
-                        self.hit_enemy(e, p.power(b.dmg), pts=pts)
                         b.alive = False
+                        if hasattr(e, "guard_blocks") and e.guard_blocks(b.x):
+                            e.flash = 4
+                            self.jb.fx("hit")
+                            break
+                        self.hit_enemy(e, p.power(b.dmg), pts=pts)
                         break
                 if self.boss and b.alive and b.rect.colliderect(self.boss.rect):
                     if self.boss.hit(getattr(b, "boss_dmg", b.dmg)):
@@ -2749,6 +2984,10 @@ class Game:
         s.blit(pygame.transform.smoothscale(view, (W, H)), jolt)
         self.draw_foreground(s)
         self.draw_darkness(s)
+        if self.blind:                    # la falena davanti al visore: buio per un attimo
+            k = min(1, self.blind / 8)
+            black = pygame.Surface((W, H), pygame.SRCALPHA); black.fill((0, 0, 0, int(235 * k)))
+            s.blit(black, (0, 0))
         if self.dust_k > 0.02:            # la polvere d'ossa sbianca tutto
             dust = pygame.Surface((W, H), pygame.SRCALPHA); dust.fill((226, 222, 212, int(120 * self.dust_k)))
             s.blit(dust, (0, 0))
