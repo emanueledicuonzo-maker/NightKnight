@@ -13,6 +13,7 @@ import athletics
 import knights
 import levels
 import music
+import nix
 import fonts
 import progress
 import titan
@@ -323,6 +324,13 @@ class Gfx:
         rock = pygame.image.load(os.path.join(assets.DIR, cfg["rock"] + ".png")).convert()
         self.rock = pygame.transform.smoothscale(rock, (TILE * ROCK_N, TILE * ROCK_N))
         self.station = assets.load(cfg["station"], TILE * 3, int(PH * 1.05), by_height=True)
+        # le insidie di Nix: ossario (quieto, che sfiata), sirena (spenta, accesa),
+        # gli orli dei crepacci (alti quanto la roccia sotto la crosta)
+        for key, name, h in (("ossuary", "nix_ossuary", int(PH * 2.1)), ("siren", "nix_siren", int(PH * 1.1)),
+                             ("crevasse", "nix_crevasse", (levels.ROWS - GROUND) * TILE)):
+            art = assets.pieces(name, 2, h, 0)
+            if art:
+                nix.ART[key] = art
         # gli oggetti del paesaggio (antenne, ripetitori, porte): nome -> immagine
         self.props = {name: assets.load(file, TILE * 8, int(PH * k), by_height=True)
                       for name, (file, k) in cfg["prop_images"].items() if assets.has(file)}
@@ -450,7 +458,7 @@ class Level:
         self.markers = []
         for r in range(self.rows):
             for c in range(self.cols):
-                if g[r][c] in "Equoc":
+                if g[r][c] in "Equocbs":
                     self.markers.append((g[r][c], c, r))
         self.exit = next(((c, r) for ch, c, r in self.markers if ch == "E"), (self.cols - 4, GROUND - 1))
 
@@ -626,6 +634,8 @@ class Player(Entity):
         self.jump_buffer = max(0, self.jump_buffer - 1)
         left = keys[pygame.K_LEFT] or keys[pygame.K_a]
         right = keys[pygame.K_RIGHT] or keys[pygame.K_d]
+        if getattr(self, "swapped", False):         # la sirena psichica: destra e sinistra girate
+            left, right = right, left
         up = keys[pygame.K_UP] or keys[pygame.K_w]
         down = keys[pygame.K_DOWN] or keys[pygame.K_s]
         jump = keys[pygame.K_SPACE] or up
@@ -1486,6 +1496,8 @@ class Game:
         # La Luce e i prigionieri liberati restano anche dopo una vita persa
         p.albedo = self.luce
         self.geysers, self.spenti, self.stations, self.vents = [], [], [], []
+        self.ossuaries, self.sirens = [], []
+        self.dusty, self.dust_k = False, 0.0     # dentro la nube ossea, e quanto sbianca
         self.skels, self.crows, self.balls = [], [], []
         for ch, c, r in lv.markers:
             if ch == "q":
@@ -1494,6 +1506,10 @@ class Game:
                 self.stations.append(titan.OxygenStation((c + .5) * TILE, (r + 1) * TILE))
             elif ch == "c":
                 self.vents.append(titan.GasVent((c + .5) * TILE, (r + 1) * TILE, levels.VENT_FACING.get(c, -1)))
+            elif ch == "b":
+                self.ossuaries.append(nix.Ossuary((c + .5) * TILE, (r + 1) * TILE))
+            elif ch == "s":
+                self.sirens.append(nix.Siren((c + .5) * TILE, (r + 1) * TILE))
             elif ch == "u":
                 spento = titan.Spento((c + .5) * TILE, (r + 1) * TILE)
                 if (self.ci, self.part, int(spento.x)) in self.freed:
@@ -2042,7 +2058,7 @@ class Game:
                 self.jb.fx("air")
             p.oxygen = min(OXYGEN_MAX, p.oxygen + OXYGEN_REFILL)
         else:
-            p.oxygen = max(0, p.oxygen - self.o2_drain * (SPRINT_O2 if p.sprinting else 1))
+            p.oxygen = max(0, p.oxygen - self.o2_drain * (SPRINT_O2 if p.sprinting else 1) * (2 if self.dusty else 1))
             if p.oxygen == 0 and self.frame % 90 == 0:
                 self.jb.fx("pant")                  # senz'aria: si ansima, non si muore
         for vent in self.vents:
@@ -2051,6 +2067,25 @@ class Game:
                     self.jb.fx("freeze")
                 p.chill = CHILL_FRAMES              # il gas gela: si rallenta per un momento
                 p.vx += vent.facing * VENT_PUSH     # e il getto spinge indietro
+        # la nube ossea: dentro si vede poco, si perde vita piano, l'aria finisce al doppio
+        self.dusty = False
+        for oss in self.ossuaries:
+            if oss.update(p):
+                self.dusty = True
+                if self.frame % JELLY_EVERY == 0:
+                    p.hp = max(0, p.hp - JELLY_DRAIN)
+                    self.burst_sparks(p.rect.centerx, p.rect.centery, 4, (230, 224, 210))
+                    if p.hp == 0:
+                        self.die(); return
+            if oss.phase != oss.previous_phase and abs(oss.x - p.x) < W:
+                self.jb.fx({"warning": "geyser_warn", "cloud": "freeze"}.get(oss.phase, "none"))
+        self.dust_k += ((1.0 if self.dusty else 0.0) - self.dust_k) * 0.08
+        # le sirene: mentre pulsano, nel loro raggio destra e sinistra si scambiano
+        p.swapped = False
+        for siren in self.sirens:
+            if siren.update(p):
+                p.swapped = True
+                self.shake = max(self.shake, 2)
         if self.state != "play":
             return
         # uscita
@@ -2097,7 +2132,30 @@ class Game:
             self.burst_sparks(p.rect.centerx, p.rect.centery, 4, (180, 220, 255))
             if p.hp == 0:
                 self.die(); return
-        # lancio della lancia / hadouken / albedo
+        # colpi del giocatore sulle sirene: tre e si spengono, e liberano il prigioniero
+        for siren in self.sirens:
+            if siren.dead:
+                continue
+            abox, adm = p.attack_box()
+            if abox and abox.colliderect(siren.rect) and getattr(siren, "swing", None) != p.swing:
+                siren.swing = p.swing
+                if siren.hit():
+                    self.jb.fx("boss_hit"); self.shake = max(self.shake, 4)
+                    self.burst_sparks(siren.x, siren.floor - 120, 10, (200, 140, 255))
+            for b in self.balls:
+                if b.owner == "player" and b.alive and getattr(b, "hit_rect", b.rect).colliderect(siren.rect):
+                    b.alive = False
+                    if siren.hit():
+                        self.jb.fx("boss_hit")
+                        self.burst_sparks(siren.x, siren.floor - 120, 10, (200, 140, 255))
+            if siren.dead and not siren.freed:
+                siren.freed = True
+                self.score += 800
+                self.jb.fx("door")
+                spento = titan.Spento(siren.x, siren.floor)
+                if (self.ci, self.part, int(spento.x)) in self.freed:
+                    spento.liberated, spento.glow = True, 60
+                self.spenti.append(spento)
         # colpi del giocatore sui nemici
         enemies = [(k, k.spec["pts"]) for k in self.skels] + [(c, c.spec.get("pts", 150)) for c in self.crows]
         for e, pts in enemies:
@@ -2434,6 +2492,8 @@ class Game:
         shade = self.gfx.darkness
         shade.fill((6, 3, 2, int(DARKNESS * self.dark)))
         light = self.gfx.visor_light
+        if self.dust_k > 0.02:            # nella nube ossea il cono si accorcia a 2 tessere
+            light = self.gfx.sized(light, round(1 - 0.8 * self.dust_k, 2))
         shade.blit(light, (cx - light.get_width() // 2, cy - light.get_height() // 2),
                    special_flags=pygame.BLEND_RGBA_MIN)
         s.blit(shade, (0, 0))
@@ -2495,6 +2555,7 @@ class Game:
                     titan.ground_shadow(s, x + TILE // 2, y + TILE, img.get_width() * 0.9)
                     s.blit(img, (x + TILE // 2 - img.get_width() // 2, y + TILE - img.get_height() + titan.SINK))
 
+        nix.draw_crevasse_edges(s, cam, self.cfg["crevasses"], GROUND * TILE)
     def draw_props(self, s, cam, lv):
         """Gli oggetti del paesaggio in piedi sul suolo (le antenne e i ripetitori di
         Nix): dietro a tutto, col piede affondato come le stazioni."""
@@ -2642,6 +2703,10 @@ class Game:
             st.draw(s, cam, st.near(self.player), self.gfx.station)
         for vent in self.vents:
             vent.draw(s, cam)
+        for oss in self.ossuaries:
+            oss.draw(s, cam)
+        for siren in self.sirens:
+            siren.draw(s, cam)
         if self.cable:
             self.cable.draw(s, cam)
         if self.bianca:
@@ -2670,6 +2735,8 @@ class Game:
         for cr in self.crows:            # le meduse attaccate stanno sopra la tuta
             if getattr(cr, "stuck", None) is not None:
                 cr.draw(s, self.gfx, cam)
+        for oss in self.ossuaries:       # la nube ossea avvolge anche 9T9T
+            oss.draw_cloud(s, cam)
         for e in self.effects:
             fonts.draw_text(s, e.text, int(e.x) - cam, int(e.y), e.color, 4)
         for x, y, vx, vy, life, color in self.sparks:
@@ -2682,6 +2749,9 @@ class Game:
         s.blit(pygame.transform.smoothscale(view, (W, H)), jolt)
         self.draw_foreground(s)
         self.draw_darkness(s)
+        if self.dust_k > 0.02:            # la polvere d'ossa sbianca tutto
+            dust = pygame.Surface((W, H), pygame.SRCALPHA); dust.fill((226, 222, 212, int(120 * self.dust_k)))
+            s.blit(dust, (0, 0))
         self.draw_nova(s)
         self.draw_drizzle(s)
         s.blit(self.gfx.vignette, (0, 0))

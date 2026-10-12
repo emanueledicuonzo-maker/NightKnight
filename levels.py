@@ -1,9 +1,10 @@
-"""Titano: configurazione e mappe (il percorso con ondate e traversata, l'arena del duello).
+"""I satelliti: configurazione e mappe (il percorso con ondate e traversata, l'arena del duello).
 
 Legenda:
   # crosta   D roccia   H scala di servizio   S parete invisibile dell'arena
   E portello d'uscita   q geyser   u prigioniero   o stazione d'ossigeno
   c sfiato di gas criogenico   P capsula d'atterraggio   ~ lago di metano   . vuoto
+  b ossario (nube ossea)   s sirena psichica
 """
 # Sopra la superficie restano SKY righe di cielo per salire (la rupe del
 # labirinto), sotto la crosta DEPTH righe di roccia in cui scavare le gallerie.
@@ -377,7 +378,7 @@ TITAN = {
     "foreground": "foreground", "fog_color": (196, 112, 58), "bg_color": (34, 16, 8),
     "ground": "titan_ground_grass", "ground_top_cut": True, "rock": "titan_rock",
     "station": "stazione_ossigeno", "caves": True, "night": 0.0, "drizzle": True,
-    "props": [], "prop_images": {}, "haze": True,
+    "props": [], "prop_images": {}, "haze": True, "crevasses": (),
     "surface": gen_surface, "arena": gen_arena, "pass_start": TITAN_PASS_START,
     "stages": TITAN_STAGES, "arenas": TITAN_ARENAS, "waves": TITAN_WAVES, "patrols": TITAN_PATROLS,
     "pass_foes": TITAN_PASS_FOES, "cables": TITAN_CABLES, "rope_speeds": ROPE_SPEEDS,
@@ -443,6 +444,10 @@ def gen_nix_field():
     g[top(1)][1] = "P"
     for col in (3, 104, 212, 426):          # quattro stazioni: capsula, campo, imbocco, fine
         g[top(col)][col] = "o"
+    for col in (232, 348, 356, 364):        # gli ossari: uno all'imbocco, tre per l'ondata 4
+        g[top(col)][col] = "b"
+    for col in (259, 303, 378):             # le sirene: ai piedi del rilievo del 2x, nella
+        g[top(col)][col] = "s"              # conca, davanti all'ultimo crepaccio
     return g
 
 
@@ -475,7 +480,7 @@ NIX = {
     "ground": "nix_ground", "ground_top_cut": False, "rock": "nix_rock",
     "station": "nix_station", "caves": False, "night": 0.75, "drizzle": False,
     "surface": gen_nix_surface, "arena": gen_arena, "pass_start": NIX_SURFACE_COLS,
-    "props": NIX_PROPS, "prop_images": NIX_PROP_IMAGES, "haze": False,
+    "props": NIX_PROPS, "prop_images": NIX_PROP_IMAGES, "haze": False, "crevasses": NIX_CREVASSES,
     "stages": NIX_STAGES, "arenas": [], "waves": [], "patrols": None,
     "pass_foes": [], "cables": [], "rope_speeds": (),
 }
