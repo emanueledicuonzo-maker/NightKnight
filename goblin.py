@@ -353,7 +353,7 @@ class Gfx:
         if cfg["pylon"] and assets.has(cfg["pylon"]):
             athletics.ART["pylon"] = assets.load(cfg["pylon"], TILE * 4, athletics.FLOOR - athletics.Rope.ANCHOR_Y + 30,
                                                  by_height=True)
-            athletics.ART["bed"] = levels.ROWS * TILE
+            athletics.ART["bed"] = (GROUND + 4) * TILE      # piantati nel crepaccio, poco sotto gli orli
             athletics._pylons.clear()
         elif self.titan_pylon:
             athletics.ART["pylon"] = self.titan_pylon
