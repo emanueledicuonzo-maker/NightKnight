@@ -368,6 +368,25 @@ un suono: è nella testa.
   macchie chiare e scure e il cuore di ghiaccio della Sputnik Planitia; Caronte
   dietro, più piccolo. Sono le due luci del cielo di Nix.
 
+### Le quattro insidie
+
+Ogni insidia si legge prima di colpire: ha una forma, un ciclo e un segnale,
+come il criovulcano di Titano. Nessun testo a schermo.
+
+| Insidia | Dove e come si vede | Ciclo | Effetto |
+| --- | --- | --- | --- |
+| **Nube ossea** | Esce dagli **ossari aperti** nelle pareti delle miniere (quadro 2) e da due pozzi del campo dei crateri: una bocca di roccia piena di ossa e crani di coloni, con una polvere bianca che respira. | Quiete 6 s (polvere che cola appena), sfiato 2 s (la polvere sale a scatti: l'avviso), nube 8 s (una colonna larga 6 tessere e alta 5, che a gravità bassa resta sospesa e poi ricade piano). | Dentro: il cono del visore si accorcia a 2 tessere e lo schermo sbianca; si perde vita piano, come con una medusa appiccicata, e l'ossigeno scende **al doppio** (i filtri si intasano). Le falene ossee ci volano dentro senza problemi: l'ondata 4 arriva dentro la nube. Si attraversa di corsa o si aspetta la quiete. |
+| **Sirene psichiche** | Il **corno di un ripetitore** ancora alimentato, con un anello di luce viola che pulsa, piantato lungo la strada o su un rilievo (quadro 2 e traversata). Si sente arrivare dalle pulsazioni, non dal suono: non c'è aria. | Pulsa 3 s, tace 5 s. Agisce fino a 10 tessere di distanza. | Mentre pulsa, **destra e sinistra si scambiano** e il visore trema: chi corre verso un crepaccio con la sirena accesa ci finisce dentro. La sirena si **spegne per sempre** con tre colpi (spada o sassi da lontano, anche da fuori portata), e lascia a terra un prigioniero illuminato dentro il suo basamento. Scelta: zittirla, aspettare il silenzio, o passare col comando girato. |
+| **Crepacci** | Spaccature **senza fondo** nel ghiaccio, larghe da 3 a 7 tessere, con l'orlo di neve grigia che si vede bene contro il nero; dentro, buio e poche stelle (il crepaccio passa da parte a parte). Alcuni hanno un **ripetitore caduto** che fa da ponte stretto; dalle crepe più piccole escono i pipistrelli. | Fissi. | Caderci dentro **costa una vita**: una caduta lenta nel buio, poi si riparte dalla tappa. Con la gravità di Nix i crepacci larghi si saltano, ma il salto pieno **supera** un orlo di là stretto (1–2 tessere fra due crepacci): si impara a saltare corto. Un calcio spinge i nemici nel crepaccio. |
+| **Ossigeno scarso** | Nessuna atmosfera: la barra dell'ossigeno scende da piena a vuota in **100 s** all'aperto (150 su Titano), 2,5× di corsa, 2× dentro la nube ossea. Le stazioni sono sei in tutto il satellite (quattro in superficie, due nella traversata), con la luce verde che si vede da lontano nel buio. | Continuo. | A zero non si muore, come su Titano: fiato corto, lento, salta meno (e su Nix saltare meno vuol dire non passare i crepacci), ogni colpo vale metà. Costringe a decidere se combattere l'ondata fino in fondo o correre alla stazione. |
+
+Nella traversata ci sono anche le **passerelle che cedono**: griglie di servizio
+delle antenne, grigie e un po' piegate, appese sopra i crepacci. Appena ci si
+mette il piede sopra tremano (l'avviso), dopo mezzo secondo si staccano e
+cadono piano nel buio; tornano al loro posto dopo 4 secondi (ne servono per
+ripartire dalla tappa). Non sono un'insidia del satellite: sono il terreno
+della traversata, come i cavi.
+
 ## Gli anelli di Saturno
 
 Dopo il dodicesimo satellite appare Saturno intero. NightKnight e Bianca corrono
