@@ -273,6 +273,46 @@ class PassageTests(unittest.TestCase):
         g.after_victory()
         self.assertEqual(g.state, "end")
 
+    def test_a_lost_life_restarts_at_the_last_stage_of_nix(self):
+        g = self.game
+        g.new_game()
+        g.ci = 1
+        g.start_part("surface")
+        g.state = "play"
+        stages = g.cfg["stages"]
+        p = g.player
+        col, row = stages[3]
+        p.x = (col + 3) * TILE                     # oltre la quarta tappa
+        with unittest.mock.patch("pygame.key.get_pressed", return_value=defaultdict(bool)):
+            g.update()
+        self.assertEqual(g.stage, 3)
+        lives = g.lives
+        g.die()
+        with unittest.mock.patch("pygame.key.get_pressed", return_value=defaultdict(bool)):
+            for _ in range(130):
+                g.update()
+        self.assertEqual(g.lives, lives - 1)
+        self.assertEqual(g.state, "play")
+        self.assertEqual(g.player.rect.centerx // TILE, col, "si riparte dall'ultima tappa")
+        self.assertEqual(g.player.rect.bottom // TILE, row)
+        cp = goblin.progress.load(g.save_path)["checkpoint"]
+        self.assertEqual((cp["satellite"], cp["stage"]), (1, 3))
+
+    def test_game_over_and_continue_on_nix(self):
+        g = self.game
+        g.new_game()
+        g.ci = 1
+        g.start_part("surface")
+        g.state = "play"
+        g.stage, g.score, g.lives = 5, 7777, 1
+        g.lose_life()
+        self.assertEqual(g.state, "gameover")
+        g.saved = goblin.progress.load(g.save_path)
+        g.continue_game()
+        self.assertEqual((g.ci, g.cfg["name"], g.stage, g.lives, g.score), (1, "Nix", 5, 3, 0))
+        col, row = g.cfg["stages"][5]
+        self.assertEqual(g.player.rect.centerx // TILE, col)
+
 
 if __name__ == "__main__":
     unittest.main()
