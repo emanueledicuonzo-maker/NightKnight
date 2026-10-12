@@ -106,7 +106,7 @@ class GameTests(unittest.TestCase):
         self.assertEqual((g.player.vx, g.player.vy, g.player.invuln), (0, 0, 0))
         self.assertFalse(g.player.climbing)
 
-    def test_one_round_victory_ends_the_demo(self):
+    def test_one_round_victory_leads_to_the_next_satellite(self):
         g = self.game
         g.state = "play"
         g.next_part()
@@ -116,7 +116,7 @@ class GameTests(unittest.TestCase):
         self.assertEqual(g.state, "victory")
         self.assertIsNone(progress.load(g.save_path)["checkpoint"])
         g.after_victory()
-        self.assertEqual(g.state, "end")
+        self.assertEqual((g.ci, g.cfg["name"], g.part, g.state), (1, "Nix", "surface", "card"))
 
     def test_cancelled_attack_does_not_hit_later_enemy(self):
         g = self.game

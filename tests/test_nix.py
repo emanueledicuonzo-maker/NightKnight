@@ -235,5 +235,44 @@ class NixGameTests(unittest.TestCase):
         self.assertEqual(p.hp, hp, "ma non fa male")
 
 
+class PassageTests(unittest.TestCase):
+    """Da Titano a Nix: caduto il Guardiano di Titano si atterra su Nix, e Continua
+    riporta li'."""
+
+    @classmethod
+    def setUpClass(cls):
+        goblin.fonts._font.cache_clear()
+        goblin.fonts._text_image.cache_clear()
+        cls.temp = tempfile.TemporaryDirectory()
+        cls.game = goblin.Game(windowed=True, save_path=Path(cls.temp.name) / "save.json")
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.temp.cleanup()
+
+    def test_after_titan_comes_nix_and_continue_remembers_it(self):
+        g = self.game
+        g.new_game("arena")
+        self.assertEqual(g.cfg["name"], "Titano")
+        g.lives, g.score = 2, 12345
+        g.after_victory()
+        self.assertEqual((g.ci, g.cfg["name"], g.part, g.state), (1, "Nix", "surface", "card"))
+        self.assertEqual((g.lives, g.score), (2, 12345), "vite e punteggio restano")
+        self.assertEqual(g.player.gravity_scale, .55)
+        cp = goblin.progress.load(g.save_path)["checkpoint"]
+        self.assertEqual((cp["satellite"], cp["part"]), (1, "surface"))
+        g.new_game()
+        self.assertEqual(g.cfg["name"], "Titano")
+        g.saved = goblin.progress.load(g.save_path)
+        g.saved["checkpoint"] = cp
+        g.continue_game()
+        self.assertEqual((g.ci, g.cfg["name"]), (1, "Nix"))
+        # dopo l'ultimo satellite costruito, la schermata finale
+        g.ci = len(levels.SATELLITES) - 1
+        g.start_part("arena")
+        g.after_victory()
+        self.assertEqual(g.state, "end")
+
+
 if __name__ == "__main__":
     unittest.main()

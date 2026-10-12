@@ -1855,9 +1855,15 @@ class Game:
             self.save_progress(clear=True)
 
     def after_victory(self):
-        # Per ora il viaggio si ferma a Titano: gli altri satelliti arriveranno.
-        self.state = "end"
+        """Caduto il Guardiano si riparte dal satellite dopo, con le vite e il punteggio
+        di adesso; dopo l'ultimo satellite costruito, la schermata finale."""
         self.hi = max(self.hi, self.score)
+        if self.ci + 1 < len(levels.SATELLITES):
+            self.ci += 1
+            self.reached_pass, self.stage, self.nova_used = False, 0, False
+            self.start_part("surface")          # salva la tappa sul satellite nuovo
+            return
+        self.state = "end"
         self.jb.stop()
         self.save_progress(clear=True)
 
