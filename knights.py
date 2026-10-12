@@ -440,9 +440,10 @@ class GoldKnight:
         return "idle"
 
     def helm(self, cam=0):
-        """Dove sta l'anello viola dell'elmo (sullo schermo del mondo)."""
+        """Dove sta l'anello viola dell'elmo: un decimo dalla cima della posa disegnata."""
         r = self.rect
-        return r.centerx - cam, r.top + 42
+        top = getattr(self, "drawn_top", r.top)
+        return r.centerx - cam, top + int(getattr(self, "drawn_h", r.h) * 0.1)
 
     def fist(self):
         """Il pugno teso nella posa del lancio: da li' parte la catena del gancio."""
@@ -463,6 +464,7 @@ class GoldKnight:
             img = pygame.transform.rotate(self.imgs["idle"][i], 90 if self.facing < 0 else -90)
             pos = (pos[0] - 50, pos[1] + 90)
         s.blit(img, pos)
+        self.drawn_top, self.drawn_h = pos[1], img.get_height()
         if self.flash and (self.flash // 2) % 2 and self.hp > 0:
             s.blit(self.imgs["white"][i], pos)
         if self.cfg.get("dark") and self.hp > 0:

@@ -2837,9 +2837,8 @@ class Game:
     def draw_props(self, s, cam, lv):
         """Gli oggetti del paesaggio in piedi sul suolo (le antenne e i ripetitori di
         Nix): dietro a tutto, col piede affondato come le stazioni."""
-        if lv.kind != "surface":
-            return
-        for col, name, *row in self.cfg["props"]:
+        props = self.cfg["props"] if lv.kind == "surface" else self.cfg["arena_props"]
+        for col, name, *row in props:
             img = self.gfx.props.get(name)
             if img is None:
                 continue
@@ -2955,9 +2954,10 @@ class Game:
         if self.state == "end":
             s.blit(self.gfx.title_backdrop(), (0, 0))
             shade = pygame.Surface((W, H), pygame.SRCALPHA); shade.fill((12, 6, 3, 150)); s.blit(shade, (0, 0))
-            self.draw_center("TITANO E' LIBERO", 300, (238, 222, 190), 12)
+            left = len(levels.SATELLITES_NAMES) - self.cfg["num"]
+            self.draw_center(f"{self.cfg['name'].upper()} E' LIBERO", 300, (238, 222, 190), 12)
             self.draw_center(f"{self.score}", 470, (250, 240, 225), 7)
-            self.draw_center("GLI ALTRI UNDICI SATELLITI TI ASPETTANO", 620, (225, 210, 185), 4)
+            self.draw_center(f"GLI ALTRI {levels.IN_WORDS[left]} SATELLITI TI ASPETTANO", 620, (225, 210, 185), 4)
             self.draw_center("INVIO", 820, (225, 210, 185), 4)
             pygame.display.flip()
             return

@@ -379,6 +379,7 @@ TITAN = {
     "ground": "titan_ground_grass", "ground_top_cut": True, "rock": "titan_rock",
     "station": "stazione_ossigeno", "caves": True, "night": 0.0, "drizzle": True,
     "props": [], "prop_images": {}, "haze": True, "crevasses": (), "gratings": (), "pylon": None,
+    "arena_props": [],
     "surface": gen_surface, "arena": gen_arena, "pass_start": TITAN_PASS_START,
     "stages": TITAN_STAGES, "arenas": TITAN_ARENAS, "waves": TITAN_WAVES, "patrols": TITAN_PATROLS,
     "pass_foes": TITAN_PASS_FOES, "cables": TITAN_CABLES, "rope_speeds": ROPE_SPEEDS,
@@ -575,6 +576,9 @@ NIX = {
     "ground": "nix_ground", "ground_top_cut": False, "rock": "nix_rock",
     "station": "nix_station", "caves": False, "night": 0.75, "drizzle": False,
     "surface": gen_nix_surface, "arena": gen_arena, "pass_start": NIX_SURFACE_COLS,
+    # la piattaforma del ripetitore principale: i due tralicci dell'antenna madre ai
+    # lati, l'antenna sul fondo
+    "arena_props": [(5, "pylon"), (54, "pylon"), (30, "antenna"), (14, "repeater"), (45, "repeater")],
     "props": NIX_PROPS + [(NIX_SURFACE_COLS + c, *rest) for c, *rest in NIX_PASS_PROPS],
     "prop_images": dict(NIX_PROP_IMAGES, pylon=("nix_pylon", 5.0)), "haze": False,
     "crevasses": NIX_CREVASSES + tuple((NIX_SURFACE_COLS + a, NIX_SURFACE_COLS + b) for a, b in NIX_PASS_GAPS),
@@ -584,3 +588,7 @@ NIX = {
     "gratings": NIX_GRATINGS, "pylon": "nix_pylon",
 }
 SATELLITES = [TITAN, NIX]
+# i dodici satelliti, in ordine, e i numeri in lettere per le scritte di fine livello
+SATELLITES_NAMES = ("Titano", "Nix", "Io", "Europa", "Rea", "Caronte", "Ganimede", "Fobos", "Nereide",
+                    "Miranda", "Umbriel", "Oberon")
+IN_WORDS = ("ZERO", "UNO", "DUE", "TRE", "QUATTRO", "CINQUE", "SEI", "SETTE", "OTTO", "NOVE", "DIECI", "UNDICI", "DODICI")
