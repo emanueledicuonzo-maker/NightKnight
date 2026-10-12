@@ -56,9 +56,10 @@ class NixMapTests(unittest.TestCase):
                     self.assertEqual(rows, [], c)
 
     def test_stages_and_props_stand_on_solid_ground(self):
+        full = self.lv.g
         for col, row in levels.NIX_STAGES:
-            self.assertIn(self.g[row][col], "#", (col, row))
-            self.assertEqual(self.g[row - 1][col], ".", (col, row))
+            self.assertIn(full[row][col], "#", (col, row))
+            self.assertEqual(full[row - 1][col], ".", (col, row))
         for col, _ in levels.NIX_PROPS:
             self.assertIsNotNone(self.lv.floor_near((col + .5) * TILE, G * TILE, reach=12), col)
 
@@ -133,9 +134,10 @@ class NixGameTests(unittest.TestCase):
         self.assertEqual(g.cfg["name"], "Nix")
         self.assertEqual(g.player.gravity_scale, .55)
         self.assertAlmostEqual(g.o2_drain, goblin.OXYGEN_MAX / (100 * 60))
-        self.assertEqual(len(g.ossuaries), 4)
-        self.assertEqual(len(g.sirens), 3)
+        self.assertEqual(len(g.ossuaries), 4 + 2)          # quattro in superficie, due nella traversata
+        self.assertEqual(len(g.sirens), 3 + 2)
         self.assertEqual(sorted({k.kind for k in g.skels}), ["copy", "keeper", "skeleton_2x", "spider"])
+        self.assertEqual(len(g.gratings), len(levels.NIX_GRATINGS))
 
     def test_siren_swaps_left_and_right_and_dies_in_three_hits(self):
         g = self.game
@@ -161,7 +163,7 @@ class NixGameTests(unittest.TestCase):
 
     def test_ossuary_cloud_doubles_the_oxygen_drain(self):
         g = self.game
-        oss = g.ossuaries[0]
+        oss = next(o for o in g.ossuaries if o.floor == G * TILE)
         p = self.put(int(oss.x // TILE))
         self.assertEqual(oss.phase, "rest")
         oss.started = True
@@ -181,7 +183,7 @@ class NixGameTests(unittest.TestCase):
 
     def test_keeper_guard_blocks_until_kicked(self):
         g = self.game
-        p = self.put(100)
+        p = self.put(110)                   # lontano dalle crepe dei pipistrelli
         g.skels = [goblin.Walker(p.x + 90, "keeper")]
         k = g.skels[0]
         k.y = G * TILE - k.h; k.on_ground = True; k.facing = -1
@@ -203,7 +205,7 @@ class NixGameTests(unittest.TestCase):
 
     def test_copy_mimics_the_jump_with_a_delay(self):
         g = self.game
-        p = self.put(100)
+        p = self.put(110)                   # lontano dalle crepe dei pipistrelli
         g.skels = [goblin.Walker(p.x + 400, "copy")]
         c = g.skels[0]
         c.y = G * TILE - c.h; c.on_ground = True

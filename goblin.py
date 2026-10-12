@@ -121,7 +121,7 @@ BURROW_RUMBLE, BURROW_OUT = 40, 130     # il verme alla Tremors: preavviso e tem
 JELLY_SPEED, JELLY_MAX, JELLY_SLOW, JELLY_DRAIN, JELLY_EVERY = 4.2, 3, 0.22, 3, 50
 LAND_FRAMES, HURT_FRAMES = 10, 22
 MANTLE_FRAMES, MANTLE_STEP = 26, 40     # tirarsi su in cima alla scala
-SOLID = set("#DS")
+SOLID = set("#DSG")      # G: le passerelle di Nix, finche' reggono
 
 PS = 8          # scala pixel art personaggi
 PW, PH = 16 * PS, 24 * PS
@@ -179,8 +179,10 @@ class Gfx:
         # Il cavo fra due gru della colonia, l'impugnatura, il gancio del Guardiano
         pylon = assets.pieces("cable_pylon", 2, athletics.FLOOR - athletics.Rope.ANCHOR_Y + 30, 0)
         handle = assets.pieces("cable_pylon", 2, 64, 1)
+        self.titan_pylon = None
         if pylon and handle:
             athletics.ART.update(pylon=pylon[0], handle=handle[1])
+            self.titan_pylon = pylon[0]
         hook = assets.pieces("hook", 2, 70, 0)
         link = assets.pieces("hook", 2, 22, 1)
         if hook and link:
@@ -340,6 +342,23 @@ class Gfx:
         self.foreground_low = fg.subsurface((0, H * 55 // 100, W, H * 45 // 100)).copy()
         self.pass_start, self.fog_color, self.sky_name, self.caves = (cfg["pass_start"], cfg["fog_color"],
                                                                        cfg["sky"], cfg["caves"])
+        # la passerella che cede, e i piloni dei cavi di questo mondo
+        if assets.has("nix_grating"):
+            # ritagliata sulla sagoma e larga quanto le sue tessere
+            img = pygame.image.load(os.path.join(assets.DIR, "nix_grating.png")).convert_alpha()
+            box = pygame.mask.from_surface(img, 127).get_bounding_rects()
+            img = img.subsurface(box[0].unionall(box[1:])).copy()
+            w = levels.NIX_GRATING_W * TILE + 24
+            nix.ART["grating"] = pygame.transform.smoothscale(img, (w, int(img.get_height() * w / img.get_width())))
+        if cfg["pylon"] and assets.has(cfg["pylon"]):
+            athletics.ART["pylon"] = assets.load(cfg["pylon"], TILE * 4, athletics.FLOOR - athletics.Rope.ANCHOR_Y + 30,
+                                                 by_height=True)
+            athletics.ART["bed"] = levels.ROWS * TILE
+            athletics._pylons.clear()
+        elif self.titan_pylon:
+            athletics.ART["pylon"] = self.titan_pylon
+            athletics.ART.pop("bed", None)
+            athletics._pylons.clear()
         self.bg_cache = {k: v for k, v in self.bg_cache.items() if k[0] == "title"}
 
     def titan_tile(self, ch, c, r, part=0):
@@ -1741,6 +1760,8 @@ class Game:
                     walker.gravity_scale = cfg["gravity_scale"]
                     self.skels.append(walker)
         self.cracks = {c: -CRACK_REST for c in cfg.get("cracks", ())}   # colonna -> ultimo sciame di pipistrelli
+        self.gratings = [nix.Grating(cfg["pass_start"] + c, row, levels.NIX_GRATING_W)
+                         for c, row in cfg["gratings"]] if self.part == "surface" else []
         self.blind = 0
         self.waves = None
         if self.part == "surface":
@@ -2282,6 +2303,10 @@ class Game:
             if oss.phase != oss.previous_phase and abs(oss.x - p.x) < W:
                 self.jb.fx({"warning": "geyser_warn", "cloud": "freeze"}.get(oss.phase, "none"))
         self.dust_k += ((1.0 if self.dusty else 0.0) - self.dust_k) * 0.08
+        for grating in self.gratings:
+            if grating.update(self.lv, p):
+                self.jb.fx("bones")
+                self.shake = max(self.shake, 3)
         # le sirene: mentre pulsano, nel loro raggio destra e sinistra si scambiano
         p.swapped = False
         for siren in self.sirens:
@@ -2796,14 +2821,14 @@ class Game:
         Nix): dietro a tutto, col piede affondato come le stazioni."""
         if lv.kind != "surface":
             return
-        for col, name in self.cfg["props"]:
+        for col, name, *row in self.cfg["props"]:
             img = self.gfx.props.get(name)
             if img is None:
                 continue
             x = col * TILE + TILE // 2 - cam
             if not -img.get_width() < x < DW + img.get_width():
                 continue
-            floor = lv.floor_near((col + .5) * TILE, GROUND * TILE, reach=12)
+            floor = row[0] * TILE if row else lv.floor_near((col + .5) * TILE, GROUND * TILE, reach=12)
             if floor is None:
                 continue
             titan.ground_shadow(s, x, floor, img.get_width() * 0.8)
@@ -2942,6 +2967,8 @@ class Game:
             oss.draw(s, cam)
         for siren in self.sirens:
             siren.draw(s, cam)
+        for grating in self.gratings:
+            grating.draw(s, cam)
         if self.cable:
             self.cable.draw(s, cam)
         if self.bianca:

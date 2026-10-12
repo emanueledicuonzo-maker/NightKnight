@@ -165,3 +165,63 @@ def draw_crevasse_edges(screen, cam, crevasses, ground_y):
             continue
         screen.blit(left, (x0 - left.get_width() + 10, ground_y - 26))
         screen.blit(right, (x1 - 10, ground_y - 26))
+
+
+class Grating:
+    """Una griglia di servizio appesa sopra un crepaccio: appena ci si mette il
+    piede trema, dopo mezzo secondo si stacca e cade piano nel buio; torna al
+    suo posto dopo quattro secondi. Nella griglia del livello e' fatta di
+    tessere "G", che spariscono quando cade."""
+    SHAKE, FALL, BACK = 30, 150, 240
+
+    def __init__(self, col, row, width):
+        self.col, self.row, self.width = col, row, width
+        self.x0, self.x1, self.y = col * TILE, (col + width) * TILE, row * TILE
+        self.state, self.t = "solid", 0
+
+    def on_it(self, player):
+        r = player.rect
+        return player.on_ground and abs(r.bottom - self.y) < 4 and r.right > self.x0 and r.left < self.x1
+
+    def set_tiles(self, lv, ch):
+        for c in range(self.col, self.col + self.width):
+            lv.g[self.row][c] = ch
+
+    def update(self, lv, player):
+        """True nel fotogramma in cui si stacca (per il suono)."""
+        self.t += 1
+        if self.state == "solid":
+            if self.on_it(player):
+                self.state, self.t = "shake", 0
+        elif self.state == "shake":
+            if self.t > self.SHAKE:
+                self.state, self.t = "fall", 0
+                self.set_tiles(lv, ".")
+                return True
+        elif self.state == "fall":
+            if self.t > self.FALL:
+                self.state, self.t = "gone", 0
+        elif self.t > self.BACK:
+            r = player.rect
+            if not (r.right > self.x0 - 20 and r.left < self.x1 + 20 and abs(r.bottom - self.y) < 2 * TILE):
+                self.state, self.t = "solid", 0
+                self.set_tiles(lv, "G")
+        return False
+
+    def draw(self, screen, cam):
+        if self.state == "gone" or "grating" not in ART:
+            return
+        img = ART["grating"]
+        x = self.x0 - cam
+        if not -img.get_width() < x < screen.get_width():
+            return
+        y = self.y - img.get_height() + 22      # il piano della griglia e' il bordo della tessera
+        if self.state == "shake":
+            x += (self.t % 3) - 1
+            y += (self.t // 2 % 2)
+        elif self.state == "fall":
+            y += int(self.t * self.t * 0.08)    # cade piano: gravita' di Nix
+            if self.t > 60:
+                img = img.copy()
+                img.set_alpha(max(0, 255 - (self.t - 60) * 3))
+        screen.blit(img, (x, y))

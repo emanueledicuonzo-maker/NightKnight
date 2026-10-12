@@ -378,7 +378,7 @@ TITAN = {
     "foreground": "foreground", "fog_color": (196, 112, 58), "bg_color": (34, 16, 8),
     "ground": "titan_ground_grass", "ground_top_cut": True, "rock": "titan_rock",
     "station": "stazione_ossigeno", "caves": True, "night": 0.0, "drizzle": True,
-    "props": [], "prop_images": {}, "haze": True, "crevasses": (),
+    "props": [], "prop_images": {}, "haze": True, "crevasses": (), "gratings": (), "pylon": None,
     "surface": gen_surface, "arena": gen_arena, "pass_start": TITAN_PASS_START,
     "stages": TITAN_STAGES, "arenas": TITAN_ARENAS, "waves": TITAN_WAVES, "patrols": TITAN_PATROLS,
     "pass_foes": TITAN_PASS_FOES, "cables": TITAN_CABLES, "rope_speeds": ROPE_SPEEDS,
@@ -451,12 +451,70 @@ def gen_nix_field():
     return g
 
 
+# ---- la traversata di Nix: il campo dei crateri (STORY.md, "2->3")
+# Colonne dall'inizio della traversata. Con la gravita' di Nix si salta alto
+# ~7,5 tessere e lungo ~9: i crepacci larghi fino a 7 si passano, la fretta no.
+NIX_PASS_COLS = 455
+NIX_PASS_GAPS = ((12, 17), (22, 28), (33, 40), (60, 136), (165, 227),     # crateri, passerelle, cavi
+                 (330, 334), (360, 366), (395, 401), (420, 425))          # i pozzi del lato alto
+NIX_GRATING_W = 5
+NIX_GRATINGS = tuple((c, GROUND) for c in (62, 73, 84, 95, 106, 117, 128))   # (prima colonna, riga)
+NIX_LAUNCH, NIX_LANDING = 3, 8          # lo scalino di lancio e il lato alto dove si atterra
+NIX_ROPE_TOP = NIX_LAUNCH * 64 + ROPE_ABOVE + 480
+NIX_CABLES = [[(178, NIX_ROPE_TOP, 480), (191, NIX_ROPE_TOP, 500), (204, NIX_ROPE_TOP, 470),
+               (217, NIX_ROPE_TOP, 490)]]
+NIX_ROPE_SPEEDS = (1.0, 1.15, 0.85, 1.05)
+NIX_PASS_CRACKS = (15, 36, 363, 398)
+NIX_PASS_PROPS = [(8, "antenna"), (50, "repeater"), (145, "antenna"), (256, "pylon", GROUND - 16),
+                  (320, "repeater", GROUND - 16), (380, "antenna", GROUND - 16), (445, "repeater", GROUND - 16)]
+# pochi nemici, piazzati: ragni sopra le passerelle, custodi davanti ai due
+# prigionieri nascosti, una copia sul traliccio
+NIX_PASS_FOES = [("spider", 78, GROUND - 6), ("spider", 111, GROUND - 6),
+                 ("keeper", 251, GROUND - 20), ("keeper", 261, GROUND - 20), ("copy", 256, GROUND - 16)]
+
+
 def gen_nix_pass():
-    """La traversata di Nix: per ora un tratto piano con l'uscita (arriva con la fase 4)."""
-    cols = 60
+    """La traversata di Nix, il campo dei crateri:
+    1. orli di cratere e vuoti: si salta da orlo a orlo;
+    2. il crepaccio delle passerelle: griglie di servizio che cedono mezzo
+       secondo dopo il passo, da una all'altra senza fermarsi;
+    3. lo scalino di lancio e i quattro cavi sopra il crepaccio grande, fino al
+       lato alto (8 tessere);
+    4. il ritorno: dal lato alto si sale a 12 e si torna a sinistra, poi a 16 e
+       di nuovo a destra; sopra, una piattaforma nascosta con due prigionieri e
+       i custodi; il lato alto prosegue con i pozzi fino ai piedi del ripetitore."""
+    cols = NIX_PASS_COLS
     g = _grid(cols)
-    _rock(g, 0, cols, 0)
-    g[GROUND - 1][cols - 4] = "E"
+    gaps = {c for c0, c1 in NIX_PASS_GAPS for c in range(c0, c1)}
+    hts = [0] * cols
+    for c0, c1, h in ((8, 12, 1), (17, 22, 2), (28, 33, 1), (40, 46, 1),       # orli dei crateri
+                      (160, 165, NIX_LAUNCH), (227, 296, NIX_LANDING),         # lancio e lato alto
+                      (296, 297, 9), (297, 298, 10), (298, 299, 11), (299, 300, 12),   # su verso il ritorno
+                      (300, cols, 16)):                                        # l'altopiano finale
+        for c in range(c0, c1):
+            hts[c] = h
+    for c, h in enumerate(hts):
+        if c not in gaps:
+            _rock(g, c, c + 1, h)
+    for c0, row in NIX_GRATINGS:                                   # le passerelle
+        for c in range(c0, c0 + NIX_GRATING_W):
+            g[row][c] = "G"
+    _ledge(g, 232, 296, 12)                                        # il ritorno a sinistra
+    for c, h in ((232, 13), (231, 14), (230, 15), (229, 16)):      # i gradini su, verso sinistra
+        _rock(g, c, c + 1, h)
+    _ledge(g, 229, 300, 16)                                        # e di nuovo a destra, in alto
+    _ledge(g, 250, 263, 20)                                        # la piattaforma nascosta
+    def top(c):
+        return next(r for r in range(ROWS) if g[r][c] in "#G") - 1
+    for c in (10, 30, 50, 145, 155, 236, 260, 290, 255, 258, 350, 436):
+        g[top(c)][c] = "u"
+    for c in (150, 310):
+        g[top(c)][c] = "o"
+    for c in (44, 380):
+        g[top(c)][c] = "b"
+    for c in (270, 410):
+        g[top(c)][c] = "s"
+    g[top(cols - 4)][cols - 4] = "E"
     return g
 
 
@@ -468,6 +526,12 @@ def gen_nix_surface():
 # Sei tappe in superficie: capsula, uscita dal cratere grande, prima delle
 # ondate 2, 3 e 4, fine delle miniere (la traversata aggiunge le sue).
 NIX_STAGES = [(2, GROUND), (41, GROUND), (100, GROUND), (256, GROUND), (338, GROUND), (424, GROUND)]
+# ... e nove nella traversata: ingresso, dopo il primo crepaccio, prima e dopo le
+# passerelle, prima dei cavi, dopo i cavi sul lato alto, a meta' del ritorno, al
+# traliccio della piattaforma nascosta, ai piedi del ripetitore.
+NIX_STAGES += [(NIX_SURFACE_COLS + c, GROUND - h) for c, h in
+               ((2, 0), (47, 0), (56, 0), (140, 0), (162, NIX_LAUNCH), (236, NIX_LANDING), (250, 12),
+                (240, 16), (440, 16))]
 # Le ondate dal direttore: la prima sul fondo del cratere grande, la seconda nel
 # campo delle antenne, la quarta dentro la nube degli ossari. La terza (il 2x in
 # cima al rilievo coi due custodi ai piedi) e' fatta di nemici piazzati.
@@ -502,9 +566,12 @@ NIX = {
     "ground": "nix_ground", "ground_top_cut": False, "rock": "nix_rock",
     "station": "nix_station", "caves": False, "night": 0.75, "drizzle": False,
     "surface": gen_nix_surface, "arena": gen_arena, "pass_start": NIX_SURFACE_COLS,
-    "props": NIX_PROPS, "prop_images": NIX_PROP_IMAGES, "haze": False, "crevasses": NIX_CREVASSES,
+    "props": NIX_PROPS + [(NIX_SURFACE_COLS + c, *rest) for c, *rest in NIX_PASS_PROPS],
+    "prop_images": dict(NIX_PROP_IMAGES, pylon=("nix_pylon", 5.0)), "haze": False,
+    "crevasses": NIX_CREVASSES + tuple((NIX_SURFACE_COLS + a, NIX_SURFACE_COLS + b) for a, b in NIX_PASS_GAPS),
     "stages": NIX_STAGES, "arenas": NIX_ARENAS, "waves": NIX_WAVES, "patrols": NIX_PATROLS,
-    "surface_foes": NIX_SURFACE_FOES, "cracks": NIX_CRACKS,
-    "pass_foes": [], "cables": [], "rope_speeds": (),
+    "surface_foes": NIX_SURFACE_FOES, "cracks": NIX_CRACKS + tuple(NIX_SURFACE_COLS + c for c in NIX_PASS_CRACKS),
+    "pass_foes": NIX_PASS_FOES, "cables": NIX_CABLES, "rope_speeds": NIX_ROPE_SPEEDS,
+    "gratings": NIX_GRATINGS, "pylon": "nix_pylon",
 }
 SATELLITES = [TITAN, NIX]

@@ -66,16 +66,17 @@ def draw_portal(screen, cam, left, right, top):
     pygame.draw.line(screen, (36, 32, 28), (left - 12, top), (right + 12, top), 20)
     pygame.draw.line(screen, (108, 95, 73), (left - 12, top - 5), (right + 12, top - 5), 4)
     source = ART.get("pylon")
+    bed = ART.get("bed", BED)         # dove poggiano i piloni: il fondo del lago, o del crepaccio
     for x, flip in ((left, False), (right, True)):
         if source:
-            h = BED - top + 30            # piantate sul fondo del lago: la parte immersa non si vede
+            h = bed - top + 30            # piantate sul fondo: la parte immersa non si vede
             if h not in _pylons:
                 k = h / source.get_height()
                 img = pygame.transform.smoothscale(source, (int(source.get_width() * k), h))
                 _pylons[h] = (img, pygame.transform.flip(img, True, False))     # specchiata una volta sola
             img = _pylons[h][1 if flip else 0]
             foot = int(img.get_width() * 0.22)
-            screen.blit(img, (x + foot - img.get_width() if flip else x - foot, BED - img.get_height()))
+            screen.blit(img, (x + foot - img.get_width() if flip else x - foot, bed - img.get_height()))
         else:
             pygame.draw.line(screen, (36, 32, 28), (x, FLOOR), (x, top - 12), 18)
             pygame.draw.line(screen, (108, 95, 73), (x - 3, FLOOR), (x - 3, top - 12), 4)
