@@ -5,9 +5,31 @@ perche' il browser deve riprendere il controllo a ogni fotogramma."""
 # ///
 import asyncio
 
+import numpy
 import pygame
 
 import goblin
+import music
+
+# Nel browser l'audio di SDL non sopporta di essere chiuso e riaperto con un'altra
+# frequenza o un altro buffer (Web Audio: «buffer length mismatch», «divide by zero»).
+# Il Jukebox lo riaprirebbe a 22050 Hz: qui si tiene quello aperto da pygame e i suoni,
+# sintetizzati a 22050 Hz, si allungano a mano alla frequenza vera.
+_init = pygame.mixer.init
+pygame.mixer.quit = lambda: None
+pygame.mixer.init = lambda *a, **k: None if pygame.mixer.get_init() else _init()
+_make_sound = pygame.sndarray.make_sound
+
+
+def _make_sound_web(arr):
+    freq = pygame.mixer.get_init()[0]
+    if freq != music.SR:
+        idx = (numpy.arange(int(len(arr) * freq / music.SR)) * music.SR // freq).astype(int)
+        arr = numpy.ascontiguousarray(arr[idx])
+    return _make_sound(arr)
+
+
+pygame.sndarray.make_sound = _make_sound_web
 
 
 async def main():
