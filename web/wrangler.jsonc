@@ -1,0 +1,8 @@
+// NightKnight nel browser (13/10/2026): solo file statici, fatti da web/build.sh.
+// Pubblica: web/build.sh && cd web && npx wrangler deploy
+{
+  "name": "nightknight",
+  "compatibility_date": "2026-10-01",
+  "assets": { "directory": "./nightknight/build/web" },
+  "workers_dev": true
+}

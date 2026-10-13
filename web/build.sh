@@ -18,3 +18,4 @@ for f in glob.glob("assets/*.png"):
         os.path.join(sys.argv[1], os.path.basename(f)), optimize=True)
 PY
 .venv-web/bin/pygbag --build --title NightKnight "$OUT"
+rm -f "$OUT/build/web/nightknight.apk"   # pygbag carica il .tar.gz; il doppione supera il limite dei 25 MB per Worker
