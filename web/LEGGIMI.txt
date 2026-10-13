@@ -1,0 +1,25 @@
+NIGHTKNIGHT - un gioco di Getaweb (getaweb.it)
+Codice: https://github.com/emanueledicuonzo-maker/NightKnight (licenza MIT)
+
+COME FARLO PARTIRE
+1. Installa Python 3.12 o piu' recente da https://www.python.org/downloads/
+   (su Windows spunta "Add python.exe to PATH" durante l'installazione).
+2. Scompatta questo zip.
+3. Windows: doppio clic su avvia.bat
+   Mac e Linux: apri il Terminale nella cartella e scrivi  sh avvia.sh
+La prima volta scarica le librerie del gioco (serve internet, qualche minuto),
+poi parte subito. Si gioca a schermo intero; "sh avvia.sh --windowed"
+(o "avvia.bat --windowed") lo apre in una finestra.
+
+COMANDI
+Frecce o WASD      muoversi, salire e scendere le scale
+Spazio             salto (tieni premuto per saltare piu' in alto)
+Z                  spada (premuto a ritmo: combo di tre colpi)
+X                  sasso
+C                  calcio; in salto, calcio volante
+V                  Bianca attacca i nemici
+B                  Nova: dal 10o colono liberato spazza via tutti i nemici
+Maiusc             corsa
+E                  afferra / lascia il cavo
+Esc o P            pausa (dal menu di pausa si esce)
+M                  musica si' / no
