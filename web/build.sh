@@ -18,4 +18,13 @@ for f in glob.glob("assets/*.png"):
         os.path.join(sys.argv[1], os.path.basename(f)), optimize=True)
 PY
 .venv-web/bin/pygbag --build --title NightKnight "$OUT"
+# Il canvas sempre 16:9 a tutta finestra: pygbag ne calcola le proporzioni prima che il
+# gioco apra la sua finestra 1920x1080 e, per esempio a 1366x768, lo lascia quadrato.
+python3 - "$OUT/build/web/index.html" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+css = "#canvas{width:min(100vw,177.78vh)!important;height:min(56.25vw,100vh)!important}\n    </style>"
+s = s.replace("</style>", css, 1)
+open(p, "w").write(s)
+PY
 rm -f "$OUT/build/web/nightknight.apk"   # pygbag carica il .tar.gz; il doppione supera il limite dei 25 MB per Worker
