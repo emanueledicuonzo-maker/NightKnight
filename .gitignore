@@ -2,3 +2,5 @@
 __pycache__/
 savegame.json
 savegame.tmp
+web/nightknight/
+.venv-web/
